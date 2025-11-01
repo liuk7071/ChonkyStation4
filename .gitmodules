@@ -1,0 +1,3 @@
+[submodule "Dependencies/ELFIO"]
+	path = Dependencies/ELFIO
+	url = https://github.com/serge1/ELFIO.git

@@ -1,7 +1,19 @@
 ﻿#include <Common.hpp>
+#include <Loaders/ELF/ELFLoader.hpp>
 
 
 int main() {
     printf("ChonkyStation4\n\n");
-	return 0;
+	
+    ELFLoader loader;
+
+    try { 
+        loader.load("H:\\PS4\\BREW00083\\eboot.elf");
+    }
+    catch (std::runtime_error e) {
+        printf(e.what());
+        return -1;
+    }
+
+    return 0;
 }
