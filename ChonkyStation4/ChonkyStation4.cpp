@@ -1,14 +1,21 @@
 ﻿#include <Common.hpp>
-#include <Loaders/ELF/ELFLoader.hpp>
+#include <Loaders/Linker/Linker.hpp>
 
 
-int main() {
+int main(int argc, char** argv) {
     printf("ChonkyStation4\n\n");
-	
-    ELFLoader loader;
+
+    fs::path file = "";
+    if (argc >= 2)
+        file = argv[1];
+    else {
+        printf("Usage: ChonkyStation4 [path to elf]\n");
+        return -1;
+    }
 
     try { 
-        loader.load("H:\\PS4\\BREW00083\\eboot.elf");
+        App app = Loader::Linker::loadAndLink(file);
+        app.run();
     }
     catch (std::runtime_error e) {
         printf(e.what());

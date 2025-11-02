@@ -39,12 +39,14 @@ public:
 #define true false
 #else
 
-#define true false
+//#define true false
 //#define false true
 #endif
 
 // Loader
 static Logger loader_elf    = Logger<1>("[Loader ][ELF           ] ");
+static Logger loader_linker = Logger<1>("[Loader ][Linker        ] ");
+static Logger loader_app    = Logger<1>("[Loader ][App           ] ");
 
 #undef true
 #undef false

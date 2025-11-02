@@ -10,7 +10,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_executable(ChonkyStation4)
-target_sources(ChonkyStation4 PRIVATE "ChonkyStation4/ChonkyStation4.cpp" "ChonkyStation4/Common/Common.hpp" "ChonkyStation4/Loaders/ELF/ELFLoader.cpp" "ChonkyStation4/Loaders/ELF/ELFLoader.hpp")
+target_sources(ChonkyStation4 PRIVATE "ChonkyStation4/ChonkyStation4.cpp" "ChonkyStation4/Common/Common.hpp" "ChonkyStation4/Common/Logger.hpp" "ChonkyStation4/Loaders/ELF/ELFLoader.cpp" "ChonkyStation4/Loaders/ELF/ELFLoader.hpp" "ChonkyStation4/Loaders/Linker/Linker.cpp" "ChonkyStation4/Loaders/Linker/Linker.hpp" "ChonkyStation4/Loaders/Module.hpp" "ChonkyStation4/Loaders/App.cpp" "ChonkyStation4/Loaders/App.hpp")
 
 target_include_directories(ChonkyStation4 PUBLIC ChonkyStation4)
 target_include_directories(ChonkyStation4 PUBLIC ChonkyStation4/Common)
