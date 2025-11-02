@@ -1,8 +1,9 @@
 #pragma once
 
 #include <Common.hpp>
-#include <Loaders/App.hpp>
 
+
+class App;
 
 namespace Loader::Linker {
 

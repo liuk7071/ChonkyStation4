@@ -1,5 +1,6 @@
 ﻿#include <Common.hpp>
 #include <Loaders/Linker/Linker.hpp>
+#include <Loaders/App.hpp>
 
 
 int main(int argc, char** argv) {

@@ -16,5 +16,6 @@ target_include_directories(ChonkyStation4 PUBLIC ChonkyStation4)
 target_include_directories(ChonkyStation4 PUBLIC ChonkyStation4/Common)
 
 target_include_directories(ChonkyStation4 PUBLIC Dependencies/ELFIO)
+target_include_directories(ChonkyStation4 PUBLIC Dependencies/xbyak)
 
 set_target_properties(ChonkyStation4 PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)

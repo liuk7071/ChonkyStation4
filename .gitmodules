@@ -1,3 +1,6 @@
 [submodule "Dependencies/ELFIO"]
 	path = Dependencies/ELFIO
 	url = https://github.com/serge1/ELFIO.git
+[submodule "Dependencies/xbyak"]
+	path = Dependencies/xbyak
+	url = https://github.com/herumi/xbyak.git
