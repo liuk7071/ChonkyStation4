@@ -14,7 +14,6 @@ using namespace ELFIO;
 
 // Unresolved symbols are stubbed to call this function
 __attribute__((sysv_abi)) void unresolvedSymbol(const char* sym_name) {
-    // TODO: How do I know which symbol I am?
     printf("Linker: Called unresolved symbol %s\n", sym_name);
     exit(0);
 }
