@@ -48,6 +48,9 @@ static Logger loader_elf    = Logger<1>("[Loader ][ELF           ] ");
 static Logger loader_linker = Logger<1>("[Loader ][Linker        ] ");
 static Logger loader_app    = Logger<1>("[Loader ][App           ] ");
 
+// Libraries
+static Logger lib_kernel    = Logger<1>("[Lib    ][Kernel        ] ");
+
 #undef true
 #undef false
 

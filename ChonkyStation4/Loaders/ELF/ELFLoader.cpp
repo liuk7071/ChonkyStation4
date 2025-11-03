@@ -57,13 +57,15 @@ Module ELFLoader::load(const fs::path& path) {
 
         log("* Segment %d type %s: 0x%016llx -> 0x%016llx\n", i, type_string.c_str(), seg->get_virtual_address(), seg->get_virtual_address() + seg->get_memory_size());
         switch (seg->get_type()) {
-        case PT_LOAD: {
+        case PT_LOAD:
+        case PT_SCE_RELRO: {
             loadSegment(*seg, module);
             break;
         }
 
         case PT_DYNAMIC: {
-            module.dynamic_ptr = loadSegment(*seg, module);
+            module.dynamic_tags.resize(seg->get_file_size());
+            std::memcpy(module.dynamic_tags.data(), seg->get_data(), seg->get_file_size());
             break;
         }
 
@@ -77,19 +79,19 @@ Module ELFLoader::load(const fs::path& path) {
     }
 
     // Load dynamic linking data
-    for (Elf64_Dyn* dyn = (Elf64_Dyn*)module.dynamic_ptr; dyn->d_tag != DT_NULL; dyn++) {
+    for (Elf64_Dyn* dyn = (Elf64_Dyn*)module.dynamic_tags.data(); dyn->d_tag != DT_NULL; dyn++) {
         log("%s\n", dump::str_dynamic_tag(dyn->d_tag).c_str());
 
         switch (dyn->d_tag) {
         case DT_SCE_NEEDED_MODULE: {
-            auto& module_info = required_modules.emplace_back();
+            auto& module_info = module.required_modules.emplace_back();
             module_info.load(dyn->d_un.d_val, module.dyn_str_table);
             log("Required module %s\n", module_info.name.c_str());
             break;
         }
 
         case DT_SCE_IMPORT_LIB: {
-            auto& lib = required_libs.emplace_back();
+            auto& lib = module.required_libs.emplace_back();
             lib.load(dyn->d_un.d_val, module.dyn_str_table);
             log("Imported library %s\n", lib.name.c_str());
             break;
@@ -139,6 +141,37 @@ Module ELFLoader::load(const fs::path& path) {
         //log("* %s\n", sym_name.c_str());
     }
 
+    // Fix permissions for each segment
+    for (auto& seg : elf.segments) {
+        if (seg->get_type() != PT_LOAD && seg->get_type() != PT_SCE_RELRO) continue;
+
+#ifdef _WIN32
+        // Set permissions
+        auto get_perms = [](u32 flags) -> u64 {
+            bool r = flags & PF_R;
+            bool w = flags & PF_W;
+            bool x = flags & PF_X;
+            if (r && !w && !x) return PAGE_READONLY;
+            else if (r && w && !x) return PAGE_READWRITE;
+            else if (r && !w && x) return PAGE_EXECUTE_READ;
+            else if (r && w && x) return PAGE_EXECUTE_READWRITE;
+            else Helpers::panic("ELFLoader: invalid flags 0x%08x\n", flags);
+        };
+
+        const u8* ptr = (u8*)module.base_address + seg->get_virtual_address();
+
+        // TODO: To apply permissions properly (get_perms(seg->get_flags())) we need to apply them AFTER relocations happen.
+        //       Doing that requires restructuring some code. Stub to RWX.
+        DWORD old_flags;
+        if (!VirtualProtect((LPVOID*)ptr, seg->get_memory_size(), PAGE_EXECUTE_READWRITE, &old_flags)) {
+            Helpers::panic("ELFLoader: VirtualProtect failed\n");
+        }
+#else
+        Helpers::panic("Unsupported platform\n");
+#endif
+
+    }
+
     return module;
 }
 
@@ -152,23 +185,6 @@ void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module) {
     std::memcpy((u8*)ptr, seg.get_data(), seg.get_file_size());
     // Set the remaining memory to 0
     std::memset((u8*)ptr + seg.get_file_size(), 0, seg.get_memory_size() - seg.get_file_size());
-
-    // Set permissions
-    auto get_perms = [](u32 flags) -> u64 {
-        bool r = flags & PF_R;
-        bool w = flags & PF_W;
-        bool x = flags & PF_X;
-        if (r && !w && !x) return PAGE_READONLY;
-        else if (r && w && !x) return PAGE_READWRITE;
-        else if (r && !w && x) return PAGE_EXECUTE_READ;
-        else if (r && w && x) return PAGE_EXECUTE_READWRITE;
-        else Helpers::panic("ELFLoader: invalid flags 0x%08x\n", flags);
-    };
-
-    DWORD old_flags;
-    if (!VirtualProtect((LPVOID*)ptr, seg.get_memory_size(), get_perms(seg.get_flags()), &old_flags)) {
-        Helpers::panic("ELFLoader: VirtualProtect failed\n");
-    }
 
     return (void*)((u8*)ptr);
 #else

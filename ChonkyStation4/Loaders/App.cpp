@@ -1,7 +1,7 @@
 #include "App.hpp"
 
 
-__attribute__((sysv_abi)) void exitFunc() {
+void PS4_FUNC exitFunc() {
     printf("Called exit\n");
     exit(0);
 }

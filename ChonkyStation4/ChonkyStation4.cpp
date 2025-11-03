@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     }
 
     try { 
-        App app = Loader::Linker::loadAndLink(file);
+        App app = PS4::Loader::Linker::loadAndLink(file);
         app.run();
     }
     catch (std::runtime_error e) {

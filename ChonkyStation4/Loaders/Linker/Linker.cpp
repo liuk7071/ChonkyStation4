@@ -2,18 +2,19 @@
 #include <Logger.hpp>
 #include <Loaders/ELF/ELFLoader.hpp>
 #include <Loaders/App.hpp>
+#include <OS/HLE.hpp>
 
 #include <memory>
 
 
-namespace Loader::Linker {
+namespace PS4::Loader::Linker {
 
 MAKE_LOG_FUNCTION(log, loader_linker);
 
 using namespace ELFIO;
 
 // Unresolved symbols are stubbed to call this function
-__attribute__((sysv_abi)) void unresolvedSymbol(const char* sym_name) {
+void PS4_FUNC unresolvedSymbol(const char* sym_name) {
     printf("Linker: Called unresolved symbol %s\n", sym_name);
     exit(0);
 }
@@ -42,7 +43,9 @@ App loadAndLink(const fs::path& path) {
     // Load main executable module
     app.modules.push_back(loader.load(path));
 
-    // TODO: Load HLE modules
+    // Build HLE module
+    app.modules.push_back(PS4::OS::HLE::buildHLEModule());
+
     // TODO: Load LLE modules
     
     // Iterate over the relocation tables of all loaded modules
@@ -62,8 +65,33 @@ App loadAndLink(const fs::path& path) {
             case R_X86_64_JUMP_SLOT: {
                 auto* sym = &module.sym_table[ELF64_R_SYM(rela->r_info)];
                 const std::string sym_name = module.dyn_str_table + sym->st_name;
-                log("* Resolving symbol %s\n", sym_name.c_str());
-                *(u64*)((u8*)base + rela->r_offset) = (u64)generateTrampolineForUnresolvedSymbol(app, sym_name);
+
+                // Find library and module
+                auto tokens = Helpers::split(sym_name, "#");
+                Helpers::debugAssert(tokens.size() == 3, "Linker: invalid symbol %s\n", sym_name.c_str());
+                auto* lib = module.findLibrary(tokens[1]);
+                auto* mod = module.findModule(tokens[2]);
+                Helpers::debugAssert(lib, "Linker: could not find library for symbol %s\n", sym_name.c_str());
+                Helpers::debugAssert(mod, "Linker: could not find module for symbol %s\n", sym_name.c_str());
+
+                // Iterate over the list of exported symbols in the app to try to find it
+                void* ptr = nullptr;
+                for (auto& m : app.modules) {
+                    Symbol* exported_sym = m.findSymbolExport(tokens[0], lib->name, mod->name);
+                    if (exported_sym) {
+                        log("* Resolved symbol %s as %s (%s)\n", sym_name.c_str(), exported_sym->name.c_str(), exported_sym->lib.c_str());
+                        ptr = exported_sym->ptr;
+                        break;
+                    }
+                }
+
+                // If we couldn't resolve the symbol, make it point to the unresolved symbol handler
+                if (!ptr) {
+                    log("* Could not resolve symbol %s (%s)\n", sym_name.c_str(), lib->name.c_str());
+                    ptr = generateTrampolineForUnresolvedSymbol(app, sym_name);
+                }
+
+                *(u64*)((u8*)base + rela->r_offset) = (u64)ptr;
                 break;
             }
 
@@ -78,6 +106,9 @@ App loadAndLink(const fs::path& path) {
         relocate(app, module, module.reloc_table, module.reloc_table_size);
         relocate(app, module, module.jmp_reloc_table, module.jmp_reloc_table_size);
     }
+
+    log("App has %d unresolved symbols\n", app.unresolved_symbols.size());
+    log("App linked successfully\n");
 
     return app;
 }

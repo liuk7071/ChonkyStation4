@@ -4,3 +4,6 @@
 [submodule "Dependencies/xbyak"]
 	path = Dependencies/xbyak
 	url = https://github.com/herumi/xbyak.git
+[submodule "Dependencies/pthread-win32"]
+	path = Dependencies/pthread-win32
+	url = https://github.com/GerHobbelt/pthread-win32.git

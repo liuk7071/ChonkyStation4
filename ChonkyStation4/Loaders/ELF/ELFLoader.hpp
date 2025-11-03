@@ -36,27 +36,6 @@ public:
         } d_un;
     } Elf64_Dyn;
 
-    struct ModuleInfo {
-        void load(u64 val, char* str_table_ptr) {
-            u32 str_table_offs = (val & 0xffffffff);
-            name = str_table_ptr + str_table_offs;
-        }
-
-        std::string name;
-    };
-
-    struct LibraryInfo {
-        void load(u64 val, char* str_table_ptr) {
-            u32 str_table_offs = (val & 0xffffffff);
-            name = str_table_ptr + str_table_offs;
-        }
-
-        std::string name;
-    };
-
-    std::vector<ModuleInfo> required_modules;
-    std::vector<LibraryInfo> required_libs;
-
     static inline std::unordered_map<u64, std::string> segment_type_string = {
         { ELFIO::PT_LOAD,    "PT_LOAD           " },
         { ELFIO::PT_TLS,     "PT_TLS            " },

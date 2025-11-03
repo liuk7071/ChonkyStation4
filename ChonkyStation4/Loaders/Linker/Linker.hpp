@@ -5,7 +5,7 @@
 
 class App;
 
-namespace Loader::Linker {
+namespace PS4::Loader::Linker {
 
     App loadAndLink(const fs::path& path);
 
