@@ -4,6 +4,8 @@
 #include <OS/Libraries/kernel/pthread/pthread.hpp>
 #include <OS/Libraries/kernel/pthread/mutex.hpp>
 #include <OS/Libraries/kernel/pthread/cond.hpp>
+#include <chrono>
+#include <thread>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -20,6 +22,8 @@ void init(Module& module) {
     module.addSymbolExport("0-KXaS70xy4", "pthread_getspecific", "libkernel", "libkernel", (void*)&kernel_pthread_getspecific);
     module.addSymbolExport("WrOLvHU0yQM", "pthread_setspecific", "libkernel", "libkernel", (void*)&kernel_pthread_setspecific);
     module.addSymbolExport("mqULNdimTn0", "pthread_key_create", "libkernel", "libkernel", (void*)&kernel_pthread_key_create);
+    module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
+    module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
 }
 
 static thread_local s32 posix_errno = 0;
@@ -29,9 +33,30 @@ s32* PS4_FUNC ___error() {
 }
 
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs) {
-    log("kernel_mmap(addr=%p, len=0x%llx, prot=0x%x, flags=0x%x, fd=%d, offs=0x%llx)\n", addr, len, prot, flags, fd, offs);
+    log("mmap(addr=%p, len=0x%llx, prot=0x%x, flags=0x%x, fd=%d, offs=0x%llx)\n", addr, len, prot, flags, fd, offs);
     // TODO: This is stubbed as malloc for now
     return std::malloc(len);
+}
+
+size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt) {
+    log("_writev(fd=%d, iov=%p, iovcnt=%d)\n", fd, iov, iovcnt);
+    
+    size_t written = 0;
+    for (int i = 0; i < iovcnt; i++) {
+        char* ptr = nullptr;
+        for (ptr = (char*)iov[i].iov_base; ptr < (char*)iov[i].iov_base + iov[i].iov_len; ptr++)
+            std::putc(*ptr, stdout);
+
+        std::putc('\n', stdout);
+        written += iov[i].iov_len;
+    }
+    
+    return written;
+}
+
+s32 PS4_FUNC sceKernelUsleep(u32 us) {
+    std::this_thread::sleep_for(std::chrono::microseconds(us));
+    return 0;
 }
 
 }
