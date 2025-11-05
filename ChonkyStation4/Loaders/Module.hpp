@@ -54,6 +54,8 @@ public:
     std::vector<ModuleInfo> required_modules;
     std::vector<LibraryInfo> required_libs;
     std::vector<Symbol> exported_symbols;
+    u64 tls_vaddr = 0;
+    u64 tls_size = 0;
 
     ModuleInfo* findModule(const std::string& id) {
         for (auto& module : required_modules) {

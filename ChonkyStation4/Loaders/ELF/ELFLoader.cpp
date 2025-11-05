@@ -1,4 +1,5 @@
 #include "ELFLoader.hpp"
+#include "CodePatcher.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -73,6 +74,13 @@ Module ELFLoader::load(const fs::path& path) {
         case PT_SCE_DYNLIBDATA: {
             module.dynamic_data.resize(seg->get_file_size());
             std::memcpy(module.dynamic_data.data(), seg->get_data(), seg->get_file_size());
+            break;
+        }
+
+        // TLS info
+        case PT_TLS: {
+            module.tls_vaddr = seg->get_virtual_address() + (u64)module.base_address;
+            module.tls_size = seg->get_file_size();
             break;
         }
         }
@@ -185,9 +193,13 @@ void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module) {
     std::memcpy((u8*)ptr, seg.get_data(), seg.get_file_size());
     // Set the remaining memory to 0
     std::memset((u8*)ptr + seg.get_file_size(), 0, seg.get_memory_size() - seg.get_file_size());
-
-    return (void*)((u8*)ptr);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
+
+    // Apply patches if the segment is executable
+    const bool x = seg.get_flags() & PF_X;
+    if (x) PS4::Loader::ELF::patchCode(module, (u8*)ptr, size);
+
+    return (void*)((u8*)ptr);
 }

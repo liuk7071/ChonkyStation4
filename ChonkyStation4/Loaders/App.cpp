@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include <OS/Thread.hpp>
 
 
 void PS4_FUNC exitFunc() {
@@ -43,5 +44,16 @@ void jumpToEntry(void* entry) {
 
 void App::run() {
     log("Running app\n");
-    jumpToEntry(modules[0].entry);
+    Helpers::debugAssert(modules.size(), "App::run: no modules loaded\n");
+
+    // Create main thread
+    auto main_thread = PS4::OS::Thread::createThread("main", jumpToEntry, modules[0].entry);
+    PS4::OS::Thread::joinThread(main_thread);
+}
+
+std::pair<u8*, size_t> App::getTLSImage() {
+    // For now return TLS image of the first module.
+    // Later we need to combine TLS images of all modules and handle TLS relocations.
+    Helpers::debugAssert(modules.size(), "App::getTLSImage: no modules loaded\n");
+    return { (u8*)modules[0].tls_vaddr, (size_t)modules[0].tls_size };
 }
