@@ -1,4 +1,6 @@
 #include "HLE.hpp"
+#include <OS/Libraries/Kernel/kernel.hpp>
+#include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
 
 
 namespace PS4::OS::HLE {
@@ -8,6 +10,7 @@ namespace PS4::OS::HLE {
         Module module;
 
         PS4::OS::Libs::Kernel::init(module);
+        PS4::OS::Libs::SceVideoOut::init(module);
     
         return module;
     }

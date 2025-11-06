@@ -62,7 +62,10 @@ App loadAndLink(const fs::path& path) {
                 break;
             }
 
+            case R_X86_64_64:
             case R_X86_64_JUMP_SLOT: {
+                auto addend = rela->r_addend;
+                if (type != R_X86_64_64) addend = 0;
                 auto* sym = &module.sym_table[ELF64_R_SYM(rela->r_info)];
                 const std::string sym_name = module.dyn_str_table + sym->st_name;
 
@@ -91,7 +94,7 @@ App loadAndLink(const fs::path& path) {
                     ptr = generateTrampolineForUnresolvedSymbol(app, sym_name);
                 }
 
-                *(u64*)((u8*)base + rela->r_offset) = (u64)ptr;
+                *(u64*)((u8*)base + rela->r_offset) = (u64)ptr + addend;
                 break;
             }
 

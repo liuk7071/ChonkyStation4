@@ -49,7 +49,8 @@ static Logger loader_linker = Logger<1>("[Loader ][Linker        ] ");
 static Logger loader_app    = Logger<1>("[Loader ][App           ] ");
 
 // Libraries
-static Logger lib_kernel    = Logger<1>("[Lib    ][Kernel        ] ");
+static Logger lib_kernel        = Logger<1>("[Lib    ][Kernel        ] ");
+static Logger lib_sceVideoOut   = Logger<1>("[Lib    ][SceVideoOut   ] ");
 
 #undef true
 #undef false

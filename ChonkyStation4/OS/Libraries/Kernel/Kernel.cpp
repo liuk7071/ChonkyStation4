@@ -23,7 +23,9 @@ void init(Module& module) {
     module.addSymbolExport("WrOLvHU0yQM", "pthread_setspecific", "libkernel", "libkernel", (void*)&kernel_pthread_setspecific);
     module.addSymbolExport("mqULNdimTn0", "pthread_key_create", "libkernel", "libkernel", (void*)&kernel_pthread_key_create);
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
+    module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
+    module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
 }
 
 static thread_local s32 posix_errno = 0;
@@ -47,16 +49,29 @@ size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt) {
         for (ptr = (char*)iov[i].iov_base; ptr < (char*)iov[i].iov_base + iov[i].iov_len; ptr++)
             std::putc(*ptr, stdout);
 
-        std::putc('\n', stdout);
+        //std::putc('\n', stdout);
         written += iov[i].iov_len;
     }
     
     return written;
 }
 
+size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size) {
+    log("_write(fd=%d, buf=%p, size=%d)\n", fd, buf, size);
+
+    for (char* ptr = (char*)buf; ptr < (char*)buf + size; ptr++)
+        std::putc(*ptr, stdout);
+    return size;
+}
+
 s32 PS4_FUNC sceKernelUsleep(u32 us) {
     std::this_thread::sleep_for(std::chrono::microseconds(us));
-    return 0;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelIsNeoMode() {
+    log("sceKernelIsNeoMode()\n");
+    return false;
 }
 
 }

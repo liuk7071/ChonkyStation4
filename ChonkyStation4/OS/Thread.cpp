@@ -3,6 +3,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#include <thread>
 
 
 extern "C" unsigned long _tls_index;
@@ -57,8 +58,11 @@ void joinThread(Thread& thread) {
 
 void* threadStart(Thread* thread) {
     // Initialize TLS
+    // I made a simple TLS test and for some reason thread_local variables seem to start 0x10 bytes earlier than the reported TLS address?
+    // Not sure what's happening but I just allocate 0x10 bytes extra to be safe
     auto [tls_image_ptr, tls_image_size] = g_app.getTLSImage();
-    guest_tls_ptr = std::malloc(tls_image_size);
+    guest_tls_ptr = (u8*)std::malloc(tls_image_size + 0x10) + 0x10;
+    std::memset((u8*)guest_tls_ptr - 0x10, 0, 0x10);
     std::memcpy(guest_tls_ptr, tls_image_ptr, tls_image_size);
 
     // Call entry function

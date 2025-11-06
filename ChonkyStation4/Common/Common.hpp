@@ -48,13 +48,17 @@ namespace fs = std::filesystem;
 
 #define PS4_FUNC __attribute__((sysv_abi))
 
+static constexpr s32 SCE_OK = 0;
+
 namespace Helpers {
 template <class... Args>
 [[noreturn]] static void panic(const char* fmt, Args&&... args) {
     std::string error;
     error.resize(512_KB);
     std::sprintf(error.data(), fmt, args...);
-    throw std::runtime_error(error);
+    //throw std::runtime_error(error);
+    printf(error.c_str());
+    exit(0);
 }
 
 template <class... Args>

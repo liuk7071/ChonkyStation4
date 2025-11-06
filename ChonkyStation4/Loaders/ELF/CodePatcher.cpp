@@ -22,7 +22,6 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
     using namespace Xbyak::util;
     
     log("Patching code at %p size %llu\n", code_ptr, size);
-    log("_tls_index: %d\n", _tls_index);
 
     auto zydis_to_xbyak = [](const ZydisRegister r) -> Xbyak::Reg {
         if (r >= ZYDIS_REGISTER_EAX && r <= ZYDIS_REGISTER_R15D)
@@ -81,7 +80,7 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 Helpers::panic("Unsupported platform\n");
 #endif
                 auto code = std::make_unique<Xbyak::CodeGenerator>(128, patch_code_ptr);
-                log("Allocated patch at %p\n", patch_code_ptr);
+                //log("Allocated patch at %p\n", patch_code_ptr);
 
                 // This code puts [(gs:[0x58] + _tls_index * 8) + guest_tls_ptr_offs] in the dest register
                 // without altering any state other than the dest register.

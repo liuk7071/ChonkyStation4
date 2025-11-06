@@ -17,6 +17,8 @@ struct KernelIovec {
 s32* PS4_FUNC ___error();
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt);
+size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
+s32 PS4_FUNC sceKernelIsNeoMode();
 
 }   // End namespace PS4::OS::Libs::Kernel
