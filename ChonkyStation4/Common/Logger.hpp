@@ -50,6 +50,7 @@ static Logger loader_app    = Logger<1>("[Loader ][App           ] ");
 
 // Libraries
 static Logger lib_kernel        = Logger<1>("[Lib    ][Kernel        ] ");
+static Logger lib_kernel_equeue = Logger<1>("[Lib    ][KernelEqueue  ] ");
 static Logger lib_sceVideoOut   = Logger<1>("[Lib    ][SceVideoOut   ] ");
 
 #undef true

@@ -1,9 +1,10 @@
 #include "Kernel.hpp"
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
-#include <OS/Libraries/kernel/pthread/pthread.hpp>
-#include <OS/Libraries/kernel/pthread/mutex.hpp>
-#include <OS/Libraries/kernel/pthread/cond.hpp>
+#include <OS/Libraries/Kernel/pthread/pthread.hpp>
+#include <OS/Libraries/Kernel/pthread/mutex.hpp>
+#include <OS/Libraries/Kernel/pthread/cond.hpp>
+#include <OS/Libraries/Kernel/Equeue.hpp>
 #include <chrono>
 #include <thread>
 
@@ -26,6 +27,12 @@ void init(Module& module) {
     module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
+
+    module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
+    module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
+    
+    module.addSymbolExport("B+vc2AO2Zrc", "sceKernelAllocateMainDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateMainDirectMemory);
+    module.addSymbolExport("L-Q3LEjIbgA", "sceKernelMapDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapDirectMemory);
 }
 
 static thread_local s32 posix_errno = 0;
@@ -41,7 +48,11 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
 }
 
 size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt) {
-    log("_writev(fd=%d, iov=%p, iovcnt=%d)\n", fd, iov, iovcnt);
+    //log("_writev(fd=%d, iov=%p, iovcnt=%d)\n", fd, iov, iovcnt);
+
+    if (fd != 0 && fd != 1) {
+        Helpers::panic("_writev: fd is not stdin or stdout (TODO)\n");
+    }
     
     size_t written = 0;
     for (int i = 0; i < iovcnt; i++) {
@@ -57,7 +68,11 @@ size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt) {
 }
 
 size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size) {
-    log("_write(fd=%d, buf=%p, size=%d)\n", fd, buf, size);
+    //log("_write(fd=%d, buf=%p, size=%d)\n", fd, buf, size);
+
+    if (fd != 0 && fd != 1) {
+        Helpers::panic("_write: fd is not stdin or stdout (TODO)\n");
+    }
 
     for (char* ptr = (char*)buf; ptr < (char*)buf + size; ptr++)
         std::putc(*ptr, stdout);
@@ -72,6 +87,33 @@ s32 PS4_FUNC sceKernelUsleep(u32 us) {
 s32 PS4_FUNC sceKernelIsNeoMode() {
     log("sceKernelIsNeoMode()\n");
     return false;
+}
+
+s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
+    log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
+
+    // TODO: For now we allocate memory directly in the map function
+    //       Eventually I will need to handle the physical memory map properly...
+    *out_addr = (void*)0x12345678;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align) {
+    log("sceKernelMapDirectMemory(addr=*%p, len=%lld, prot=%d, flags=%d, dmem_start=0x%016llx, align=%lld)\n", addr, len, prot, flags, dmem_start, align);
+
+    void* in_addr = *addr;
+    if (in_addr) {
+        Helpers::panic("TODO: sceKernelMapDirectMemory with non-zero input addr\n");
+    }
+
+    // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
+#ifdef _WIN32
+    *addr = _aligned_malloc(len, align);
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
+
+    return SCE_OK;
 }
 
 }
