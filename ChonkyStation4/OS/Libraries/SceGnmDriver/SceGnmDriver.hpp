@@ -1,0 +1,20 @@
+#pragma once
+
+#include <Common.hpp>
+
+
+class Module;
+
+namespace PS4::OS::Libs::SceGnmDriver {
+
+void init(Module& module);
+
+s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size);
+s32 PS4_FUNC sceGnmSetEmbeddedVsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier);
+s32 PS4_FUNC sceGnmSetEmbeddedPsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier);
+s32 PS4_FUNC sceGnmDrawIndexAuto(u32* buf, u32 size, u32 cnt, u32 flags);
+s32 PS4_FUNC sceGnmDrawIndexOffset(u32* buf, u32 size, u32 start, u32 cnt, u32 flags);
+s32 PS4_FUNC sceGnmSetVsShader(u32* buf, u32 size, const u32* vs_regs, u32 shader_modifier);
+s32 PS4_FUNC sceGnmSetPsShader350(u32* buf, u32 size, const u32* ps_regs);
+
+}   // End namespace PS4::OS::Libs::SceGnmDriver
