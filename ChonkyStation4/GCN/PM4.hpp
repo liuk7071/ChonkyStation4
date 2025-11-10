@@ -1,11 +1,22 @@
 #pragma once
 
 #include <Common.hpp>
+#include <BitField.hpp>
 
 
 #define PM4_HEADER_BUILD(op, len) (((u32)((((u16)(len) - 2) << 16) | 0xC0000000)) | ((u8)(op)) << 8)
 
 namespace PS4::GCN {
+
+union PM4Header {
+    u32 raw;
+    // Type 3 packet. Unsure if I need the others
+    BitField<0, 1, u32> predicate;
+    BitField<1, 1, u32> shader_type;
+    BitField<8, 8, u32> opcode;
+    BitField<16, 14, u32> count;
+    BitField<30, 2, u32> type;
+};
 
 enum class PM4ItOpcode : u32 {
     Nop = 0x10,

@@ -2,6 +2,7 @@
 #include <Loaders/Linker/Linker.hpp>
 #include <Loaders/App.hpp>
 #include <OS/Thread.hpp>
+#include <GCN/GCN.hpp>
 
 
 App g_app;
@@ -19,6 +20,7 @@ int main(int argc, char** argv) {
 
     try {
         PS4::OS::Thread::init();
+        PS4::GCN::initVulkan();
         g_app = PS4::Loader::Linker::loadAndLink(file);
         g_app.run();
     }

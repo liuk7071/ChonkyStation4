@@ -44,15 +44,20 @@ public:
 #endif
 
 // Loader
-static Logger loader_elf    = Logger<1>("[Loader ][ELF           ] ");
-static Logger loader_linker = Logger<1>("[Loader ][Linker        ] ");
-static Logger loader_app    = Logger<1>("[Loader ][App           ] ");
+static Logger loader_elf            = Logger<1>("[Loader ][ELF           ] ");
+static Logger loader_linker         = Logger<1>("[Loader ][Linker        ] ");
+static Logger loader_app            = Logger<1>("[Loader ][App           ] ");
 
 // Libraries
-static Logger lib_kernel        = Logger<1>("[Lib    ][Kernel        ] ");
-static Logger lib_kernel_equeue = Logger<1>("[Lib    ][KernelEqueue  ] ");
-static Logger lib_sceVideoOut   = Logger<1>("[Lib    ][SceVideoOut   ] ");
-static Logger lib_sceGnmDriver  = Logger<1>("[Lib    ][SceGnmDriver  ] ");
+static Logger lib_kernel            = Logger<1>("[Lib    ][Kernel        ] ");
+static Logger lib_kernel_equeue     = Logger<1>("[Lib    ][KernelEqueue  ] ");
+static Logger lib_sceVideoOut       = Logger<1>("[Lib    ][SceVideoOut   ] ");
+static Logger lib_sceGnmDriver      = Logger<1>("[Lib    ][SceGnmDriver  ] ");
+
+// GCN
+static Logger gcn_command_processor = Logger<1>("[GCN    ][Command       ] ");
+static Logger gcn_fetch_shader      = Logger<1>("[GCN    ][Fetch Shader  ] ");
+static Logger gcn_vulkan_renderer   = Logger<1>("[GCN    ][VulkanRenderer] ");
 
 #undef true
 #undef false

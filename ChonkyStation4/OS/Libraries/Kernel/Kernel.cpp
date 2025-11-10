@@ -113,6 +113,7 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     Helpers::panic("Unsupported platform\n");
 #endif
 
+    log("Allocated at %p\n", *addr);
     return SCE_OK;
 }
 
