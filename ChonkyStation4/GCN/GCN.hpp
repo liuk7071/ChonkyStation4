@@ -11,6 +11,7 @@ inline std::unique_ptr<Renderer> renderer;
 
 inline void initVulkan() {
     renderer = std::make_unique<VulkanRenderer>();
+    renderer->init();
 }
 
 }   // End namespace PS4::GCN

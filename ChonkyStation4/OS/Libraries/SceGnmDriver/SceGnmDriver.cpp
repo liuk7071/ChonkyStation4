@@ -27,6 +27,7 @@ s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32
     for (int i = 0; i < cnt; i++)
         GCN::processCommands(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
 
+    GCN::renderer->flip();
     return SCE_OK;
 }
 
@@ -45,16 +46,34 @@ s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size) {
 s32 PS4_FUNC sceGnmSetEmbeddedVsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier) {
     log("sceGnmSetEmbeddedVsShader(buf=%p, size=0x%x, shader_id=%d, shader_modifier=0x%x) TODO\n", buf, size, shader_id, shader_modifier);
 
+    // TODO: This is stubbed for now. I just set the shader pointers to null
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x48;
+    *buf++ = 0;
+    *buf++ = 0;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x49;
+    *buf++ = 0;
+    *buf++ = 0;
     // Write a long NOP
-    *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size - 8);
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceGnmSetEmbeddedPsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier) {
     log("sceGnmSetEmbeddedPsShader(buf=%p, size=0x%x, shader_id=%d, shader_modifier=0x%x) TODO\n", buf, size, shader_id, shader_modifier);
 
+    // TODO: This is stubbed for now. I just set the shader pointers to null
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x48;
+    *buf++ = 0;
+    *buf++ = 0;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x49;
+    *buf++ = 0;
+    *buf++ = 0;
     // Write a long NOP
-    *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size - 8);
     return SCE_OK;
 }
 

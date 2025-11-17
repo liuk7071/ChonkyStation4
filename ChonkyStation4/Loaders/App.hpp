@@ -13,6 +13,7 @@ class App {
 public:
     App() {}
 
+    std::string name;
     std::vector<Module> modules;
     std::deque<std::string> unresolved_symbols;
     std::vector<std::unique_ptr<Xbyak::CodeGenerator>> unresolved_symbol_handlers;

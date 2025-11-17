@@ -1,6 +1,7 @@
 #include "Thread.hpp"
 #include <Loaders/App.hpp>
 #ifdef _WIN32
+#define NOMINMAX
 #include <windows.h>
 #endif
 #include <thread>

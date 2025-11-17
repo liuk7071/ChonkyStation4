@@ -3,6 +3,7 @@
 #include <Common.hpp>
 #include <GCN/RegisterOffsets.hpp>
 #include <GCN/FetchShader.hpp>
+#include <SDL.h>
 
 
 namespace PS4::GCN {
@@ -13,8 +14,11 @@ public:
         std::memset(regs, 0, 0xd000);
     }
 
+    SDL_Window* window;
+
     virtual void init() = 0;
-    virtual void draw() = 0;
+    virtual void draw(u64 cnt) = 0;
+    virtual void flip() = 0;
 
     u32 regs[0xd000];
     

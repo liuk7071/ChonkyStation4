@@ -7,6 +7,10 @@
 #include <OS/Libraries/Kernel/Equeue.hpp>
 #include <chrono>
 #include <thread>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -37,6 +41,57 @@ void init(Module& module) {
 
 static thread_local s32 posix_errno = 0;
 
+#ifdef _WIN32
+static void* VirtualAllocAlignedBelow(size_t size, size_t alignment, uptr maxAddress) {
+    if ((alignment & (alignment - 1)) != 0) return NULL;
+
+    SYSTEM_INFO si; GetSystemInfo(&si);
+    size_t gran = si.dwAllocationGranularity;
+    size_t reserveSize = size + alignment;
+
+    MEMORY_BASIC_INFORMATION mbi;
+    uptr addr = maxAddress ? maxAddress - 1 : 0;
+
+    while (addr > 0) {
+        if (!VirtualQuery((void*)addr, &mbi, sizeof(mbi))) break;
+
+        if (mbi.State == MEM_FREE) {
+            uptr base = (uptr)mbi.BaseAddress;
+            uptr end  = base + mbi.RegionSize;
+            if (end > maxAddress) end = maxAddress;
+
+            if (base + reserveSize <= end) {
+                uptr tryBase = end - reserveSize;
+
+                void* reserve = VirtualAlloc((void*)tryBase, reserveSize, MEM_RESERVE, PAGE_READWRITE);
+                if (reserve) {
+                    uptr rbase = (uptr)reserve;
+                    uptr aligned = (rbase + (alignment - 1)) & ~(alignment - 1);
+
+                    void* commit = VirtualAlloc((void*)aligned, size, MEM_COMMIT, PAGE_READWRITE);
+                    if (!commit) { VirtualFree(reserve, 0, MEM_RELEASE); return NULL; }
+
+                    if (aligned > rbase)
+                        VirtualFree((void*)rbase, aligned - rbase, MEM_RELEASE);
+
+                    uptr endAligned = aligned + size;
+                    uptr endReserve = rbase + reserveSize;
+                    if (endAligned < endReserve)
+                        VirtualFree((void*)endAligned, endReserve - endAligned, MEM_RELEASE);
+
+                    return commit;
+                }
+            }
+        }
+
+        if ((uptr)mbi.BaseAddress <= gran) break;
+        addr = (uptr)mbi.BaseAddress - gran;
+    }
+
+    return NULL;
+}
+#endif
+
 s32* PS4_FUNC ___error() {
     return &posix_errno;
 }
@@ -60,7 +115,6 @@ size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt) {
         for (ptr = (char*)iov[i].iov_base; ptr < (char*)iov[i].iov_base + iov[i].iov_len; ptr++)
             std::putc(*ptr, stdout);
 
-        //std::putc('\n', stdout);
         written += iov[i].iov_len;
     }
     
@@ -108,7 +162,7 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
-    *addr = _aligned_malloc(len, align);
+    *addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif

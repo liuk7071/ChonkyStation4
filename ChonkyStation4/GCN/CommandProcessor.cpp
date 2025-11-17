@@ -24,7 +24,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
 
         case PM4ItOpcode::DrawIndexAuto: {
-            renderer->draw();
+            const u32 cnt = *args++;
+            renderer->draw(cnt);
             break;
         }
         

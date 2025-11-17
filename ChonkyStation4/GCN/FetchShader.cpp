@@ -17,7 +17,7 @@ FetchShader::FetchShader(const u8* data) {
     // The instructions we care about are the LOAD_DWORD and BUFFER_LOAD_FORMAT_* instructions.
     // LOAD_DWORD instructions tell us the address of the V# in memory. V# are vertex attribute descriptors.
     // Example: S_LOAD_DWORDX4 s[4:7], s[2:3], 0x04
-    // s[2:3] is the base address, while 0x04 is an offset in DWORDs. So the final address is, in this case, s[2:3] + 4 * sizeof(u64)
+    // s[2:3] is the base address, while 0x04 is an offset in DWORDs. So the final address is, in this case, s[2:3] + 4 * sizeof(u32)
     //
     // BUFFER_LOAD_FORMAT_* instructions tell us what VGPRs to bind the attribute to, as well as additional offsets inside the buffer.
     // Example: BUFFER_LOAD_FORMAT_XYZW v[4:7], v0, s[4:7], 0, [0] IDXEN
@@ -38,11 +38,12 @@ FetchShader::FetchShader(const u8* data) {
 
         if (instr.inst_class == Shader::InstClass::ScalarMemRd) {
             const auto sgpr_pair = instr.src[0].code * 2;
+            const auto dest_pair = instr.dst[0].code;
             //VSharp* vsharp_ptr;
             //std::memcpy(&vsharp_ptr, &renderer->regs[Reg::mmSPI_SHADER_USER_DATA_VS_0], sizeof(VSharp*));
             //vsharp_ptr = (VSharp*)((u64*)vsharp_ptr + instr.control.smrd.offset);  // The immediate is an offset in dwords
-            vsharps[sgpr_pair] = { sgpr_pair, instr.control.smrd.offset };
-            log("Loaded V# in SGPR pair %d\n", sgpr_pair);
+            vsharps[dest_pair] = { sgpr_pair, instr.control.smrd.offset };
+            log("Loaded V# in SGPR pair %d\n", dest_pair);
             continue;
         }
 
@@ -51,8 +52,9 @@ FetchShader::FetchShader(const u8* data) {
             binding.vsharp_loc = vsharps[instr.src[2].code * 4];
             binding.dest_vgpr = instr.src[1].code;
             binding.n_elements = instr.control.mubuf.count;
-            binding.soffs = instr.src[3].code;
+            binding.soffs = instr.src[3].code;  // TODO: This is wrong, but I'm just ignoring soffs for now
             binding.voffs = instr.src[0].code;  // TODO: Verify this, but I'm pretty sure
+            binding.inst_offs = instr.control.mtbuf.offset;
             log("Binding for VGPR %d: %d elements\n", binding.dest_vgpr, binding.n_elements);
             continue;
         }

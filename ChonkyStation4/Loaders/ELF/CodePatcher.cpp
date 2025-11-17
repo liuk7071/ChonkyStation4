@@ -91,7 +91,7 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 code->mov(dest, ptr[dest]);                             // Get host TLS pointer
                 code->add(dest, PS4::OS::Thread::guest_tls_ptr_offs);   // Add the offset of the guest TLS variable within the host TLS
                 code->mov(dest, ptr[dest]);                             // Load guest TLS pointer
-                code->jmp(instr_addr + instruction.length);                   // Jump back to the next instruction
+                code->jmp(instr_addr + instruction.length);             // Jump back to the next instruction
 
                 // Patch instruction to jmp to our code
                 code = std::make_unique<Xbyak::CodeGenerator>(instruction.length, instr_addr);

@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include <PlayStation4.hpp>
 #include <OS/Thread.hpp>
 
 
@@ -14,7 +15,9 @@ struct Params {
     void* entry;
 };
 
-void jumpToEntry(void* entry) {
+void initAndJumpToEntry(void* entry) {
+    PS4::init();
+
     // Dummy arguments
     Params params;
     params.argc = 0;
@@ -38,7 +41,7 @@ void jumpToEntry(void* entry) {
     )"
     :
     : "r"(entry), "r"((u64)params.argc), "r"(params.argv[0]), "r"(&params), "r"(exitFunc)
-    :    
+    : "rax", "rsi", "rdi"
     );
 }
 
@@ -47,7 +50,7 @@ void App::run() {
     Helpers::debugAssert(modules.size(), "App::run: no modules loaded\n");
 
     // Create main thread
-    auto main_thread = PS4::OS::Thread::createThread("main", jumpToEntry, modules[0].entry);
+    auto main_thread = PS4::OS::Thread::createThread("main", initAndJumpToEntry, modules[0].entry);
     PS4::OS::Thread::joinThread(main_thread);
 }
 

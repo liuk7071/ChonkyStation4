@@ -1,11 +1,6 @@
 ﻿#include <Common.hpp>
-#include <Loaders/Linker/Linker.hpp>
-#include <Loaders/App.hpp>
-#include <OS/Thread.hpp>
-#include <GCN/GCN.hpp>
+#include <PlayStation4.hpp>
 
-
-App g_app;
 
 int main(int argc, char** argv) {
     printf("ChonkyStation4\n\n");
@@ -18,16 +13,6 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    try {
-        PS4::OS::Thread::init();
-        PS4::GCN::initVulkan();
-        g_app = PS4::Loader::Linker::loadAndLink(file);
-        g_app.run();
-    }
-    catch (std::runtime_error e) {
-        printf(e.what());
-        return -1;
-    }
-
+    PS4::loadAndRun(file);
     return 0;
 }
