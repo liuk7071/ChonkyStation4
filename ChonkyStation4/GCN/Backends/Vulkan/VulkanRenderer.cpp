@@ -6,6 +6,7 @@
 #include <Loaders/App.hpp>
 #include <GCN/Backends/Vulkan/GLSLCompiler.hpp>
 #include <GCN/VSharp.hpp>
+#include <GCN/Shader/ShaderDecompiler.hpp>
 #include <SDL_vulkan.h>
 
 
@@ -108,34 +109,6 @@ void VulkanRenderer::transitionImageLayout(u32 img_idx, vk::ImageLayout old_layo
     };
     cmd_bufs[0].pipelineBarrier2(dependency_info);
 }
-
-
-const char* vert_shader_source = R"(
-#version 450
-
-layout(location = 4) in vec2 inPosition;
-layout(location = 8) in vec3 inColor;
-
-layout(location = 0) out vec3 fragColor;
-
-void main() {
-    gl_Position = vec4(inPosition, 0.0, 1.0);
-    gl_Position.y *= -1;
-    fragColor = inColor;
-}
-)";
-
-const char* frag_shader_source = R"(
-#version 450
-
-layout(location = 0) in vec3 fragColor;
-
-layout(location = 0) out vec4 outColor;
-
-void main() {
-    outColor = vec4(fragColor, 1.0);
-}
-)";
 
 void VulkanRenderer::advanceSwapchain() {
     auto [result, image_idx] = swapchain.acquireNextImage(UINT64_MAX, *present_sema, nullptr);
@@ -359,6 +332,15 @@ void VulkanRenderer::init() {
     log("Vulkan initialized successfully\n");
 }
 
+vk::Format getVtxBufferFormat(u32 n_elements, u32 type) {
+    // TODO: for now type is ignored
+    switch (n_elements) {
+    case 3:     return vk::Format::eR32G32B32Sfloat;
+    case 4:     return vk::Format::eR32G32B32A32Sfloat;
+    default:    Helpers::panic("Vulkan: getVtxBuffeFormat unhandled n_elements=%d\n", n_elements);
+    }
+}
+
 void VulkanRenderer::draw(u64 cnt) {
     const auto* vs_ptr = getVSPtr();
     const auto* ps_ptr = getPSPtr();
@@ -381,15 +363,14 @@ void VulkanRenderer::draw(u64 cnt) {
     u32 n_binding = 0;
     for (auto& shader_binding : fetch_shader.bindings) {
         // Get pointer to the V#
-        std::memcpy(&vsharp, &regs[Reg::mmSPI_SHADER_USER_DATA_VS_0 + shader_binding.vsharp_loc.sgpr], sizeof(VSharp*));
-        vsharp = (VSharp*)((u32*)vsharp + shader_binding.vsharp_loc.offs);  // The immediate is an offset in dwords
+        vsharp = shader_binding.vsharp_loc.asPtr();
 
         auto& binding = bindings.emplace_back();
         auto& attrib  = attribs.emplace_back();
         auto& buf     = vtx_bufs.emplace_back(nullptr);
         auto& mem     = vtx_bufs_mem.emplace_back(nullptr);
         binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
-        attrib = { shader_binding.dest_vgpr, n_binding++, vk::Format::eR32G32B32Sfloat, 0 };
+        attrib = { shader_binding.dest_vgpr, n_binding++, getVtxBufferFormat(shader_binding.n_elements, 0 /* TODO: type */), 0 };
 
         // Setup vertex buffer and copy data
         const auto buf_size = vsharp->stride * cnt;
@@ -405,9 +386,13 @@ void VulkanRenderer::draw(u64 cnt) {
         log("Created attribute binding for location %d\n", shader_binding.dest_vgpr);
     }
 
+    // Compile shaders
+    auto vert_shader  = Shader::decompileShader((u32*)vs_ptr, Shader::ShaderStage::Vertex, &fetch_shader);
+    auto pixel_shader = Shader::decompileShader((u32*)ps_ptr, Shader::ShaderStage::Fragment);
+
     // Setup graphics pipeline
-    vk::raii::ShaderModule vert_shader_module = createShaderModule(PS4::GCN::compileGLSL(vert_shader_source, EShLangVertex));
-    vk::raii::ShaderModule frag_shader_module = createShaderModule(PS4::GCN::compileGLSL(frag_shader_source, EShLangFragment));
+    vk::raii::ShaderModule vert_shader_module = createShaderModule(PS4::GCN::compileGLSL(vert_shader, EShLangVertex));
+    vk::raii::ShaderModule frag_shader_module = createShaderModule(PS4::GCN::compileGLSL(pixel_shader, EShLangFragment));
     vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex, .module = *vert_shader_module, .pName = "main" };
     vk::PipelineShaderStageCreateInfo frag_stage_info = { .stage = vk::ShaderStageFlagBits::eFragment, .module = *frag_shader_module, .pName = "main" };
     vk::PipelineShaderStageCreateInfo shader_stages[] = { vert_stage_info, frag_stage_info };
@@ -459,7 +444,7 @@ void VulkanRenderer::draw(u64 cnt) {
 
     cmd_bufs[0].beginRendering(render_info);
     cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *graphics_pipeline);
-    cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapchain_extent.width), static_cast<float>(swapchain_extent.height), 0.0f, 1.0f));
+    cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
     cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
     for (int i = 0; i < vtx_bufs.size(); i++)
         cmd_bufs[0].bindVertexBuffers(i, *vtx_bufs[i], { 0 });

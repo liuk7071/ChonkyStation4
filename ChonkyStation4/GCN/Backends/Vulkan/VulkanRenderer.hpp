@@ -20,14 +20,14 @@ private:
     double last_time = 0.0;
 
     vk::raii::Context                context;
-    vk::raii::Instance               instance       = nullptr;
-    vk::raii::DebugUtilsMessengerEXT debug_messenger = nullptr;
-    vk::raii::SurfaceKHR             surface        = nullptr;
-    vk::raii::PhysicalDevice         physical_device = nullptr;
-    vk::raii::Device                 device         = nullptr;
-    u32                              queue_index     = ~0;
-    vk::raii::Queue                  queue          = nullptr;
-    vk::raii::SwapchainKHR           swapchain      = nullptr;
+    vk::raii::Instance               instance           = nullptr;
+    vk::raii::DebugUtilsMessengerEXT debug_messenger    = nullptr;
+    vk::raii::SurfaceKHR             surface            = nullptr;
+    vk::raii::PhysicalDevice         physical_device    = nullptr;
+    vk::raii::Device                 device             = nullptr;
+    u32                              queue_index        = ~0;
+    vk::raii::Queue                  queue              = nullptr;
+    vk::raii::SwapchainKHR           swapchain          = nullptr;
     std::vector<vk::Image>           swapchain_images;
     vk::SurfaceFormatKHR             swapchain_surface_format;
     vk::Extent2D                     swapchain_extent;

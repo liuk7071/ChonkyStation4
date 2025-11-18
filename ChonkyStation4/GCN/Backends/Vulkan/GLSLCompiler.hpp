@@ -141,13 +141,15 @@ std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
         EShMsgDefault           // report default error/warning messages
     );
 
-    //printf("Parsing shader: %s\n", shader.getInfoLog()); // get the log for parsing the shader
+    if (shader.getInfoLog()[0] != '\0')
+        printf("Shader error: %s\n", shader.getInfoLog()); // get the log for parsing the shader
 
     glslang::TProgram program;
     program.addShader(&shader);
     program.link(EShMsgDefault);    // link and report default error/warning messages
 
-    //printf("Linking program: %s\n", program.getInfoLog()); // get the log for linking the program
+    if (program.getInfoLog()[0] != '\0')
+        printf("Shader linker error: %s\n", program.getInfoLog()); // get the log for linking the program
 
     glslang::TIntermediate* intermediate = program.getIntermediate(stage);
 

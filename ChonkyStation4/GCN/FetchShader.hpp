@@ -3,11 +3,15 @@
 #include <Common.hpp>
 
 
+class VSharp;
+
 namespace PS4::GCN {
 
 struct VSharpLocation {
     u32 sgpr = 0;   // SGPR pair that contains the pointer to the V#
     u32 offs = 0;   // Offset in DWORDs from the pointer above
+
+    VSharp* asPtr();
 };
 
 struct VertexBinding {

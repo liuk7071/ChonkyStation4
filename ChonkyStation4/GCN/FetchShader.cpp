@@ -10,10 +10,18 @@ namespace PS4::GCN {
 
 MAKE_LOG_FUNCTION(log, gcn_fetch_shader);
 
+VSharp* VSharpLocation::asPtr() {
+    VSharp* vsharp;
+    std::memcpy(&vsharp, &renderer->regs[Reg::mmSPI_SHADER_USER_DATA_VS_0 + sgpr], sizeof(VSharp*));
+    vsharp = (VSharp*)((u32*)vsharp + offs);  // The immediate is an offset in dwords
+    return vsharp;
+}
+
 FetchShader::FetchShader(const u8* data) {
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice((u32*)data, (u32*)data + std::numeric_limits<u32>::max());
 
+    // We parse the fetch shader on the CPU to figure out the vertex layout instead of actually running it on the GPU.
     // The instructions we care about are the LOAD_DWORD and BUFFER_LOAD_FORMAT_* instructions.
     // LOAD_DWORD instructions tell us the address of the V# in memory. V# are vertex attribute descriptors.
     // Example: S_LOAD_DWORDX4 s[4:7], s[2:3], 0x04
@@ -39,9 +47,6 @@ FetchShader::FetchShader(const u8* data) {
         if (instr.inst_class == Shader::InstClass::ScalarMemRd) {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            //VSharp* vsharp_ptr;
-            //std::memcpy(&vsharp_ptr, &renderer->regs[Reg::mmSPI_SHADER_USER_DATA_VS_0], sizeof(VSharp*));
-            //vsharp_ptr = (VSharp*)((u64*)vsharp_ptr + instr.control.smrd.offset);  // The immediate is an offset in dwords
             vsharps[dest_pair] = { sgpr_pair, instr.control.smrd.offset };
             log("Loaded V# in SGPR pair %d\n", dest_pair);
             continue;
