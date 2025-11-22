@@ -332,7 +332,7 @@ void VulkanRenderer::init() {
     log("Vulkan initialized successfully\n");
 }
 
-vk::Format getVtxBufferFormat(u32 n_elements, u32 type) {
+vk::Format VulkanRenderer::getVtxBufferFormat(u32 n_elements, u32 type) {
     // TODO: for now type is ignored
     switch (n_elements) {
     case 3:     return vk::Format::eR32G32B32Sfloat;

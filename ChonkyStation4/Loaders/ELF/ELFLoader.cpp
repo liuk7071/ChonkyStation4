@@ -9,6 +9,8 @@
 
 using namespace ELFIO;
 
+static int tls_modid = 0;
+
 Module ELFLoader::load(const fs::path& path) {
     elfio elf;
     Module module;
@@ -78,10 +80,16 @@ Module ELFLoader::load(const fs::path& path) {
             break;
         }
 
+        case PT_SCE_PROCPARAM: {
+            module.proc_param_ptr = seg->get_virtual_address() + (u64)module.base_address;
+            break;
+        }
+
         // TLS info
         case PT_TLS: {
             module.tls_vaddr = seg->get_virtual_address() + (u64)module.base_address;
             module.tls_size = seg->get_file_size();
+            module.tls_modid = tls_modid++;
             break;
         }
         }
@@ -92,10 +100,29 @@ Module ELFLoader::load(const fs::path& path) {
         log("%s\n", dump::str_dynamic_tag(dyn->d_tag).c_str());
 
         switch (dyn->d_tag) {
+        case DT_INIT: {
+            module.init_func = (PS4::Loader::InitFunc)(dyn->d_un.d_ptr + (u64)module.base_address);
+            break;
+        }
+
+        case DT_SCE_MODULE_INFO: {
+            auto& module_info = module.exported_modules.emplace_back();
+            module_info.load(dyn->d_un.d_val, module.dyn_str_table);
+            log("Exported module %s\n", module_info.name.c_str());
+            break;
+        }
+
         case DT_SCE_NEEDED_MODULE: {
             auto& module_info = module.required_modules.emplace_back();
             module_info.load(dyn->d_un.d_val, module.dyn_str_table);
             log("Required module %s\n", module_info.name.c_str());
+            break;
+        }
+
+        case DT_SCE_EXPORT_LIB: {
+            auto& lib = module.exported_libs.emplace_back();
+            lib.load(dyn->d_un.d_val, module.dyn_str_table);
+            log("Exported library %s\n", lib.name.c_str());
             break;
         }
 
@@ -143,11 +170,46 @@ Module ELFLoader::load(const fs::path& path) {
         }
     }
 
-    // Print symbols
+    // Export symbols
     if (!module.sym_table) log("WARNING: NO SYMBOL TABLE!\n");
     for (Elf64_Sym* sym = module.sym_table; (u8*)sym < (u8*)module.sym_table + module.sym_table_size; sym++) {
+        auto bind = ELF_ST_BIND(sym->st_info);
         const std::string sym_name = module.dyn_str_table + sym->st_name;
-        //log("* %s\n", sym_name.c_str());
+
+        // Export STB_GLOBAL and STB_WEAK symbols (not local symbols) that have st_value != 0
+        if (bind == STB_LOCAL || sym->st_value == 0) continue;
+
+        // Find library and module
+        auto tokens = Helpers::split(sym_name, "#");
+        Helpers::debugAssert(tokens.size() == 3, "Linker: invalid symbol %s\n", sym_name.c_str());
+        auto* lib = module.findLibrary(tokens[1]);
+        auto* mod = module.findModule(tokens[2]);
+        Helpers::debugAssert(lib, "Linker: could not find library for symbol %s\n", sym_name.c_str());
+        Helpers::debugAssert(mod, "Linker: could not find module for symbol %s\n", sym_name.c_str());
+
+        // Export symbol
+        module.addSymbolExport(tokens[0], tokens[0], lib->name, mod->name, (void*)((u64)module.base_address + sym->st_value));
+        log("* Exported symbol %s (%s)\n", tokens[0].c_str(), lib->name.c_str());
+    }
+
+    // Print modules
+    log("Loaded modules:\n");
+    for (auto& module : module.required_modules) {
+        log("* %s: %s\n", module.id.c_str(), module.name.c_str());
+    }
+    log("Exported modules:\n");
+    for (auto& module : module.exported_modules) {
+        log("* %s: %s\n", module.id.c_str(), module.name.c_str());
+    }
+
+    // Print libraries
+    log("Loaded libraries:\n");
+    for (auto& lib : module.required_libs) {
+        log("* %s: %s\n", lib.id.c_str(), lib.name.c_str());
+    }
+    log("Exported libraries:\n");
+    for (auto& lib : module.exported_libs) {
+        log("* %s: %s\n", lib.id.c_str(), lib.name.c_str());
     }
 
     // Fix permissions for each segment

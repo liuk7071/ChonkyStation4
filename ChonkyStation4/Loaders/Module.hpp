@@ -7,6 +7,8 @@
 
 namespace PS4::Loader {
 
+    using InitFunc = PS4_FUNC int (*)(size_t args, const void* argp, void* param);
+
     static std::string encodeID(u16 id) {
         static constexpr char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-";
         std::string res;
@@ -51,14 +53,23 @@ public:
         std::string id;
     };
 
+    PS4::Loader::InitFunc init_func = nullptr;
     std::vector<ModuleInfo> required_modules;
     std::vector<LibraryInfo> required_libs;
+    std::vector<ModuleInfo> exported_modules;
+    std::vector<LibraryInfo> exported_libs;
     std::vector<Symbol> exported_symbols;
     u64 tls_vaddr = 0;
     u64 tls_size = 0;
+    u32 tls_modid = 0;
+    u64 proc_param_ptr = 0;
 
     ModuleInfo* findModule(const std::string& id) {
         for (auto& module : required_modules) {
+            if (module.id == id)
+                return &module;
+        }
+        for (auto& module : exported_modules) {
             if (module.id == id)
                 return &module;
         }
@@ -67,6 +78,10 @@ public:
 
     LibraryInfo* findLibrary(const std::string& id) {
         for (auto& lib : required_libs) {
+            if (lib.id == id)
+                return &lib;
+        }
+        for (auto& lib : exported_libs) {
             if (lib.id == id)
                 return &lib;
         }

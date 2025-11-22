@@ -46,17 +46,37 @@ void initAndJumpToEntry(void* entry) {
 }
 
 void App::run() {
-    log("Running app\n");
     Helpers::debugAssert(modules.size(), "App::run: no modules loaded\n");
+    
+    // Initialize modules
+    for (int i = 0; i < modules.size(); i++) {
+        // Skip the first module, because the init func is usually just the entry point
+        if (i == 0) continue;
+        
+        auto& mod = modules[i];
+        if (mod.init_func) {
+            mod.init_func(0, nullptr, nullptr);
+            if (mod.exported_modules.size())
+                log("Initialized module %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
+            else log("Initialized unnamed module\n");   // Probably won't ever happen?
+        }
+    }
 
+    // Run app
+    log("Running app\n");
     // Create main thread
     auto main_thread = PS4::OS::Thread::createThread("main", initAndJumpToEntry, modules[0].entry);
     PS4::OS::Thread::joinThread(main_thread);
 }
 
-std::pair<u8*, size_t> App::getTLSImage() {
-    // For now return TLS image of the first module.
-    // Later we need to combine TLS images of all modules and handle TLS relocations.
+std::pair<u8*, size_t> App::getTLSImage(u32 modid) {
     Helpers::debugAssert(modules.size(), "App::getTLSImage: no modules loaded\n");
-    return { (u8*)modules[0].tls_vaddr, (size_t)modules[0].tls_size };
+    // Find module that contains the TLS block with id == modid
+    for (auto& mod : modules) {
+        if (mod.tls_modid == modid) {
+            return { (u8*)mod.tls_vaddr, (size_t)mod.tls_size };
+        }
+    }
+
+    Helpers::panic("Could not find TLS image with id %d\n", modid);    
 }

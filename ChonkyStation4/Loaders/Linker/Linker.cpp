@@ -48,6 +48,16 @@ App loadAndLink(const fs::path& path) {
 
     // TODO: Load LLE modules
     
+    // Relocate
+    doRelocations(app);
+
+    log("App has %d unresolved symbols\n", app.unresolved_symbols.size());
+    log("App linked successfully\n");
+
+    return app;
+}
+
+void doRelocations(App& app) {
     // Iterate over the relocation tables of all loaded modules
     auto relocate = [](App& app, Module& module, Elf64_Rela* reloc_table, size_t reloc_table_size) {
         for (Elf64_Rela* rela = reloc_table; (u8*)rela < (u8*)reloc_table + reloc_table_size; rela++) {
@@ -67,7 +77,14 @@ App loadAndLink(const fs::path& path) {
                 auto addend = rela->r_addend;
                 if (type != R_X86_64_64) addend = 0;
                 auto* sym = &module.sym_table[ELF64_R_SYM(rela->r_info)];
+                auto bind = ELF_ST_BIND(sym->st_info);
                 const std::string sym_name = module.dyn_str_table + sym->st_name;
+
+                // Is this a local symbol?
+                if (bind == STB_LOCAL) {
+                    *(u64*)((u8*)base + rela->r_offset) = (u64)base + sym->st_value;
+                    break;
+                }
 
                 // Find library and module
                 auto tokens = Helpers::split(sym_name, "#");
@@ -98,6 +115,11 @@ App loadAndLink(const fs::path& path) {
                 break;
             }
 
+            case R_X86_64_DTPMOD64: {
+                *(u64*)((u8*)base + rela->r_offset) = module.tls_modid;
+                break;
+            }
+
             default: {
                 Helpers::panic("Unhandled relocation type 0x%x\n", type);
             }
@@ -109,11 +131,12 @@ App loadAndLink(const fs::path& path) {
         relocate(app, module, module.reloc_table, module.reloc_table_size);
         relocate(app, module, module.jmp_reloc_table, module.jmp_reloc_table_size);
     }
+}
 
-    log("App has %d unresolved symbols\n", app.unresolved_symbols.size());
-    log("App linked successfully\n");
-
-    return app;
+void linkLib(App& app, const fs::path& path) {
+    ELFLoader loader;
+    app.modules.push_back(loader.load(path));
+    doRelocations(app);
 }
 
 } // End namespace Loader::Linker

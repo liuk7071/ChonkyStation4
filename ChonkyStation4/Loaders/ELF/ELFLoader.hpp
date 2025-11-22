@@ -14,7 +14,9 @@ static constexpr u32 PT_SCE_DYNLIBDATA  = 0x61000000;
 static constexpr u32 PT_SCE_PROCPARAM   = 0x61000001;
 static constexpr u32 PT_SCE_RELRO       = 0x61000010;
 
+static constexpr u32 DT_SCE_MODULE_INFO     = 0x6100000d;
 static constexpr u32 DT_SCE_NEEDED_MODULE   = 0x6100000f;
+static constexpr u32 DT_SCE_EXPORT_LIB      = 0x61000013;
 static constexpr u32 DT_SCE_IMPORT_LIB      = 0x61000015;
 static constexpr u32 DT_SCE_JMPREL          = 0x61000029;
 static constexpr u32 DT_SCE_PLTRELSZ        = 0x6100002d;

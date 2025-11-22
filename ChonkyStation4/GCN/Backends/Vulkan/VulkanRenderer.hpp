@@ -70,6 +70,8 @@ private:
         vk::PipelineStageFlags2 src_stage_mask,
         vk::PipelineStageFlags2 dst_stage_mask);
     void advanceSwapchain();
+
+    vk::Format getVtxBufferFormat(u32 n_elements, u32 type);
 };
 
 }   // End namespace PS4::GCN

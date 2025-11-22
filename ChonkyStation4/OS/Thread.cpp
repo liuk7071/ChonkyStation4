@@ -40,6 +40,22 @@ void init() {
     initialized = true;
 }
 
+void* getTLSPtr(u32 modid) {
+    Helpers::debugAssert(modid != 0, "getTLSPtr: modid is 0\n");
+    if (!tls_map.contains(modid)) {
+        // We are accessing this TLS block for the first time on this thread, allocate it
+        // Find module that contains this image
+        auto [tls_image_ptr, tls_image_size] = g_app.getTLSImage(modid);
+        // TODO: We should use the guest alloc function from _sceKernelRtldSetApplicationHeapAPI
+        void* tls_ptr = (u8*)std::malloc(tls_image_size + 0x10) + 0x10;
+        std::memset((u8*)tls_ptr - 0x10, 0, 0x10);
+        std::memcpy(tls_ptr, tls_image_ptr, tls_image_size);
+        tls_map[modid] = tls_ptr;
+    }
+    
+    return tls_map[modid];
+}
+
 Thread& createThread(std::string name, void* entry, void* args) {
     auto& thread = threads.emplace_back();
     thread.name = name;
@@ -61,7 +77,7 @@ void* threadStart(Thread* thread) {
     // Initialize TLS
     // I made a simple TLS test and for some reason thread_local variables seem to start 0x10 bytes earlier than the reported TLS address?
     // Not sure what's happening but I just allocate 0x10 bytes extra to be safe
-    auto [tls_image_ptr, tls_image_size] = g_app.getTLSImage();
+    auto [tls_image_ptr, tls_image_size] = g_app.getTLSImage(0);
     guest_tls_ptr = (u8*)std::malloc(tls_image_size + 0x10) + 0x10;
     std::memset((u8*)guest_tls_ptr - 0x10, 0, 0x10);
     std::memcpy(guest_tls_ptr, tls_image_ptr, tls_image_size);

@@ -38,7 +38,7 @@ public:
 #ifdef CHONKYSTATION4_USER_BUILD
 #define true false
 #else
-#define true false
+//#define true false
 //#define false true
 #endif
 
@@ -50,6 +50,7 @@ static Logger loader_app            = Logger<1>("[Loader ][App           ] ");
 // Libraries
 static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel        ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue  ] ");
+static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut   ] ");
 static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver  ] ");
 

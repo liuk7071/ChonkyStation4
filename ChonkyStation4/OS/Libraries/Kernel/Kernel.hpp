@@ -14,12 +14,22 @@ struct KernelIovec {
     size_t iov_len;
 };
 
+struct TLSIndex {
+    u64 modid;
+    u64 offset;
+};
+
 s32* PS4_FUNC ___error();
+void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt);
 size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
 s32 PS4_FUNC sceKernelIsNeoMode();
+void* PS4_FUNC sceKernelGetProcParam();
+void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]);
+
+s32 sigfillset();
 
 // Memory
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr);
