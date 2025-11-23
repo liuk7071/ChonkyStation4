@@ -15,14 +15,28 @@ struct Params {
     void* entry;
 };
 
-void initAndJumpToEntry(void* entry) {
+void initAndJumpToEntry(std::vector<Module>* modules) {
     PS4::init();
+
+    // Initialize modules
+    for (int i = 0; i < modules->size(); i++) {
+        // Skip the first module, because the init func is usually just the entry point
+        if (i == 0) continue;
+
+        auto& mod = (*modules)[i];
+        if (mod.init_func) {
+            mod.init_func(0, nullptr, nullptr);
+            if (mod.exported_modules.size())
+                printf("Initialized module %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
+            else printf("Initialized unnamed module\n");   // Probably won't ever happen?
+        }
+    }
 
     // Dummy arguments
     Params params;
     params.argc = 0;
     params.argv[0] = nullptr;
-    params.entry = entry;
+    params.entry = (*modules)[0].entry;
 
     asm volatile(R"(
         # Align stack
@@ -40,32 +54,18 @@ void initAndJumpToEntry(void* entry) {
         jmp *%0
     )"
     :
-    : "r"(entry), "r"((u64)params.argc), "r"(params.argv[0]), "r"(&params), "r"(exitFunc)
+    : "r"(params.entry), "r"((u64)params.argc), "r"(params.argv[0]), "r"(&params), "r"(exitFunc)
     : "rax", "rsi", "rdi"
     );
 }
 
 void App::run() {
     Helpers::debugAssert(modules.size(), "App::run: no modules loaded\n");
-    
-    // Initialize modules
-    for (int i = 0; i < modules.size(); i++) {
-        // Skip the first module, because the init func is usually just the entry point
-        if (i == 0) continue;
-        
-        auto& mod = modules[i];
-        if (mod.init_func) {
-            mod.init_func(0, nullptr, nullptr);
-            if (mod.exported_modules.size())
-                log("Initialized module %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
-            else log("Initialized unnamed module\n");   // Probably won't ever happen?
-        }
-    }
 
     // Run app
     log("Running app\n");
     // Create main thread
-    auto main_thread = PS4::OS::Thread::createThread("main", initAndJumpToEntry, modules[0].entry);
+    auto main_thread = PS4::OS::Thread::createThread("main", initAndJumpToEntry, &modules);
     PS4::OS::Thread::joinThread(main_thread);
 }
 

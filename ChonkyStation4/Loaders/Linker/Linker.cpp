@@ -133,7 +133,7 @@ void doRelocations(App& app) {
     }
 }
 
-void linkLib(App& app, const fs::path& path) {
+void loadAndLinkLib(App& app, const fs::path& path) {
     ELFLoader loader;
     app.modules.push_back(loader.load(path));
     doRelocations(app);

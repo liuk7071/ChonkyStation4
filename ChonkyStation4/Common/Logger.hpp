@@ -45,6 +45,7 @@ public:
 // Loader
 static Logger loader_elf            = Logger<1>("[Loader ][ELF           ] ");
 static Logger loader_linker         = Logger<1>("[Loader ][Linker        ] ");
+static Logger loader_sfo            = Logger<1>("[Loader ][SFO           ] ");
 static Logger loader_app            = Logger<1>("[Loader ][App           ] ");
 
 // Libraries

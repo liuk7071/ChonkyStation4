@@ -15,7 +15,8 @@ add_executable(ChonkyStation4)
 add_compile_definitions("_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/ChonkyStation4.cpp" "ChonkyStation4/PlayStation4.cpp" "ChonkyStation4/PlayStation4.hpp" "ChonkyStation4/Common/Common.hpp" "ChonkyStation4/Common/Logger.hpp" "ChonkyStation4/Loaders/ELF/ELFLoader.cpp"
-"ChonkyStation4/Loaders/ELF/ELFLoader.hpp" "ChonkyStation4/Loaders/ELF/CodePatcher.cpp" "ChonkyStation4/Loaders/ELF/CodePatcher.hpp" "ChonkyStation4/Loaders/Linker/Linker.cpp" "ChonkyStation4/Loaders/Linker/Linker.hpp" "ChonkyStation4/Loaders/Module.hpp"
+"ChonkyStation4/Loaders/ELF/ELFLoader.hpp" "ChonkyStation4/Loaders/ELF/CodePatcher.cpp" "ChonkyStation4/Loaders/ELF/CodePatcher.hpp" "ChonkyStation4/Loaders/Linker/Linker.cpp" "ChonkyStation4/Loaders/Linker/Linker.hpp"
+"ChonkyStation4/Loaders/App/AppLoader.cpp" "ChonkyStation4/Loaders/App/AppLoader.hpp" "ChonkyStation4/Loaders/SFO/SFOLoader.cpp" "ChonkyStation4/Loaders/SFO/SFOLoader.hpp" "ChonkyStation4/Loaders/Module.hpp"
 "ChonkyStation4/Loaders/Symbol.hpp" "ChonkyStation4/Loaders/App.cpp" "ChonkyStation4/Loaders/App.hpp" "ChonkyStation4/GCN/PM4.hpp" "ChonkyStation4/GCN/CommandProcessor.cpp" "ChonkyStation4/GCN/CommandProcessor.hpp"
 "ChonkyStation4/GCN/GCN.hpp" "ChonkyStation4/GCN/RegisterOffsets.hpp" "ChonkyStation4/GCN/VSharp.hpp" "ChonkyStation4/GCN/FetchShader.cpp" "ChonkyStation4/GCN/FetchShader.hpp" "ChonkyStation4/GCN/Shader/Opcodes.hpp"
 "ChonkyStation4/GCN/Shader/Instruction.hpp" "ChonkyStation4/GCN/Shader/Instruction.cpp" "ChonkyStation4/GCN/Shader/Decoder.hpp" "ChonkyStation4/GCN/Shader/Decoder.cpp" "ChonkyStation4/GCN/Shader/Format.cpp" "ChonkyStation4/GCN/Shader/ShaderDecompiler.cpp"
