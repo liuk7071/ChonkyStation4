@@ -28,6 +28,9 @@ target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/OS/Libraries/Kernel/pthread/pthread.cpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/pthread.hpp" "ChonkyStation4/OS/Libraries/SceVideoOut/SceVideoOut.hpp" "ChonkyStation4/OS/Libraries/SceVideoOut/SceVideoOut.cpp"
 "ChonkyStation4/OS/Libraries/SceGnmDriver/SceGnmDriver.cpp" "ChonkyStation4/OS/Libraries/SceGnmDriver/SceGnmDriver.hpp"
 "ChonkyStation4/OS/Libraries/SceSystemService/SceSystemService.cpp" "ChonkyStation4/OS/Libraries/SceSystemService/SceSystemService.hpp"
+"ChonkyStation4/OS/Libraries/SceNpManager/SceNpManager.cpp" "ChonkyStation4/OS/Libraries/SceNpManager/SceNpManager.hpp"
+"ChonkyStation4/OS/Libraries/SceUserService/SceUserService.cpp" "ChonkyStation4/OS/Libraries/SceUserService/SceUserService.hpp"
+"ChonkyStation4/OS/Libraries/SceSysmodule/SceSysmodule.cpp" "ChonkyStation4/OS/Libraries/SceSysmodule/SceSysmodule.hpp"
 )
 
 option(ZYDIS_BUILD_TOOLS "" OFF)

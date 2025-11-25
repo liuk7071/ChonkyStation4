@@ -1,26 +1,40 @@
 #pragma once
 
 #include <Common.hpp>
+#include <Logger.hpp>
 #include <elfio/elfio.hpp>
 #include <Loaders/Symbol.hpp>
+#include <xbyak/xbyak.h>
+#include <deque>
+#include <memory>
 
 
 namespace PS4::Loader {
 
-    using InitFunc = PS4_FUNC int (*)(size_t args, const void* argp, void* param);
+MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
-    static std::string encodeID(u16 id) {
-        static constexpr char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-";
-        std::string res;
-        
-        if (id < 64) {
-            res += charset[id];
-        } else {
-            Helpers::panic("encodeID: unimplemented ID >= 64\n", id);
-        }
+using InitFunc = PS4_FUNC int (*)(size_t args, const void* argp, void* param);
 
-        return res;
+inline std::deque<std::string> stubbed_symbols;
+inline std::vector<std::unique_ptr<Xbyak::CodeGenerator>> stubbed_symbol_handlers;
+
+static std::string encodeID(u16 id) {
+    static constexpr char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-";
+    std::string res;
+    
+    if (id < 64) {
+        res += charset[id];
+    } else {
+        Helpers::panic("encodeID: unimplemented ID >= 64\n", id);
     }
+
+    return res;
+}
+
+static s32 PS4_FUNC stubbedSymbol(const char* sym_name) {
+    PS4::Loader::unimpl("%s(): TODO (returning 0)\n", sym_name);
+    return 0;
+}
 
 }   // End namespace Loader
 
@@ -104,6 +118,24 @@ public:
         sym.module = module;
         sym.ptr = ptr;
         exported_symbols.push_back(sym);
+    }
+
+    void addSymbolStub(const std::string& nid, const std::string& name, const std::string& lib, const std::string& module) {
+        // TODO: This code is duplicated from Linker.cpp
+        using namespace Xbyak::util;
+
+        PS4::Loader::stubbed_symbols.push_back(name);
+        const char* str_ptr = PS4::Loader::stubbed_symbols.back().c_str();
+
+        auto code = std::make_unique<Xbyak::CodeGenerator>(128);
+        
+        code->mov(rdi, (u64)str_ptr);
+        code->mov(rax, (u64)&PS4::Loader::stubbedSymbol);
+        code->jmp(rax);
+
+        void* ptr = (void*)code->getCode();
+        PS4::Loader::stubbed_symbol_handlers.push_back(std::move(code));
+        addSymbolExport(nid, name, lib, module, ptr);
     }
 
     std::vector<u8> dynamic_tags;

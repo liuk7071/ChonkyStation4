@@ -42,7 +42,7 @@ s32 PS4_FUNC kernel_pthread_attr_get_np(pthread_t pthread, pthread_attr_t* attr)
 }
 
 s32 PS4_FUNC scePthreadAttrGetaffinity(pthread_attr_t* attr, u64* mask) {
-    log("scePthreadAttrGetaffinity(attr=*%p, mak=*%p) TODO\n", attr, mask);
+    log("scePthreadAttrGetaffinity(attr=*%p, mask=*%p) TODO\n", attr, mask);
     return 0;
 }
 

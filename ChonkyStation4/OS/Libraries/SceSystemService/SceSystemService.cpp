@@ -26,4 +26,4 @@ s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* 
     return SCE_OK;
 }
 
-}
+}   // End namespace PS4::OS::Libs::SceNpManager

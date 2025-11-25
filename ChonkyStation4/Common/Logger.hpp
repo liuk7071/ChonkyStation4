@@ -50,11 +50,14 @@ static Logger loader_app            = Logger<1>    ("[Loader ][App             ]
 
 // Libraries
 static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel          ] ");
+static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex     ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue    ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys   ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut     ] ");
 static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver    ] ");
 static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService] ");
+static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService  ] ");
+static Logger lib_sceNpManager      = Logger<true> ("[Lib    ][SceNpManager    ] ");
 
 // GCN
 static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command         ] ");

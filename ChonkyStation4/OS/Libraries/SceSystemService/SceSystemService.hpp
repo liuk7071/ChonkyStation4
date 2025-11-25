@@ -17,8 +17,6 @@ static constexpr s32 SCE_SYSTEM_SERVICE_PARAM_ID_SUMMERTIME             = 5;
 static constexpr s32 SCE_SYSTEM_SERVICE_PARAM_ID_GAME_PARENTAL_LEVEL    = 7;
 static constexpr s32 SCE_SYSTEM_SERVICE_PARAM_ID_ENTER_BUTTON_ASSIGN    = 1000;
  
-
-
 using SceSystemServiceParamId = s32;
 
 s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* val);

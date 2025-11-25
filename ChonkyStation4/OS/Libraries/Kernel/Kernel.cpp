@@ -42,6 +42,7 @@ void init(Module& module) {
     module.addSymbolExport("smWEktiyyG0", "scePthreadMutexattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_destroy);
     module.addSymbolExport("iMp8QpE+XO4", "scePthreadMutexattrSettype", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_settype);
     module.addSymbolExport("cmo1RIYva9o", "scePthreadMutexInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
+    module.addSymbolExport("2Of0f+3mhhE", "scePthreadMutexDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_destroy);
     module.addSymbolExport("mkx2fVhNMsg", "pthread_cond_broadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
     module.addSymbolExport("Z4QosVuAsA0", "pthread_once", "libkernel", "libkernel", (void*)&kernel_pthread_once);
     module.addSymbolExport("14bOACANTBo", "scePthreadOnce", "libkernel", "libkernel", (void*)&kernel_pthread_once);
@@ -58,6 +59,12 @@ void init(Module& module) {
 
     module.addSymbolExport("6c3rCVE-fTU", "_open", "libkernel", "libkernel", (void*)&kernel_open);
     module.addSymbolExport("1G3lF1Gg1k8", "sceKernelOpen", "libkernel", "libkernel", (void*)&sceKernelOpen);
+    module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libkernel", "libkernel", (void*)&kernel_lseek);
+    module.addSymbolExport("oib76F-12fk", "sceKernelLseek", "libkernel", "libkernel", (void*)&sceKernelLseek);
+    module.addSymbolExport("AqBioC2vF3I", "read", "libkernel", "libkernel", (void*)&kernel_read);
+    module.addSymbolExport("Cg4srZ6TKbU", "sceKernelRead", "libkernel", "libkernel", (void*)&sceKernelRead);
+    module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
+    module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
     module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     

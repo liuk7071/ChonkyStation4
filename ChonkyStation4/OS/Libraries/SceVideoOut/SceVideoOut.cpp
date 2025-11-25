@@ -114,4 +114,4 @@ s32 PS4_FUNC sceVideoOutGetFlipStatus(s32 handle, SceVideoOutFlipStatus* status)
     return SCE_OK;
 }
 
-}
+}   // End namespace PS4::OS::Libs::SceVideoOut

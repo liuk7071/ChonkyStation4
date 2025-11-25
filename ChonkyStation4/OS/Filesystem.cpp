@@ -33,10 +33,11 @@ void init() {
 
 u64 open(fs::path path, u32 flags) {
     const fs::path host_path = guestPathToHost(path);
-    std::string mode = "rb";
+    std::string mode = "";
     if      ((flags & 3) == SCE_KERNEL_O_RDONLY) mode = "rb";
     else if ((flags & 3) == SCE_KERNEL_O_WRONLY) mode = "wb";
     else if ((flags & 3) == SCE_KERNEL_O_RDWR)   mode = "rb+";
+    Helpers::debugAssert(!mode.empty(), "Filesystem: invalid open mode flags 0x%x\n", flags);
     
     
     const bool append = flags & SCE_KERNEL_O_APPEND;

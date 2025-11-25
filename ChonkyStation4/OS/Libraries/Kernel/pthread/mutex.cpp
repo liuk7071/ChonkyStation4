@@ -4,7 +4,7 @@
 
 namespace PS4::OS::Libs::Kernel {
 
-MAKE_LOG_FUNCTION(log, lib_kernel);
+MAKE_LOG_FUNCTION(log, lib_kernel_mutex);
 
 s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
     log("pthread_mutex_lock(mutex=%p)\n", mutex);
@@ -38,6 +38,11 @@ s32 PS4_FUNC kernel_pthread_mutexattr_settype(pthread_mutexattr_t* attr, int kin
 s32 PS4_FUNC kernel_pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* attr) {
     log("pthread_mutex_init(mutex=%p, attr=%p)\n", mutex, attr);
     return pthread_mutex_init(mutex, attr);
+}
+
+s32 PS4_FUNC kernel_pthread_mutex_destroy(pthread_mutex_t* mutex) {
+    log("pthread_mutex_destroy(mutex=%p)\n", mutex);
+    return pthread_mutex_destroy(mutex);
 }
 
 };  // End namespace PS4::OS::Libs::Kernel
