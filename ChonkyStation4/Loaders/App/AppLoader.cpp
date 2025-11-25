@@ -63,7 +63,10 @@ bool getApp(const AppInfo& info, ::App& app) {
             continue;
         }
 
-        // For now we expect decrypted modules
+        auto ext = module.path().extension();
+        if (ext != ".prx" && ext != ".sprx") continue;
+
+        // For now we expect decrypted modules as .elf files
         auto module_path = module.path();
         module_path.replace_extension(".elf");
         if (!fs::exists(module_path)) continue;

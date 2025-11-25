@@ -43,22 +43,26 @@ public:
 #endif
 
 // Loader
-static Logger loader_elf            = Logger<1>("[Loader ][ELF           ] ");
-static Logger loader_linker         = Logger<1>("[Loader ][Linker        ] ");
-static Logger loader_sfo            = Logger<1>("[Loader ][SFO           ] ");
-static Logger loader_app            = Logger<1>("[Loader ][App           ] ");
+static Logger loader_elf            = Logger<1>    ("[Loader ][ELF             ] ");
+static Logger loader_linker         = Logger<1>    ("[Loader ][Linker          ] ");
+static Logger loader_sfo            = Logger<1>    ("[Loader ][SFO             ] ");
+static Logger loader_app            = Logger<1>    ("[Loader ][App             ] ");
 
 // Libraries
-static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel        ] ");
-static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue  ] ");
-static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys ] ");
-static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut   ] ");
-static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver  ] ");
+static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel          ] ");
+static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue    ] ");
+static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys   ] ");
+static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut     ] ");
+static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver    ] ");
+static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService] ");
 
 // GCN
-static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command       ] ");
-static Logger gcn_fetch_shader      = Logger<true> ("[GCN    ][Fetch Shader  ] ");
-static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer] ");
+static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command         ] ");
+static Logger gcn_fetch_shader      = Logger<true> ("[GCN    ][Fetch Shader    ] ");
+static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer  ] ");
+
+// Other
+static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented   ] ");
 
 #undef true
 #undef false

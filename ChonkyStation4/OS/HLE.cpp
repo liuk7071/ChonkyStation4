@@ -2,6 +2,7 @@
 #include <OS/Libraries/Kernel/kernel.hpp>
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
 #include <OS/Libraries/SceGnmDriver/SceGnmDriver.hpp>
+#include <OS/Libraries/SceSystemService/SceSystemService.hpp>
 
 
 namespace PS4::OS::HLE {
@@ -13,6 +14,7 @@ namespace PS4::OS::HLE {
         PS4::OS::Libs::Kernel::init(module);
         PS4::OS::Libs::SceVideoOut::init(module);
         PS4::OS::Libs::SceGnmDriver::init(module);
+        PS4::OS::Libs::SceSystemService::init(module);
     
         return module;
     }

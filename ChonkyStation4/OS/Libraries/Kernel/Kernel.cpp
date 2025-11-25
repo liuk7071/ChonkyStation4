@@ -21,8 +21,19 @@ extern App g_app;
 namespace PS4::OS::Libs::Kernel {
 
 MAKE_LOG_FUNCTION(log, lib_kernel);
+MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
 void init(Module& module) {
+    module.addSymbolExport("wtkt-teR1so", "pthread_attr_init", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
+    module.addSymbolExport("nsYoNRywwNg", "scePthreadAttrInit", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
+    module.addSymbolExport("Ucsu-OK+els", "pthread_attr_get_np", "libkernel", "libkernel", (void*)&kernel_pthread_attr_get_np);
+    module.addSymbolExport("x1X76arYMxU", "scePthreadAttrGet", "libkernel", "libkernel", (void*)&kernel_pthread_attr_get_np);
+    module.addSymbolExport("-wzZ7dvA7UU", "pthread_attr_getaffinity_np", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getaffinity_np);
+    module.addSymbolExport("8+s5BzZjxSg", "scePthreadAttrGetaffinity", "libkernel", "libkernel", (void*)&scePthreadAttrGetaffinity);
+    module.addSymbolExport("zHchY8ft5pk", "pthread_attr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
+    module.addSymbolExport("62KCwEMmzcM", "scePthreadAttrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
+    module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libkernel", "libkernel", (void*)&kernel_pthread_self);
+    module.addSymbolExport("aI+OeCz8xrQ", "scePthreadSelf", "libkernel", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("9UK1vLZQft4", "scePthreadMutexLock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
@@ -46,15 +57,20 @@ void init(Module& module) {
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
 
     module.addSymbolExport("6c3rCVE-fTU", "_open", "libkernel", "libkernel", (void*)&kernel_open);
+    module.addSymbolExport("1G3lF1Gg1k8", "sceKernelOpen", "libkernel", "libkernel", (void*)&sceKernelOpen);
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
     module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     
+    module.addSymbolExport("HoLVWNanBBc", "getpid", "libkernel", "libkernel", (void*)&kernel_getpid);
     module.addSymbolExport("VkTAsrZDcJ0", "sigfillset", "libkernel", "libkernel", (void*)&sigfillset);
+    
+    module.addSymbolExport("7NwggrWJ5cA", "__sys_regmgr_call", "libkernel", "libkernel", (void*)&__sys_regmgr_call);
 
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
+    module.addSymbolExport("+g+UP8Pyfmo", "sceKernelGetProcessType", "libkernel", "libkernel", (void*)&sceKernelGetProcessType);
     module.addSymbolExport("p5EcQeEeJAE", "_sceKernelRtldSetApplicationHeapAPI", "libkernel", "libkernel", (void*)&_sceKernelRtldSetApplicationHeapAPI);
 
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
@@ -62,6 +78,7 @@ void init(Module& module) {
     
     module.addSymbolExport("B+vc2AO2Zrc", "sceKernelAllocateMainDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateMainDirectMemory);
     module.addSymbolExport("L-Q3LEjIbgA", "sceKernelMapDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapDirectMemory);
+    module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
 }
 
 static thread_local s32 posix_errno = 0;
@@ -177,16 +194,35 @@ void* PS4_FUNC sceKernelGetProcParam() {
     return (void*)g_app.modules[0].proc_param_ptr;
 }
 
+s32 PS4_FUNC sceKernelGetProcessType() {
+    // TODO
+    log("sceKernelGetProcessType() TODO\n");
+    return 0;
+}
+
 void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]) {
     // TODO
     log("_sceKernelRtldSetApplicationHeapAPI()\n");
 }
 
-s32 sigfillset() {
+s32 PS4_FUNC kernel_getpid() {
+    log("getpid()\n");
+    return 100;
+}
+
+s32 PS4_FUNC sigfillset() {
     // TODO
-    log("sigfillset() TODO\n");
+    unimpl("sigfillset() TODO\n");
     return SCE_OK;
 }
+
+s32 PS4_FUNC __sys_regmgr_call() {
+    // TODO
+    unimpl("__sys_regmgr_call() TODO\n");
+    return SCE_OK;
+}
+
+// TODO: Properly implement the virtual memory map
 
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
@@ -208,6 +244,25 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
     *addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
+
+    log("Allocated at %p\n", *addr);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name) {
+    log("sceKernelMapNamedFlexibleMemory(addr=*%p, len=%lld, prot=%d, flags=%d, name=\"%s\")\n", addr, len, prot, flags, name);
+
+    void* in_addr = *addr;
+    if (in_addr) {
+        Helpers::panic("TODO: sceKernelMapNamedFlexibleMemory with non-zero input addr\n");
+    }
+
+    // TODO: prot, flags
+#ifdef _WIN32
+    *addr = VirtualAllocAlignedBelow(len, 1, 0x10000000000);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif

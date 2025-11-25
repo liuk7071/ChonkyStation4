@@ -25,7 +25,8 @@ target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/OS/Libraries/Kernel/Kernel.cpp" "ChonkyStation4/OS/Libraries/Kernel/Equeue.hpp" "ChonkyStation4/OS/Libraries/Kernel/Equeue.cpp" "ChonkyStation4/OS/Libraries/Kernel/Filesystem.hpp" "ChonkyStation4/OS/Libraries/Kernel/Filesystem.cpp"
 "ChonkyStation4/OS/Libraries/Kernel/pthread/mutex.cpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/mutex.hpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/cond.cpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/cond.hpp"
 "ChonkyStation4/OS/Libraries/Kernel/pthread/pthread.cpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/pthread.hpp" "ChonkyStation4/OS/Libraries/SceVideoOut/SceVideoOut.hpp" "ChonkyStation4/OS/Libraries/SceVideoOut/SceVideoOut.cpp"
-"ChonkyStation4/OS/Libraries/SceGnmDriver/SceGnmDriver.hpp" "ChonkyStation4/OS/Libraries/SceGnmDriver/SceGnmDriver.cpp"
+"ChonkyStation4/OS/Libraries/SceGnmDriver/SceGnmDriver.cpp" "ChonkyStation4/OS/Libraries/SceGnmDriver/SceGnmDriver.hpp"
+"ChonkyStation4/OS/Libraries/SceSystemService/SceSystemService.cpp" "ChonkyStation4/OS/Libraries/SceSystemService/SceSystemService.hpp"
 )
 
 option(ZYDIS_BUILD_TOOLS "" OFF)

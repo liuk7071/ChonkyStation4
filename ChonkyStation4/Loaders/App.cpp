@@ -18,6 +18,18 @@ struct Params {
 void initAndJumpToEntry(std::vector<Module>* modules) {
     PS4::init();
 
+    printf("Initializing modules:\n", modules->size() - 1);
+    for (int i = 0; i < modules->size(); i++) {
+        if (i == 0) continue;
+
+        auto& mod = (*modules)[i];
+        if (mod.init_func) {
+            if (mod.exported_modules.size())
+                printf("- %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
+            else printf("- unnamed module\n");   // Probably won't ever happen?
+        }
+    }
+
     // Initialize modules
     for (int i = 0; i < modules->size(); i++) {
         // Skip the first module, because the init func is usually just the entry point
