@@ -13,4 +13,9 @@ SceObj::SceObj() {
     objs.push_back(this);
 }
 
+// Manually request an handle
+u64 requestHandle() {
+    return next_handle++;
+}
+
 }   // End namespace PS4::OS

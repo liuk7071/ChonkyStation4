@@ -30,4 +30,6 @@ T* find(u64 handle) {
     return nullptr;
 }
 
+u64 requestHandle();
+
 }   // End namespace PS4::OS

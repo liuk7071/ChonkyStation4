@@ -62,6 +62,7 @@ static Logger gcn_fetch_shader      = Logger<true> ("[GCN    ][Fetch Shader    ]
 static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer  ] ");
 
 // Other
+static Logger filesystem            = Logger<true> ("[Other  ][Filesystem      ] ");
 static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented   ] ");
 
 #undef true

@@ -1,6 +1,7 @@
 #include "AppLoader.hpp"
 #include <Loaders/SFO/SFOLoader.hpp>
 #include <Loaders/Linker/Linker.hpp>
+#include <OS/Filesystem.hpp>
 #include <SDL.h>    // For SDSL_GetPrefPath
 
 
@@ -73,6 +74,9 @@ bool getApp(const AppInfo& info, ::App& app) {
 
         Loader::Linker::loadAndLinkLib(app, module_path);
     }
+
+    // Mount /app0 and initialize FS
+    FS::mount(FS::Device::APP0, info.content_path);
 
     return true;
 }

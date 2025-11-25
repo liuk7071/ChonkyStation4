@@ -3,6 +3,7 @@
 #include <Loaders/App/AppLoader.hpp>
 #include <Loaders/Linker/Linker.hpp>
 #include <OS/Thread.hpp>
+#include <OS/Filesystem.hpp>
 #include <GCN/GCN.hpp>
 
 
@@ -12,6 +13,9 @@ namespace PS4 {
 
 void init() {
     PS4::GCN::initVulkan();
+    FS::mount(FS::Device::DEV, "./dev");    // TODO: Properly handle /dev
+    FS::init();
+
 }
 
 void loadAndRun(const fs::path& path) {
