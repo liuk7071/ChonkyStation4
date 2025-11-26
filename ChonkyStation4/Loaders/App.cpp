@@ -15,7 +15,7 @@ struct Params {
     void* entry;
 };
 
-void initAndJumpToEntry(std::vector<Module>* modules) {
+void* PS4_FUNC initAndJumpToEntry(std::vector<Module>* modules) {
     PS4::init();
 
     printf("Initializing modules:\n", modules->size() - 1);
@@ -69,6 +69,9 @@ void initAndJumpToEntry(std::vector<Module>* modules) {
     : "r"(params.entry), "r"((u64)params.argc), "r"(params.argv[0]), "r"(&params), "r"(exitFunc)
     : "rax", "rsi", "rdi"
     );
+
+    // Unreachable
+    return nullptr;
 }
 
 void App::run() {
@@ -77,7 +80,7 @@ void App::run() {
     // Run app
     log("Running app\n");
     // Create main thread
-    auto main_thread = PS4::OS::Thread::createThread("main", initAndJumpToEntry, &modules);
+    auto main_thread = PS4::OS::Thread::createThread("main", (PS4::OS::Thread::ThreadStartFunc)initAndJumpToEntry, &modules);
     PS4::OS::Thread::joinThread(main_thread);
 }
 

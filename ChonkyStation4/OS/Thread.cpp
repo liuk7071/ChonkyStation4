@@ -56,7 +56,7 @@ void* getTLSPtr(u32 modid) {
     return tls_map[modid];
 }
 
-Thread& createThread(std::string name, void* entry, void* args) {
+Thread& createThread(std::string name, ThreadStartFunc entry, void* args) {
     auto& thread = threads.emplace_back();
     thread.name = name;
     thread.entry = entry;
@@ -83,7 +83,7 @@ void* threadStart(Thread* thread) {
     std::memcpy(guest_tls_ptr, tls_image_ptr, tls_image_size);
 
     // Call entry function
-    ((void*(*)(void*))thread->entry)(thread->args);
+    thread->entry(thread->args);
     return nullptr;
 }
 

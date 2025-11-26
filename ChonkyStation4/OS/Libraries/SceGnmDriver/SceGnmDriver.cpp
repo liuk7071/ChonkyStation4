@@ -16,9 +16,17 @@ void init(Module& module) {
     module.addSymbolExport("+AFvOEXrKJk", "sceGnmSetEmbeddedVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedVsShader);
     module.addSymbolExport("X9Omw9dwv5M", "sceGnmSetEmbeddedPsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedPsShader);
     module.addSymbolExport("GGsn7jMTxw4", "sceGnmDrawIndexAuto", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawIndexAuto);
+    module.addSymbolExport("HlTPoZ-oY7Y", "sceGnmDrawIndex", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawIndex);
     module.addSymbolExport("oYM+YzfCm2Y", "sceGnmDrawIndexOffset", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawIndexOffset);
+    module.addSymbolExport("0BzLGljcwBo", "sceGnmDispatchDirect", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDispatchDirect);
     module.addSymbolExport("gAhCn6UiU4Y", "sceGnmSetVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetVsShader);
     module.addSymbolExport("5uFKckiJYRM", "sceGnmSetPsShader350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetPsShader350);
+    module.addSymbolExport("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShaderWithModifier);
+    module.addSymbolExport("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmInsertWaitFlipDone);
+    
+    module.addSymbolStub("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
 }
 
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg) {
@@ -40,6 +48,7 @@ s32 PS4_FUNC sceGnmSubmitDone() {
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size) {
     log("sceGnmDrawInitDefaultHardwareState350(buf=%p, size=0x%x) TODO\n", buf, size);
 
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
     return SCE_OK;
 }
 
@@ -85,6 +94,18 @@ s32 PS4_FUNC sceGnmDrawIndexAuto(u32* buf, u32 size, u32 cnt, u32 flags) {
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceGnmDrawIndex(u32* buf, u32 size, u32 cnt, void* index_buf_ptr, u32 flags, u32 type) {
+    log("sceGnmDrawIndex(buf=%p, size=0x%x, cnt=%d, index_buf_ptr=%p, flags=0x%x, type=%d)\n", buf, size, cnt, index_buf_ptr, flags, type);
+
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::DrawIndex2, size);
+    *buf++ = cnt;
+    *buf++ = (u32)index_buf_ptr;
+    *buf++ = (u64)index_buf_ptr >> 32;
+    *buf++ = cnt;
+    *buf++ = 0;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceGnmDrawIndexOffset(u32* buf, u32 size, u32 start, u32 cnt, u32 flags) {
     log("sceGnmDrawIndexOffset(buf=%p, size=0x%x, start=%d, cnt=%d, flags=0x%x)\n", buf, size, start, cnt, flags);
 
@@ -92,6 +113,14 @@ s32 PS4_FUNC sceGnmDrawIndexOffset(u32* buf, u32 size, u32 start, u32 cnt, u32 f
     *buf++ = cnt;
     *buf++ = start;
     *buf++ = cnt;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmDispatchDirect(u32* buf, u32 size, u32 threads_x, u32 threads_y, u32 threads_z, u32 flags) {
+    log("sceGnmDispatchDirect(buf=%p, size=0x%x, threads_x=%d, threads_y=%d, threads_z=%d, flags=0x%x)\n", buf, size, threads_x, threads_y, threads_z, flags);
+
+    // TODO
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
     return SCE_OK;
 }
 
@@ -177,6 +206,22 @@ s32 PS4_FUNC sceGnmSetPsShader350(u32* buf, u32 size, const u32* ps_regs) {
     
     // TODO: REMOVE THE -4 WHEN I FIX THE TODO ABOVE!!!!!
     *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 12 - 4); // Trailing NOPs
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmSetCsShaderWithModifier(u32* buf, u32 size, const u32* cs_regs, u32 shader_modifier) {
+    log("sceGnmSetCsShaderWithModifier(buf=%p, size=0x%x, cs_regs=%p, shader_modifier=0x%x) TODO\n", buf, size, cs_regs, shader_modifier);
+    
+    // TODO
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmInsertWaitFlipDone(u32* buf, u32 size, s32 video_out_handle, u32 buf_idx) {
+    log("sceGnmInsertWaitFlipDone(buf=%p, size=0x%x, video_out_handle=%d, buf_idx=%d) TODO\n", buf, size, video_out_handle, buf_idx);
+
+    // TODO
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
     return SCE_OK;
 }
 

@@ -31,6 +31,10 @@ target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/OS/Libraries/SceNpManager/SceNpManager.cpp" "ChonkyStation4/OS/Libraries/SceNpManager/SceNpManager.hpp"
 "ChonkyStation4/OS/Libraries/SceUserService/SceUserService.cpp" "ChonkyStation4/OS/Libraries/SceUserService/SceUserService.hpp"
 "ChonkyStation4/OS/Libraries/SceSysmodule/SceSysmodule.cpp" "ChonkyStation4/OS/Libraries/SceSysmodule/SceSysmodule.hpp"
+"ChonkyStation4/OS/Libraries/SceSaveData/SceSaveData.cpp" "ChonkyStation4/OS/Libraries/SceSaveData/SceSaveData.hpp"
+"ChonkyStation4/OS/Libraries/SceNpTrophy/SceNpTrophy.cpp" "ChonkyStation4/OS/Libraries/SceNpTrophy/SceNpTrophy.hpp"
+"ChonkyStation4/OS/Libraries/ScePad/ScePad.cpp" "ChonkyStation4/OS/Libraries/ScePad/ScePad.hpp"
+"ChonkyStation4/OS/Libraries/SceAudioOut/SceAudioOut.cpp" "ChonkyStation4/OS/Libraries/SceAudioOut/SceAudioOut.hpp"
 )
 
 option(ZYDIS_BUILD_TOOLS "" OFF)

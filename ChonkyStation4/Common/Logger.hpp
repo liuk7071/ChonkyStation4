@@ -58,6 +58,10 @@ static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver    ]
 static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService] ");
 static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService  ] ");
 static Logger lib_sceNpManager      = Logger<true> ("[Lib    ][SceNpManager    ] ");
+static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData     ] ");
+static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy     ] ");
+static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad          ] ");
+static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut     ] ");
 
 // GCN
 static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command         ] ");

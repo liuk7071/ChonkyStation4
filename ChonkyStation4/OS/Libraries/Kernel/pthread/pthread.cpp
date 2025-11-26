@@ -1,5 +1,6 @@
 #include "pthread.hpp"
 #include <Logger.hpp>
+#include <OS/Thread.hpp>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -53,6 +54,16 @@ s32 PS4_FUNC kernel_pthread_attr_getaffinity_np(const pthread_attr_t* attr, size
 
 s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr) {
     log("pthread_attr_destroy(attr=*%p) TODO\n", attr);
+    return 0;
+}
+
+s32 PS4_FUNC scePthreadCreate(pthread_t* tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
+    log("pthread_create(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name);
+    
+    // TODO: attr
+    std::string name_str = name ? name : "unnamed";
+    auto thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);
+    *tid = thread.getPThread();
     return 0;
 }
 

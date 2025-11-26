@@ -130,6 +130,17 @@ float v[104];
             break;
         }
 
+        case Shader::Opcode::V_MOV_B32: {
+            std::string src;
+            if (instr.src[0].code <= 104) src = std::format("s[{}]", instr.src[0].code);
+            else if (instr.src[0].code == 128) src = "0.0f";
+            else if (instr.src[0].code == 242) src = "1.0f";
+            else Helpers::panic("V_MOV_B32 from unhandled source register %d\n", instr.src[0].code);
+
+            main += std::format("v[{}] = {};\n", instr.dst[0].code, src);
+            break;
+        }
+
         case Shader::Opcode::V_INTERP_P1_F32: {
             const std::string attr = std::format("ps_attr{}", instr.control.vintrp.attr);
             addInAttr(attr, "vec4", instr.control.vintrp.attr);

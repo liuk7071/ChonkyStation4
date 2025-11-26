@@ -16,6 +16,7 @@ MAKE_LOG_FUNCTION(unimpl, unimplemented);
 using InitFunc = PS4_FUNC int (*)(size_t args, const void* argp, void* param);
 
 inline std::deque<std::string> stubbed_symbols;
+inline std::deque<s32> stubbed_symbol_ret_vals;
 inline std::vector<std::unique_ptr<Xbyak::CodeGenerator>> stubbed_symbol_handlers;
 
 static std::string encodeID(u16 id) {
@@ -31,9 +32,9 @@ static std::string encodeID(u16 id) {
     return res;
 }
 
-static s32 PS4_FUNC stubbedSymbol(const char* sym_name) {
-    PS4::Loader::unimpl("%s(): TODO (returning 0)\n", sym_name);
-    return 0;
+static s32 PS4_FUNC stubbedSymbol(const char* sym_name, s32* ret_val) {
+    PS4::Loader::unimpl("%s(): TODO (returning %d)\n", sym_name, *ret_val);
+    return *ret_val;
 }
 
 }   // End namespace Loader
@@ -120,16 +121,19 @@ public:
         exported_symbols.push_back(sym);
     }
 
-    void addSymbolStub(const std::string& nid, const std::string& name, const std::string& lib, const std::string& module) {
+    void addSymbolStub(const std::string& nid, const std::string& name, const std::string& lib, const std::string& module, s32 ret_val = 0) {
         // TODO: This code is duplicated from Linker.cpp
         using namespace Xbyak::util;
 
         PS4::Loader::stubbed_symbols.push_back(name);
+        PS4::Loader::stubbed_symbol_ret_vals.push_back(ret_val);
         const char* str_ptr = PS4::Loader::stubbed_symbols.back().c_str();
+        s32* ret_val_ptr = &PS4::Loader::stubbed_symbol_ret_vals.back();
 
         auto code = std::make_unique<Xbyak::CodeGenerator>(128);
         
         code->mov(rdi, (u64)str_ptr);
+        code->mov(rsi, (u64)ret_val_ptr);
         code->mov(rax, (u64)&PS4::Loader::stubbedSymbol);
         code->jmp(rax);
 

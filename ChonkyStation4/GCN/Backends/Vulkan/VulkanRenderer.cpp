@@ -335,6 +335,7 @@ void VulkanRenderer::init() {
 vk::Format VulkanRenderer::getVtxBufferFormat(u32 n_elements, u32 type) {
     // TODO: for now type is ignored
     switch (n_elements) {
+    case 2:     return vk::Format::eR32G32Sfloat;
     case 3:     return vk::Format::eR32G32B32Sfloat;
     case 4:     return vk::Format::eR32G32B32A32Sfloat;
     default:    Helpers::panic("Vulkan: getVtxBuffeFormat unhandled n_elements=%d\n", n_elements);

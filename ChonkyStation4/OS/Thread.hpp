@@ -10,6 +10,8 @@
 
 namespace PS4::OS::Thread {
 
+using ThreadStartFunc = PS4_FUNC void* (*)(void* args);
+
 inline thread_local void* guest_tls_ptr;    // TLS pointer of the main executable's TLS image
 inline thread_local std::unordered_map<u32, void*> tls_map; // Map TLS module ID to pointer
 inline  u64 guest_tls_ptr_offs;
@@ -21,7 +23,7 @@ public:
     Thread(std::string name) : name(name) {}
     std::string name;
 
-    void* entry;
+    ThreadStartFunc entry;
     void* args;
 
     pthread_t& getPThread() {
@@ -35,7 +37,7 @@ inline std::deque<Thread> threads;
 
 void init();
 void* getTLSPtr(u32 modid);
-Thread& createThread(std::string name, void* entry, void* args);
+Thread& createThread(std::string name, ThreadStartFunc entry, void* args);
 void joinThread(Thread& thread, void** ret);
 void joinThread(Thread& thread);
 void* threadStart(Thread* thread);

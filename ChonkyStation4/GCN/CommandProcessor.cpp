@@ -30,6 +30,12 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             break;
         }
         
+        case PM4ItOpcode::DrawIndex2: {
+            const u32 cnt = *args++;
+            renderer->draw(cnt);
+            break;
+        }
+
         default: {
             log("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
             break;
