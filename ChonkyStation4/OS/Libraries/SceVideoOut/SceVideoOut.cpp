@@ -1,6 +1,7 @@
 #include "SceVideoOut.hpp"
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
+#include <GCN/GCN.hpp>
 
 
 namespace PS4::OS::Libs::SceVideoOut {
@@ -18,6 +19,14 @@ void init(Module& module) {
     module.addSymbolExport("U46NwOiJpys", "sceVideoOutSubmitFlip", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitFlip);
     module.addSymbolExport("SbU3dwp80lQ", "sceVideoOutGetFlipStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetFlipStatus);
     module.addSymbolExport("6kPnj51T62Y", "sceVideoOutGetResolutionStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetResolutionStatus);
+}
+
+void SceVideoOutPort::signalFlip(u64 flip_arg) {
+    for (auto& eq : flip_eqs) {
+        eq->trigger(SCE_VIDEO_OUT_FLIP_EVENT_ID, 0, flip_arg); // TODO: Fill in proper flip event data
+    }
+
+    flip_status.count++;
 }
 
 s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) {
@@ -119,12 +128,7 @@ s32 PS4_FUNC sceVideoOutSubmitFlip(s32 handle, s32 buf_idx, s32 flip_mode, s64 f
         Helpers::panic("sceVideoOutSubmitFlip: handle %d does not exist\n", handle);
     }
 
-    // Stubbed for now
-    for (auto& eq : port->flip_eqs) {
-        eq->trigger(SCE_VIDEO_OUT_FLIP_EVENT_ID, 0, 0); // TODO: Fill in proper flip event data
-    }
-
-    port->flip_status.count++;
+    port->signalFlip(flip_arg);
     return SCE_OK;
 }
 

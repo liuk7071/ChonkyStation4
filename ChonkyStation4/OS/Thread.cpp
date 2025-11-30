@@ -61,7 +61,11 @@ Thread& createThread(std::string name, ThreadStartFunc entry, void* args) {
     thread.name = name;
     thread.entry = entry;
     thread.args = args;
-    pthread_create(&thread.getPThread(), nullptr, (void*(*)(void*))threadStart, &thread);
+
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 1_MB); // Default stacksize is 1MB. TODO: Make this function take in a pthread_attr and just pass that in below
+    pthread_create(&thread.getPThread(), &attr, (void*(*)(void*))threadStart, &thread);
     return thread;
 }
 

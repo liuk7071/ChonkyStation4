@@ -18,6 +18,29 @@ union PM4Header {
     BitField<30, 2, u32> type;
 };
 
+namespace WaitRegMem {
+
+enum class Engine : u32 {
+    Me = 0u,
+    Pfp = 1u
+};
+enum class MemSpace : u32 {
+    Register = 0u,
+    Memory = 1u
+};
+enum class Function : u32 {
+    Always = 0u,
+    LessThan = 1u,
+    LessThanEqual = 2u,
+    Equal = 3u,
+    NotEqual = 4u,
+    GreaterThanEqual = 5u,
+    GreaterThan = 6u,
+    Reserved = 7u
+};
+
+}   // End namespace WaitRegMem
+
 enum class PM4ItOpcode : u32 {
     Nop = 0x10,
     SetBase = 0x11,

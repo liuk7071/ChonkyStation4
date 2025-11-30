@@ -5,6 +5,7 @@
 #include <OS/Thread.hpp>
 #include <OS/Filesystem.hpp>
 #include <GCN/GCN.hpp>
+#include <thread>
 
 
 App g_app;
@@ -12,10 +13,15 @@ App g_app;
 namespace PS4 {
 
 void init() {
-    PS4::GCN::initVulkan();
+    // Create GCN thread
+    std::thread gcn_thread(GCN::gcnThread);
+    gcn_thread.detach();
+
     FS::mount(FS::Device::DEV, "./dev");    // TODO: Properly handle /dev
     FS::init();
 
+    // Wait for graphics initialization to complete
+    while (!GCN::initialized) std::this_thread::sleep_for(std::chrono::microseconds(1000));
 }
 
 void loadAndRun(const fs::path& path) {

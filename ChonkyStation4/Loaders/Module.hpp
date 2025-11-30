@@ -15,6 +15,32 @@ MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
 using InitFunc = PS4_FUNC int (*)(size_t args, const void* argp, void* param);
 
+struct SceKernelMemParam {
+    u64 size;
+    u64* extended_page_table;
+    u64* flexible_memory_size;
+    u8* extended_memory_1;
+    u64* extended_gpu_page_table;
+    u8* extended_memory_2;
+    u64* extended_cpu_page_table;
+};
+
+struct SceProcParam {
+    u64 size;
+    u32 magic;
+    u32 entry_count;
+    u64 sdk_version;
+    char* process_name;
+    char* main_thread_name;
+    u32* main_thread_prio;
+    u32* main_thread_stack_size;
+    void* libc_param;
+    SceKernelMemParam* mem_param;
+    void* fs_param;
+    u32* process_preload_enable;
+    u64 unknown1;
+};
+
 inline std::deque<std::string> stubbed_symbols;
 inline std::deque<s32> stubbed_symbol_ret_vals;
 inline std::vector<std::unique_ptr<Xbyak::CodeGenerator>> stubbed_symbol_handlers;

@@ -392,8 +392,8 @@ void VulkanRenderer::draw(u64 cnt) {
     auto pixel_shader = Shader::decompileShader((u32*)ps_ptr, Shader::ShaderStage::Fragment);
 
     // Setup graphics pipeline
-    vk::raii::ShaderModule vert_shader_module = createShaderModule(PS4::GCN::compileGLSL(vert_shader, EShLangVertex));
-    vk::raii::ShaderModule frag_shader_module = createShaderModule(PS4::GCN::compileGLSL(pixel_shader, EShLangFragment));
+    vk::raii::ShaderModule vert_shader_module = createShaderModule(PS4::GCN::compileGLSL(vert_shader.source, EShLangVertex));
+    vk::raii::ShaderModule frag_shader_module = createShaderModule(PS4::GCN::compileGLSL(pixel_shader.source, EShLangFragment));
     vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex, .module = *vert_shader_module, .pName = "main" };
     vk::PipelineShaderStageCreateInfo frag_stage_info = { .stage = vk::ShaderStageFlagBits::eFragment, .module = *frag_shader_module, .pName = "main" };
     vk::PipelineShaderStageCreateInfo shader_stages[] = { vert_stage_info, frag_stage_info };

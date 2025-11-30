@@ -65,6 +65,8 @@ struct SceVideoOutPort : SceObj {
     SceVideoOutFlipStatus flip_status;
     std::vector<Kernel::SceKernelEqueue> flip_eqs;
 	SceVideoOutResolutionStatus resolution_status;
+
+    void signalFlip(u64 flip_arg);
 };
 
 s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param);

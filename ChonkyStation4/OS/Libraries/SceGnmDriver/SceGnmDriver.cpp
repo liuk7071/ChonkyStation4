@@ -1,8 +1,8 @@
 #include "SceGnmDriver.hpp"
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
+#include <GCN/GCN.hpp>
 #include <GCN/PM4.hpp>
-#include <GCN/CommandProcessor.hpp>
 
 
 namespace PS4::OS::Libs::SceGnmDriver {
@@ -12,6 +12,7 @@ MAKE_LOG_FUNCTION(log, lib_sceGnmDriver);
 void init(Module& module) {
     module.addSymbolExport("xbxNatawohc", "sceGnmSubmitAndFlipCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitAndFlipCommandBuffers);
     module.addSymbolExport("yvZ73uQUqrk", "sceGnmSubmitDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitDone);
+    module.addSymbolExport("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmAddEqEvent);
     module.addSymbolExport("yb2cRhagD1I", "sceGnmDrawInitDefaultHardwareState350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState350);
     module.addSymbolExport("+AFvOEXrKJk", "sceGnmSetEmbeddedVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedVsShader);
     module.addSymbolExport("X9Omw9dwv5M", "sceGnmSetEmbeddedPsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedPsShader);
@@ -24,7 +25,6 @@ void init(Module& module) {
     module.addSymbolExport("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShaderWithModifier);
     module.addSymbolExport("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmInsertWaitFlipDone);
     
-    module.addSymbolStub("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
 }
@@ -33,15 +33,31 @@ s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32
     log("sceGnmSubmitAndFlipCommandBuffers(cnt=%d, dcb_gpu_addrs=*%p, dcb_sizes=%p, ccb_gpu_addrs=*%p, ccb_sizes=%p, video_out_handle=%d, buf_idx=%d, flip_mode=%d, flip_arg=0x%llx)\n", cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes, video_out_handle, buf_idx, flip_mode, flip_arg);
     
     for (int i = 0; i < cnt; i++)
-        GCN::processCommands(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
+        GCN::submitCommandBuffers(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
 
-    GCN::renderer->flip();
+    GCN::submitFlip(video_out_handle, flip_arg);
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceGnmSubmitDone() {
     log("sceGnmSubmitDone()\n");
     
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* udata) {
+    log("sceGnmAddEqEvent(eq=%p, id=0x%llx, udata=%p)\n", eq, id, udata);
+
+    // TODO: I'm not sure how this works yet
+    eq->registerEvent({
+        .ident = id,
+        .filter = 0,    // TODO
+        .flags = 0,     // TODO
+        .fflags = 0,    // TODO
+        .data = id,     // TODO
+        .udata = udata,
+    });
+
     return SCE_OK;
 }
 
