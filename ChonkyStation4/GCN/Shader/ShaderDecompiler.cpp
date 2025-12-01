@@ -62,6 +62,21 @@ std::string getType(int n_lanes) {
     }
 }
 
+std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
+    std::string src;
+
+    switch (op.field) {
+    case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                break;
+    case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                break;
+    case OperandField::LiteralConst:        src = std::format("{}f", reinterpret_cast<const float&>(op.code));  break;
+    case OperandField::ConstZero:           src = "0.0f";                                                       break;
+    case OperandField::ConstFloatPos_1_0:   src = "1.0f";                                                       break;
+    default:    Helpers::panic("Unhandled SSRC %d\n", op.code);
+    }
+
+    return src;
+}
+
 struct DescriptorLocation {
     u32 sgpr = 0;   // SGPR pair that contains the pointer to the descriptor
     u32 offs = 0;   // Offset in DWORDs from the pointer above
@@ -200,13 +215,33 @@ float v[104];
             continue;
         }
 
+        case Shader::Opcode::S_WAITCNT: {
+            main += "// S_WAITCNT\n";
+            break;
+        }
+
         case Shader::Opcode::S_MOV_B32: {
             if (instr.dst[0].code > 104) {
                 main += "// TODO: S_MOV_B32 to special register\n";
                 continue;
             }
 
-            Helpers::panic("S_MOV_B32 to a normal register (TODO)\n");
+            main += std::format("s[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_MOV_B64: {
+            if (instr.dst[0].code > 104) {
+                main += "// TODO: S_MOV_B64 to special register\n";
+                continue;
+            }
+
+            main += std::format("s[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_WQM_B64: {
+            main += "// TODO: S_WQM_B64\n";
             break;
         }
 
@@ -216,18 +251,12 @@ float v[104];
         }
 
         case Shader::Opcode::V_CVT_PKRTZ_F16_F32: {
-            main += std::format("v[{}] = uintBitsToFloat(packHalf2x16(vec2(v[{}], v[{}])));\n", instr.dst[0].code, instr.src[0].code, instr.src[1].code);
+            main += std::format("v[{}] = uintBitsToFloat(packHalf2x16(vec2({}, {})));\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
             break;
         }
 
         case Shader::Opcode::V_MOV_B32: {
-            std::string src;
-            if (instr.src[0].code <= 104) src = std::format("s[{}]", instr.src[0].code);
-            else if (instr.src[0].code == 128) src = "0.0f";
-            else if (instr.src[0].code == 242) src = "1.0f";
-            else Helpers::panic("V_MOV_B32 from unhandled source register %d\n", instr.src[0].code);
-
-            main += std::format("v[{}] = {};\n", instr.dst[0].code, src);
+            main += std::format("v[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
             break;
         }
 
@@ -265,9 +294,9 @@ float v[104];
             // When compr is enabled, EXP uses four 16bit values packed in VSRC0 and VSRC1 instead of four 32bit values in VSRC0, VSRC1, VSRC2 and VSRC3
             std::string data;
             if (!instr.control.exp.compr)
-                data = std::format("vec4(v[{}], v[{}], v[{}], v[{}])", instr.src[0].code, instr.src[1].code, instr.src[2].code, instr.src[3].code);
+                data = std::format("vec4({}, {}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2]), getSRC(instr.src[3]));
             else
-                data = std::format("vec4(unpackHalf2x16(floatBitsToUint(v[{}])), unpackHalf2x16(floatBitsToUint(v[{}])))", instr.src[0].code, instr.src[1].code);
+                data = std::format("vec4(unpackHalf2x16(floatBitsToUint({})), unpackHalf2x16(floatBitsToUint({})))", getSRC(instr.src[0]), getSRC(instr.src[1]));
 
             // Color targets
             if (tgt >= 0 && tgt <= 8) {

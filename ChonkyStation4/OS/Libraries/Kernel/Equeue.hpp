@@ -35,6 +35,17 @@ struct Equeue {
     std::pair<bool, std::vector<SceKernelEvent>> wait(u32 timeout); // bool = whether or not we timed out
 };
 
+struct EventSource {
+    bool initialized = false;
+    u64 ident;
+    u16 filter;
+    std::vector<Equeue*> eqs;
+
+    void init(u64 ident, u16 filter);
+    void addToEventQueue(Equeue* eq, void* udata);
+    void trigger(u64 data);
+};
+
 using SceKernelEqueue = Equeue*;
 
 s32 PS4_FUNC sceKernelCreateEqueue(SceKernelEqueue* eq, const char* name);

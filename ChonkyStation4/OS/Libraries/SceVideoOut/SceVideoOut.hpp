@@ -63,7 +63,7 @@ struct SceVideoOutResolutionStatus {
 struct SceVideoOutPort : SceObj {
     u64 buffer_labels[SCE_VIDEO_OUT_MAX_DISPLAY_BUFFERS];
     SceVideoOutFlipStatus flip_status;
-    std::vector<Kernel::SceKernelEqueue> flip_eqs;
+    Libs::Kernel::EventSource flip_ev_source;
 	SceVideoOutResolutionStatus resolution_status;
 
     void signalFlip(u64 flip_arg);

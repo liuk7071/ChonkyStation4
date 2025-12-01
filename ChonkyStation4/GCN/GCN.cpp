@@ -15,8 +15,12 @@ std::mutex mtx;
 void gcnThread() {
     // Initialize renderer
     initVulkan();
-    initialized = true;
+
+    // Initialize event sources
+    eop_ev_source.init(EOP_EVENT_ID, 0);    // TODO: Properly set filter
     
+    initialized = true;
+
     RendererCommand cmd;
     while (true) {
         // Wait until we have work to do.
@@ -38,6 +42,10 @@ void gcnThread() {
         }
 
         case CommandType::Flip: {
+            // Set buffer label
+            u64* buf_label;
+            OS::Libs::SceVideoOut::sceVideoOutGetBufferLabelAddress(cmd.video_out_handle, (void**)&buf_label);
+            buf_label[cmd.buf_idx] = 1;
             renderer->flip();
 
             // Signal SceVideoOut port event queues
@@ -45,8 +53,9 @@ void gcnThread() {
             if (!port) {
                 Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
             }
-
             port->signalFlip(cmd.flip_arg);
+
+            buf_label[cmd.buf_idx] = 0;
             break;
         }
         }
@@ -68,8 +77,8 @@ void submitCommandBuffers(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) 
     submitRendererCommand({ CommandType::SubmitCommandBuffers, dcb, dcb_size, ccb, ccb_size });
 }
 
-void submitFlip(u32 video_out_handle, u64 flip_arg) {
-    submitRendererCommand({ CommandType::Flip, .video_out_handle = video_out_handle, .flip_arg = flip_arg });
+void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {
+    submitRendererCommand({ CommandType::Flip, .video_out_handle = video_out_handle, .buf_idx = buf_idx, .flip_arg = flip_arg });
 }
 
 }   // End namespace PS4::GCN

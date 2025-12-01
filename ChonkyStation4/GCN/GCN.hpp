@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Common.hpp>
+#include <OS/Libraries/Kernel/Equeue.hpp>
 #include <GCN/Backends/Renderer.hpp>
 #include <GCN/Backends/Vulkan/VulkanRenderer.hpp>
 #include <atomic>
@@ -8,6 +9,7 @@
 
 namespace PS4::GCN {
 
+static constexpr u32 EOP_EVENT_ID = 0x40;
 
 enum class CommandType {
     SubmitCommandBuffers,
@@ -25,15 +27,19 @@ struct RendererCommand {
 
     // For Flip
     u32 video_out_handle;
+    u32 buf_idx;
     u64 flip_arg;
 };
 
 inline std::atomic<bool> initialized = false;
 inline std::unique_ptr<Renderer> renderer;
 
+// Event sources
+inline OS::Libs::Kernel::EventSource eop_ev_source;
+
 void gcnThread();
 void submitCommandBuffers(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size);
-void submitFlip(u32 video_out_handle, u64 flip_arg);
+void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg);
 
 inline void initVulkan() {
     renderer = std::make_unique<VulkanRenderer>();

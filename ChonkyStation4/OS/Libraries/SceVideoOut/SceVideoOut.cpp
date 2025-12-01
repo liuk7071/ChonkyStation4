@@ -22,10 +22,7 @@ void init(Module& module) {
 }
 
 void SceVideoOutPort::signalFlip(u64 flip_arg) {
-    for (auto& eq : flip_eqs) {
-        eq->trigger(SCE_VIDEO_OUT_FLIP_EVENT_ID, 0, flip_arg); // TODO: Fill in proper flip event data
-    }
-
+    flip_ev_source.trigger(flip_arg);
     flip_status.count++;
 }
 
@@ -42,6 +39,9 @@ s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) 
     }
 
     auto port = PS4::OS::make<SceVideoOutPort>();
+
+    // Initialize event source
+    port->flip_ev_source.init(SCE_VIDEO_OUT_FLIP_EVENT_ID, 0);  // TODO: Properly set filter
 
     port->resolution_status.full_width = 1920;
     port->resolution_status.full_height = 1080;
@@ -81,15 +81,7 @@ s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, voi
     }
 
     // TODO: Check if the eq exists?
-    eq->registerEvent({
-        .ident = SCE_VIDEO_OUT_FLIP_EVENT_ID,
-        .filter = 0,    // TODO
-        .flags = 0,     // TODO
-        .fflags = 0,    // TODO
-        .data = 0,      // TODO
-        .udata = udata,
-    });
-    port->flip_eqs.push_back(eq);
+    port->flip_ev_source.addToEventQueue(eq, udata);
     return SCE_OK;
 }
 

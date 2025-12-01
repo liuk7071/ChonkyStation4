@@ -21,22 +21,22 @@ union PM4Header {
 namespace WaitRegMem {
 
 enum class Engine : u32 {
-    Me = 0u,
-    Pfp = 1u
+    Me = 0,
+    Pfp = 1
 };
 enum class MemSpace : u32 {
-    Register = 0u,
-    Memory = 1u
+    Register = 0,
+    Memory = 1
 };
 enum class Function : u32 {
-    Always = 0u,
-    LessThan = 1u,
-    LessThanEqual = 2u,
-    Equal = 3u,
-    NotEqual = 4u,
-    GreaterThanEqual = 5u,
-    GreaterThan = 6u,
-    Reserved = 7u
+    Always = 0,
+    LessThan = 1,
+    LessThanEqual = 2,
+    Equal = 3,
+    NotEqual = 4,
+    GreaterThanEqual = 5,
+    GreaterThan = 6,
+    Reserved = 7
 };
 
 }   // End namespace WaitRegMem

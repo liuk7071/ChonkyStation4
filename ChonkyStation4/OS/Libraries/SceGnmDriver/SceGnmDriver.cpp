@@ -35,7 +35,7 @@ s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32
     for (int i = 0; i < cnt; i++)
         GCN::submitCommandBuffers(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
 
-    GCN::submitFlip(video_out_handle, flip_arg);
+    GCN::submitFlip(video_out_handle, buf_idx, flip_arg);
     return SCE_OK;
 }
 
@@ -48,15 +48,10 @@ s32 PS4_FUNC sceGnmSubmitDone() {
 s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* udata) {
     log("sceGnmAddEqEvent(eq=%p, id=0x%llx, udata=%p)\n", eq, id, udata);
 
-    // TODO: I'm not sure how this works yet
-    eq->registerEvent({
-        .ident = id,
-        .filter = 0,    // TODO
-        .flags = 0,     // TODO
-        .fflags = 0,    // TODO
-        .data = id,     // TODO
-        .udata = udata,
-    });
+    switch (id) {
+    case GCN::EOP_EVENT_ID: GCN::eop_ev_source.addToEventQueue(eq, udata);  break;
+    default: Helpers::panic("sceGnmAddEqEvent: unhandled event id 0x%x\n", id);
+    }
 
     return SCE_OK;
 }

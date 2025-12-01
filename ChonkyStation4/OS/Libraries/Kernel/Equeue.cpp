@@ -62,6 +62,31 @@ std::pair<bool, std::vector<SceKernelEvent>> Equeue::wait(u32 timeout) {
     return { false, evs };
 }
 
+void EventSource::init(u64 ident, u16 filter) {
+    Helpers::debugAssert(!initialized, "Tried to initialize event source twice\n");
+    initialized = true;
+    this->ident = ident;
+    this->filter = filter;
+}
+
+void EventSource::addToEventQueue(Equeue* eq, void* udata) {
+    eq->registerEvent({
+        .ident = ident,
+        .filter = filter,
+        .flags = 0,     // TODO
+        .fflags = 0,    // TODO
+        .data = 0,      
+        .udata = udata,
+    });
+    eqs.push_back(eq);
+}
+
+void EventSource::trigger(u64 data) {
+    for (auto& eq : eqs) {
+        eq->trigger(ident, filter, data);
+    }
+}
+
 s32 PS4_FUNC sceKernelCreateEqueue(SceKernelEqueue* eq, const char* name) {
     log("sceKernelCreateEqueue(eq=*%p, name=\"%s\")\n", eq, name);
 
