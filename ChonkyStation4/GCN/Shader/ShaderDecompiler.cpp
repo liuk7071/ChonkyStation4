@@ -10,9 +10,11 @@
 namespace PS4::GCN::Shader {
 
 std::string shader;
+std::string const_tables;
+std::unordered_map<std::string, size_t> const_table_map;
 std::unordered_map<int, std::string> in_attrs;
 std::unordered_map<int, std::string> out_attrs;
-std::unordered_map<int, std::string> in_ssbos;
+std::unordered_map<int, std::string> in_buffers;
 
 void addFunc(std::string name, std::string body) {
     shader += name + "() {\n";
@@ -43,13 +45,40 @@ void addOutAttr(std::string name, std::string type, int location) {
 }
 
 void addInSSBO(std::string name, int binding) {
-    if (in_ssbos.contains(binding)) {
+    if (in_buffers.contains(binding)) {
         // Extra check to be safe, this shouldn't ever happen
-        Helpers::debugAssert(in_ssbos[binding] == name, "ShaderDecompiler: tried to add an input SSBO to an already used binding with a different name\n");
+        Helpers::debugAssert(in_buffers[binding] == name, "ShaderDecompiler: tried to add an input SSBO to an already used binding with a different name\n");
         return;
     }
-    in_ssbos[binding] = name;
-    shader += std::format("layout(set = 0, binding = {}, std430) readonly buffer {{ uint data[]; }} {};\n", binding, name);
+    in_buffers[binding] = name;
+    shader += std::format("layout(binding = {}, std430) readonly buffer {}_t {{ uint data[]; }} {};\n", binding, name, name);
+}
+
+void addInSampler2D(std::string name, int binding) {
+    if (in_buffers.contains(binding)) {
+        // Extra check to be safe, this shouldn't ever happen
+        Helpers::debugAssert(in_buffers[binding] == name, "ShaderDecompiler: tried to add an input sampelr2D to an already used binding with a different name\n");
+        return;
+    }
+    in_buffers[binding] = name;
+    shader += std::format("layout(binding = {}) uniform sampler2D {};\n", binding, name);
+}
+
+void addFloatConstTable(std::string name, float* table, size_t size) {
+    if (const_table_map.contains(name)) {
+        // Extra check to be safe, this shouldn't ever happen
+        Helpers::debugAssert(const_table_map[name] == size, "ShaderDecompiler: tried to add a const table with same name but different size\n");
+        return;
+    }
+    const_table_map[name] = size;
+
+    // Build a string like: float name[size] = float[size](a, b, ... c);
+    const_tables += std::format("float {}[{}] = float[{}](", name, size, size);
+    for (int i = 0; i < size; i++) {
+        const_tables += std::format("{:#g}f", table[i]);
+        if (i != size - 1) const_tables += ", ";
+    }
+    const_tables += ");\n";
 }
 
 std::string getType(int n_lanes) {
@@ -66,12 +95,21 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     std::string src;
 
     switch (op.field) {
-    case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                break;
-    case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                break;
-    case OperandField::LiteralConst:        src = std::format("{}f", reinterpret_cast<const float&>(op.code));  break;
-    case OperandField::ConstZero:           src = "0.0f";                                                       break;
-    case OperandField::ConstFloatPos_1_0:   src = "1.0f";                                                       break;
-    default:    Helpers::panic("Unhandled SSRC %d\n", op.code);
+    case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                                        break;
+    case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                                        break;
+    case OperandField::LiteralConst:        src = std::format("{}f", reinterpret_cast<const float&>(op.code));                          break;
+    case OperandField::SignedConstIntPos:   src = std::format("intBitsToFloat({})", (s32)op.code - SignedConstIntPosMin + 1);           break;
+    case OperandField::SignedConstIntNeg:   src = std::format("intBitsToFloat({})", -(s32)(op.code - SignedConstIntNegMin + 1));        break;
+    case OperandField::ConstFloatNeg_4_0:   src = "-4.0f";                                                                              break;
+    case OperandField::ConstFloatNeg_2_0:   src = "-2.0f";                                                                              break;
+    case OperandField::ConstFloatNeg_1_0:   src = "-1.0f";                                                                              break;
+    case OperandField::ConstFloatNeg_0_5:   src = "-0.5f";                                                                              break;
+    case OperandField::ConstZero:           src = "0.0f";                                                                               break;
+    case OperandField::ConstFloatPos_0_5:   src = "0.5f";                                                                               break;
+    case OperandField::ConstFloatPos_1_0:   src = "1.0f";                                                                               break;
+    case OperandField::ConstFloatPos_2_0:   src = "2.0f";                                                                               break;
+    case OperandField::ConstFloatPos_4_0:   src = "4.0f";                                                                               break;
+    default:    Helpers::panic("Unhandled SRC %d\n", op.code);
     }
 
     return src;
@@ -89,15 +127,20 @@ ShaderData decompileShader(u32* data, ShaderStage stage, FetchShader* fetch_shad
     ShaderData shader_data;
     shader.clear();
     shader.reserve(16_KB);  // Avoid reallocations
+    const_tables.clear();
+    const_tables.reserve(1_KB);
+    const_table_map.clear();
     in_attrs.clear();
     out_attrs.clear();
+    in_buffers.clear();
 
     shader += R"(
-#version 410 core
+#version 430 core
 #extension GL_ARB_shading_language_packing : require
 
 float s[104];
 float v[104];
+vec4 tmp;
 
 )";
 
@@ -137,6 +180,7 @@ float v[104];
             break;
         }
 
+        case Shader::Opcode::IMAGE_SAMPLE:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2: {
             const auto sgpr = instr.src[2].code * 4;
             if (!descs.contains(sgpr)) {
@@ -156,8 +200,24 @@ float v[104];
                 buf.binding = next_buf_binding++;
                 buf.desc_info.sgpr = sgpr;
                 buf.desc_info.is_ptr = false;
-                auto name = std::format("ssbo{}", buf.binding);
-                addInSSBO(name, buf.binding);
+                switch (instr.inst_class) {
+                case InstClass::ScalarMemRd: {
+                    buf.desc_info.type = DescriptorType::Vsharp;
+                    auto name = std::format("ssbo{}", buf.binding);
+                    addInSSBO(name, buf.binding);
+                    break;
+                }
+
+                case InstClass::VectorMemImgSmp: {
+                    buf.desc_info.type = DescriptorType::Tsharp;
+                    auto name = std::format("tex{}", buf.binding);
+                    addInSampler2D(name, buf.binding);
+                    break;
+                }
+
+                default: Helpers::panic("ShaderDecompiler: unreachable\n");
+                }
+                
                 buffer_map[buf_mapping_idx++] = &buf;
                 //printf("Added buffer %s\n", name.c_str());
             }
@@ -250,6 +310,26 @@ float v[104];
             break;
         }
 
+        case Shader::Opcode::V_ADD_F32: {
+            main += std::format("v[{}] = {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_SUB_F32: {
+            main += std::format("v[{}] = {} - {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_MUL_F32: {
+            main += std::format("v[{}] = {} * {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_MAC_F32: {
+            main += std::format("v[{}] = {} * {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.dst[0]));
+            break;
+        }
+
         case Shader::Opcode::V_CVT_PKRTZ_F16_F32: {
             main += std::format("v[{}] = uintBitsToFloat(packHalf2x16(vec2({}, {})));\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
             break;
@@ -257,6 +337,41 @@ float v[104];
 
         case Shader::Opcode::V_MOV_B32: {
             main += std::format("v[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_OFF_F32_I4: {
+            static constexpr float cvt_table[] = {
+                0.0f, 0.0625f, 0.1250f, 0.1875f, 0.2500f, 0.3125f, 0.3750f, 0.4375f,
+                -0.5000f, -0.4375f, -0.3750f, -0.3125f, -0.2500f, -0.1875f, -0.1250f, -0.0625f
+            };
+            addFloatConstTable("cvt_off_f32_i4", (float*)cvt_table, 16);
+
+            main += std::format("v[{}] = cvt_off_f32_i4[floatBitsToInt({}) & 0xf];\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::V_FRACT_F32: {
+            main += std::format("v[{}] = fract({});\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::V_FLOOR_F32: {
+            main += std::format("v[{}] = floor({});\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::V_RCP_F32: {
+            main += std::format("v[{}] = 1.0f / {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::V_MED3_F32: {
+            const auto src0 = getSRC(instr.src[0]);
+            const auto src1 = getSRC(instr.src[1]);
+            const auto src2 = getSRC(instr.src[2]);
+            // med3(a, b, c) = max(min(a, b), min(max(a, b), c))
+            main += std::format("v[{}] = max(min({}, {}), min(max({}, {}), {}));\n", instr.dst[0].code, src0, src1, src0, src1, src2);
             break;
         }
 
@@ -285,6 +400,21 @@ float v[104];
             const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
             main += std::format("s[{}] = uintBitsToFloat({}.data[{}]);\n", instr.dst[0].code, ssbo_name, offset + " + 0");
             main += std::format("s[{}] = uintBitsToFloat({}.data[{}]);\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
+            break;
+        }
+
+        case Shader::Opcode::IMAGE_SAMPLE: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_SAMPLE: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto sampler_name = std::format("tex{}", buf->binding);
+            const std::string texcoords = std::format("vec2(v[{}], v[{}])", instr.src[0].code, instr.src[0].code + 1);
+            main += std::format("tmp = texture({}, {});\n", sampler_name, texcoords);
+            main += std::format("v[{}] = tmp.x;\n", instr.dst[0].code + 0);
+            main += std::format("v[{}] = tmp.y;\n", instr.dst[0].code + 1);
+            main += std::format("v[{}] = tmp.z;\n", instr.dst[0].code + 2);
+            main += std::format("v[{}] = tmp.w;\n", instr.dst[0].code + 3);
             break;
         }
 
@@ -326,11 +456,13 @@ float v[104];
     }
 
     shader += "\n";
+    shader += const_tables;
+    shader += "\n";
 
     // Declare main function
     addFunc("void main", main);
 
-    //printf("%s\n", shader.c_str());
+    printf("%s\n", shader.c_str());
     shader_data.source = shader;
     return shader_data;
 }

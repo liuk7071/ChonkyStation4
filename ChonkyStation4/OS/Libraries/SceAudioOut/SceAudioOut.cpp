@@ -15,7 +15,6 @@ void init(Module& module) {
     module.addSymbolExport("QOQtbeDqsT4", "sceAudioOutOutput", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutput);
 }
 
-std::ofstream output;
 SDL_AudioDeviceID dev;
 
 s32 PS4_FUNC sceAudioOutInit() {
@@ -43,7 +42,6 @@ s32 PS4_FUNC sceAudioOutInit() {
 s32 PS4_FUNC sceAudioOutOpen(Libs::SceUserService::SceUserServiceUserId uid, s32 type, s32 idx, u32 len, u32 freq, u32 param) {
     log("sceAudioOutOpen(uid=%d, type=%d, idx=%d, len=%d, freq=%d, param=0x%x)\n", uid, type, idx, len, freq, param);
 
-    output.open("sample.bin", std::ios::binary);
     auto* port = PS4::OS::make<SceAudioOutPort>();
     port->device = (AudioVirtualDevice)type;
     port->len = len;
