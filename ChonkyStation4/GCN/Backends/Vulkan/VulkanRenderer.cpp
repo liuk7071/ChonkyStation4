@@ -389,6 +389,25 @@ vk::Format VulkanRenderer::getVtxBufferFormat(u32 n_elements, u32 type) {
     }
 }
 
+std::pair<vk::Format, size_t> VulkanRenderer::getTexFormatAndSize(u32 dfmt, u32 nfmt) {
+    switch ((DataFormat)dfmt) {
+
+    case DataFormat::Format5_6_5: {
+        switch ((NumberFormat)nfmt) {
+        
+        case NumberFormat::Unorm: return { vk::Format::eR5G6B5UnormPack16, sizeof(u16)};
+
+        default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+    }
+
+    Helpers::panic("getTexFormatAndSize: unreachable\n");
+}
+
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
     const auto* ps_ptr = getPSPtr();
@@ -494,15 +513,14 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
                 const u32 width = tsharp->width + 1;
                 const u32 height = tsharp->height + 1;
                 const u32 pitch = tsharp->pitch + 1;
-                const size_t img_size = pitch * height * sizeof(u16);   // TODO: Stubbed for RGB565
+
+                const auto [vk_fmt, pixel_size] = getTexFormatAndSize(tsharp->data_format, tsharp->num_format);
+                const size_t img_size = pitch * height * pixel_size;
                 log("texture size: width=%lld, height=%lld\n", (u32)tsharp->width + 1, (u32)tsharp->height + 1);
                 log("texture ptr: %p\n", (void*)tsharp->base_address);
                 log("texture dfmt: %d\n", (u32)tsharp->data_format);
                 log("texture nfmt: %d\n", (u32)tsharp->num_format);
                 log("texture pitch: %d\n", (u32)tsharp->pitch + 1);
-                //std::ofstream out;
-                //out.open("sonic.bin", std::ios::binary);
-                //out.write((char*)(tsharp->base_address << 8), (tsharp->pitch + 1) * (tsharp->height + 1) * sizeof(u16));
 
                 vk::raii::Buffer tex_buf = vk::raii::Buffer(device, { .size = img_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
                 auto mem_requirements = tex_buf.getMemoryRequirements();
@@ -517,7 +535,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
                 auto& mem = texture_mem.emplace_back(nullptr);
                 vk::ImageCreateInfo img_info = {
                     .imageType = vk::ImageType::e2D,
-                    .format = vk::Format::eR5G6B5UnormPack16,   // TODO: Stubbed
+                    .format = vk_fmt,
                     .extent = { width, height, 1 },
                     .mipLevels = 1,
                     .arrayLayers = 1,
@@ -543,7 +561,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 
                 // Create image view
                 auto& img_view = texture_views.emplace_back(nullptr);
-                vk::ImageViewCreateInfo view_info = { .image = *img, .viewType = vk::ImageViewType::e2D, .format = vk::Format::eR5G6B5UnormPack16, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+                vk::ImageViewCreateInfo view_info = { .image = *img, .viewType = vk::ImageViewType::e2D, .format = vk_fmt, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
                 img_view = vk::raii::ImageView(device, view_info);
 
                 // Create image sampler

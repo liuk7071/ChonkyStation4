@@ -87,6 +87,7 @@ private:
     void endCommands(vk::raii::CommandBuffer& cmd_buffer);
 
     vk::Format getVtxBufferFormat(u32 n_elements, u32 type);
+    std::pair<vk::Format, size_t> getTexFormatAndSize(u32 dfmt, u32 nfmt);
 };
 
 }   // End namespace PS4::GCN
