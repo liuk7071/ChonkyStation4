@@ -41,6 +41,23 @@ enum class Function : u32 {
 
 }   // End namespace WaitRegMem
 
+namespace DmaData {
+
+enum class DmaDataDst : u32 {
+    Memory = 0,
+    Gds = 1,
+    MemoryUsingL2 = 3,
+};
+
+enum class DmaDataSrc : u32 {
+    Memory = 0,
+    Gds = 1,
+    Data = 2,
+    MemoryUsingL2 = 3,
+};
+
+}   // End namespace DmaData
+
 enum class PM4ItOpcode : u32 {
     Nop = 0x10,
     SetBase = 0x11,

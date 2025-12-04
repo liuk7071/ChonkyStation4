@@ -6,8 +6,10 @@
 #include <Loaders/App.hpp>
 #include <GCN/Backends/Vulkan/GLSLCompiler.hpp>
 #include <GCN/VSharp.hpp>
+#include <GCN/TSharp.hpp>
 #include <GCN/Shader/ShaderDecompiler.hpp>
 #include <SDL_vulkan.h>
+#include <OS/Libraries/ScePad/ScePad.hpp>
 
 
 extern App g_app;
@@ -84,7 +86,34 @@ void VulkanRenderer::recreateSwapChain() {
 
 }
 
-void VulkanRenderer::transitionImageLayout(u32 img_idx, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::AccessFlags2 src_access_mask, vk::AccessFlags2 dst_access_mask, vk::PipelineStageFlags2 src_stage_mask, vk::PipelineStageFlags2 dst_stage_mask) {
+void VulkanRenderer::transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout old_layout, vk::ImageLayout new_layout) {
+    vk::raii::CommandBuffer tmp_cmd = beginCommands();
+    vk::ImageMemoryBarrier barrier = { .oldLayout = old_layout, .newLayout = new_layout, .image = *image, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+    vk::PipelineStageFlags source_stage;
+    vk::PipelineStageFlags destination_stage;
+
+    if (old_layout == vk::ImageLayout::eUndefined && new_layout == vk::ImageLayout::eTransferDstOptimal) {
+        barrier.srcAccessMask = {};
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+        source_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+        destination_stage = vk::PipelineStageFlagBits::eTransfer;
+    }
+    else if (old_layout == vk::ImageLayout::eTransferDstOptimal && new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        source_stage = vk::PipelineStageFlagBits::eTransfer;
+        destination_stage = vk::PipelineStageFlagBits::eAllGraphics;
+    }
+    else {
+        Helpers::panic("Unsupported layout transition\n");
+    }
+    tmp_cmd.pipelineBarrier(source_stage, destination_stage, {}, {}, nullptr, barrier);
+    endCommands(tmp_cmd);
+}
+
+void VulkanRenderer::transitionImageLayoutForSwapchain(u32 img_idx, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::AccessFlags2 src_access_mask, vk::AccessFlags2 dst_access_mask, vk::PipelineStageFlags2 src_stage_mask, vk::PipelineStageFlags2 dst_stage_mask) {
     vk::ImageMemoryBarrier2 barrier = {
         .srcStageMask = src_stage_mask,
         .srcAccessMask = src_access_mask,
@@ -123,7 +152,7 @@ void VulkanRenderer::advanceSwapchain() {
     }
 
     // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
-    transitionImageLayout(
+    transitionImageLayoutForSwapchain(
         current_swapchain_image_idx,
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eColorAttachmentOptimal,
@@ -132,6 +161,24 @@ void VulkanRenderer::advanceSwapchain() {
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
         vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
     );
+}
+
+vk::raii::CommandBuffer VulkanRenderer::beginCommands() {
+    vk::CommandBufferAllocateInfo alloc_info = { .commandPool = *cmd_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
+    vk::raii::CommandBuffer command_buffer = std::move(device.allocateCommandBuffers(alloc_info).front());
+
+    vk::CommandBufferBeginInfo begin_info = { .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+    command_buffer.begin(begin_info);
+
+    return command_buffer;
+}
+
+void VulkanRenderer::endCommands(vk::raii::CommandBuffer& cmd_buffer) {
+    cmd_buffer.end();
+
+    vk::SubmitInfo submit_info = { .commandBufferCount = 1, .pCommandBuffers = &*cmd_buffer };
+    queue.submit(submit_info, nullptr);
+    queue.waitIdle();
 }
 
 void VulkanRenderer::init() {
@@ -342,7 +389,7 @@ vk::Format VulkanRenderer::getVtxBufferFormat(u32 n_elements, u32 type) {
     }
 }
 
-void VulkanRenderer::draw(u64 cnt) {
+void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
     const auto* ps_ptr = getPSPtr();
     log("Vertex Shader address : %p\n", vs_ptr);
@@ -355,16 +402,22 @@ void VulkanRenderer::draw(u64 cnt) {
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
 
+    // TODO: Pipeline cache...
+
     FetchShader fetch_shader = FetchShader(fetch_shader_ptr);
+
+    // Compile shaders
+    Shader::ShaderData vert_shader, pixel_shader;
+    Shader::decompileShader((u32*)vs_ptr, Shader::ShaderStage::Vertex, vert_shader, &fetch_shader);
+    Shader::decompileShader((u32*)ps_ptr, Shader::ShaderStage::Fragment, pixel_shader);
 
     // Iterate over fetch shader bindings and convert them to vulkan binding/attribute descriptions, and create the vertex buffers
     std::vector<vk::VertexInputBindingDescription> bindings;
     std::vector<vk::VertexInputAttributeDescription> attribs;
-    VSharp* vsharp;
     u32 n_binding = 0;
     for (auto& shader_binding : fetch_shader.bindings) {
         // Get pointer to the V#
-        vsharp = shader_binding.vsharp_loc.asPtr();
+        VSharp* vsharp = shader_binding.vsharp_loc.asPtr();
 
         auto& binding = bindings.emplace_back();
         auto& attrib  = attribs.emplace_back();
@@ -387,9 +440,201 @@ void VulkanRenderer::draw(u64 cnt) {
         log("Created attribute binding for location %d\n", shader_binding.dest_vgpr);
     }
 
-    // Compile shaders
-    auto vert_shader  = Shader::decompileShader((u32*)vs_ptr, Shader::ShaderStage::Vertex, &fetch_shader);
-    auto pixel_shader = Shader::decompileShader((u32*)ps_ptr, Shader::ShaderStage::Fragment);
+    // Create and upload buffers required by each shader
+    std::vector<vk::DescriptorPoolSize> pool_size;
+    std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
+    std::vector<vk::DescriptorBufferInfo> buffer_info;
+    std::vector<vk::DescriptorImageInfo> image_info;
+    std::vector<vk::WriteDescriptorSet> descriptor_writes;
+
+    std::vector<vk::DescriptorSetLayoutBinding> buf_bindings;
+    auto create_buffers = [&](Shader::ShaderData data) {
+        for (auto& buf_info : data.buffers) {
+            switch (buf_info.desc_info.type) {
+            case Shader::DescriptorType::Vsharp: {
+                // Get pointer to the V#
+                VSharp* vsharp = buf_info.desc_info.asPtr<VSharp>();
+
+                // Upload as SSBO
+                auto& buf = bufs.emplace_back(nullptr);
+                auto& mem = bufs_mem.emplace_back(nullptr);
+                auto& binding = buf_bindings.emplace_back();
+                binding = { (u32)buf_info.binding, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, nullptr };
+
+                const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
+                buf = vk::raii::Buffer(device, { .size = buf_size, .usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst, .sharingMode = vk::SharingMode::eExclusive });
+                auto mem_requirements = buf.getMemoryRequirements();
+                mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
+                buf.bindMemory(*mem, 0);
+                void* buf_data = mem.mapMemory(0, buf_size);
+                void* guest_buf_data = (void*)(vsharp->base << 8);
+                std::memcpy(buf_data, guest_buf_data, buf_size);
+                mem.unmapMemory();
+
+                pool_size.push_back(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1));
+                layout_bindings.push_back(vk::DescriptorSetLayoutBinding(buf_info.binding, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics, nullptr));
+                buffer_info.push_back({
+                    .buffer = *buf,
+                    .offset = 0,
+                    .range = buf_size,
+                });
+                descriptor_writes.push_back(vk::WriteDescriptorSet {
+                    .dstSet = nullptr,  // Will be updated below after we actually allocate the descriptor set
+                    .dstBinding = (u32)buf_info.binding,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = vk::DescriptorType::eStorageBuffer,
+                    .pBufferInfo = &buffer_info.back()
+                });
+                break;
+            }
+
+            case Shader::DescriptorType::Tsharp: {
+                TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
+                const u32 width = tsharp->width + 1;
+                const u32 height = tsharp->height + 1;
+                const u32 pitch = tsharp->pitch + 1;
+                const size_t img_size = pitch * height * sizeof(u16);   // TODO: Stubbed for RGB565
+                log("texture size: width=%lld, height=%lld\n", (u32)tsharp->width + 1, (u32)tsharp->height + 1);
+                log("texture ptr: %p\n", (void*)tsharp->base_address);
+                log("texture dfmt: %d\n", (u32)tsharp->data_format);
+                log("texture nfmt: %d\n", (u32)tsharp->num_format);
+                log("texture pitch: %d\n", (u32)tsharp->pitch + 1);
+                //std::ofstream out;
+                //out.open("sonic.bin", std::ios::binary);
+                //out.write((char*)(tsharp->base_address << 8), (tsharp->pitch + 1) * (tsharp->height + 1) * sizeof(u16));
+
+                vk::raii::Buffer tex_buf = vk::raii::Buffer(device, { .size = img_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
+                auto mem_requirements = tex_buf.getMemoryRequirements();
+                vk::raii::DeviceMemory tex_mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
+                tex_buf.bindMemory(*tex_mem, 0);
+                void* data = tex_mem.mapMemory(0, img_size);
+                std::memcpy(data, (void*)(tsharp->base_address << 8), img_size);
+                tex_mem.unmapMemory();
+
+                // Create image
+                auto& img = textures.emplace_back(nullptr);
+                auto& mem = texture_mem.emplace_back(nullptr);
+                vk::ImageCreateInfo img_info = {
+                    .imageType = vk::ImageType::e2D,
+                    .format = vk::Format::eR5G6B5UnormPack16,   // TODO: Stubbed
+                    .extent = { width, height, 1 },
+                    .mipLevels = 1,
+                    .arrayLayers = 1,
+                    .samples = vk::SampleCountFlagBits::e1,
+                    .tiling = vk::ImageTiling::eLinear,
+                    .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+                    .sharingMode = vk::SharingMode::eExclusive
+                };
+                img = vk::raii::Image(device, img_info);
+                mem_requirements = img.getMemoryRequirements();
+                vk::MemoryAllocateInfo alloc_info = { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) };
+                mem = vk::raii::DeviceMemory(device, alloc_info);
+                img.bindMemory(*mem, 0);
+                transitionImageLayout(img, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+
+                // Copy buffer to image
+                vk::raii::CommandBuffer tmp_cmd = beginCommands();
+                vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = pitch, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
+                tmp_cmd.copyBufferToImage(*tex_buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
+                endCommands(tmp_cmd);
+
+                transitionImageLayout(img, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+                // Create image view
+                auto& img_view = texture_views.emplace_back(nullptr);
+                vk::ImageViewCreateInfo view_info = { .image = *img, .viewType = vk::ImageViewType::e2D, .format = vk::Format::eR5G6B5UnormPack16, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+                img_view = vk::raii::ImageView(device, view_info);
+
+                // Create image sampler
+                auto& sampler = texture_samplers.emplace_back(nullptr);
+                vk::PhysicalDeviceProperties properties = physical_device.getProperties();
+                vk::SamplerCreateInfo sampler_info = {
+                    .magFilter = vk::Filter::eNearest,
+                    .minFilter = vk::Filter::eNearest,
+                    .mipmapMode = vk::SamplerMipmapMode::eNearest,
+                    .addressModeU = vk::SamplerAddressMode::eRepeat,
+                    .addressModeV = vk::SamplerAddressMode::eRepeat,
+                    .addressModeW = vk::SamplerAddressMode::eRepeat,
+                    .mipLodBias = 0.0f,
+                    .anisotropyEnable = vk::False,
+                    .maxAnisotropy = 1.0f,
+                    .compareEnable = vk::False,
+                    .compareOp = vk::CompareOp::eAlways,
+                };
+                sampler = vk::raii::Sampler(device, sampler_info);
+
+                pool_size.push_back(vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1));
+                layout_bindings.push_back(vk::DescriptorSetLayoutBinding(buf_info.binding, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eAllGraphics, nullptr));
+                image_info.push_back({
+                    .sampler = *sampler,
+                    .imageView = *img_view,
+                    .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
+                });
+                descriptor_writes.push_back(vk::WriteDescriptorSet{
+                    .dstSet = nullptr,  // Will be updated below after we actually allocate the descriptor set
+                    .dstBinding = (u32)buf_info.binding,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+                    .pImageInfo = &image_info.back()
+                });
+                break;
+            }
+            }
+        }
+    };
+
+    create_buffers(vert_shader);
+    create_buffers(pixel_shader);
+
+    // Create descriptor pool
+    vk::DescriptorPoolCreateInfo pool_info = {
+        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+        .maxSets = 1,
+        .poolSizeCount = static_cast<uint32_t>(pool_size.size()),
+        .pPoolSizes = pool_size.data()
+    };
+    descriptor_pool = vk::raii::DescriptorPool(device, pool_info);
+
+    // Create descriptor set
+    vk::DescriptorSetLayoutCreateInfo layout_info = { .bindingCount = (u32)layout_bindings.size(), .pBindings = layout_bindings.data() };
+    descriptor_set_layout = vk::raii::DescriptorSetLayout(device, layout_info);
+
+    vk::DescriptorSetAllocateInfo alloc_info = {
+        .descriptorPool = *descriptor_pool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &*descriptor_set_layout
+    };
+    descriptor_sets.clear();
+    descriptor_sets = device.allocateDescriptorSets(alloc_info);
+
+    // Update descriptor writes to point to the newly allocated descriptor set
+    for (auto& write : descriptor_writes) write.dstSet = *descriptor_sets[0];
+
+    device.updateDescriptorSets(descriptor_writes, {});
+
+    // Create index buffer (if needed)
+    if (idx_buf_ptr) {
+        vk::DeviceSize idx_buf_size = cnt * sizeof(u16); // TODO: index type is stubbed
+
+        vk::raii::Buffer buf = vk::raii::Buffer(device, { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
+        auto mem_requirements = buf.getMemoryRequirements();
+        vk::raii::DeviceMemory buf_mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
+        buf.bindMemory(*buf_mem, 0);
+        void* data = buf_mem.mapMemory(0, idx_buf_size);
+        std::memcpy(data, idx_buf_ptr, idx_buf_size);
+        buf_mem.unmapMemory();
+
+        idx_buf = vk::raii::Buffer(device, { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, .sharingMode = vk::SharingMode::eExclusive });
+        mem_requirements = buf.getMemoryRequirements();
+        idx_buf_mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) });
+        idx_buf.bindMemory(*idx_buf_mem, 0);
+
+        vk::raii::CommandBuffer tmp_cmd = beginCommands();
+        tmp_cmd.copyBuffer(*buf, *idx_buf, vk::BufferCopy(0, 0, idx_buf_size));
+        endCommands(tmp_cmd);
+    }
 
     // Setup graphics pipeline
     vk::raii::ShaderModule vert_shader_module = createShaderModule(PS4::GCN::compileGLSL(vert_shader.source, EShLangVertex));
@@ -410,7 +655,7 @@ void VulkanRenderer::draw(u64 cnt) {
     std::vector dynamic_states = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
     vk::PipelineDynamicStateCreateInfo dynamic_state = { .dynamicStateCount = (u32)dynamic_states.size(), .pDynamicStates = dynamic_states.data() };
 
-    vk::PipelineLayoutCreateInfo pipeline_layout_info = { .setLayoutCount = 0, .pushConstantRangeCount = 0 };
+    vk::PipelineLayoutCreateInfo pipeline_layout_info = { .setLayoutCount = 1, .pSetLayouts = &*descriptor_set_layout, .pushConstantRangeCount = 0 };
     pipeline_layout = vk::raii::PipelineLayout(device, pipeline_layout_info);
 
     vk::GraphicsPipelineCreateInfo gpci = {};
@@ -445,17 +690,24 @@ void VulkanRenderer::draw(u64 cnt) {
 
     cmd_bufs[0].beginRendering(render_info);
     cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *graphics_pipeline);
+    cmd_bufs[0].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipeline_layout, 0, *descriptor_sets[0], nullptr);
     cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
     cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
     for (int i = 0; i < vtx_bufs.size(); i++)
         cmd_bufs[0].bindVertexBuffers(i, *vtx_bufs[i], { 0 });
-    cmd_bufs[0].draw(cnt, 1, 0, 0);
+    if (idx_buf_ptr) {
+        cmd_bufs[0].bindIndexBuffer(*idx_buf, 0, vk::IndexType::eUint16);
+        cmd_bufs[0].drawIndexed(cnt, 1, 0, 0, 0);
+    }
+    else {
+        cmd_bufs[0].draw(cnt, 1, 0, 0);
+    }
     cmd_bufs[0].endRendering();
 }
 
 void VulkanRenderer::flip() {
     // After rendering, transition the swapchain image to PRESENT_SRC
-    transitionImageLayout(
+    transitionImageLayoutForSwapchain(
         current_swapchain_image_idx,
         vk::ImageLayout::eColorAttachmentOptimal,
         vk::ImageLayout::ePresentSrcKHR,
@@ -489,6 +741,8 @@ void VulkanRenderer::flip() {
         else throw;
     }
 
+    // TODO: Move generic flip operations out of the vulkan specific code (i.e. SDL events, polling pads, FPS counter etc)
+
     // Handle SDL events
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
@@ -499,6 +753,9 @@ void VulkanRenderer::flip() {
         }
         }
     }
+
+    // Update pads
+    PS4::OS::Libs::ScePad::pollPads();
 
     // FPS counter
     frame_count++;
@@ -517,6 +774,11 @@ void VulkanRenderer::flip() {
     cmd_bufs[0].reset();
     vtx_bufs.clear();
     vtx_bufs_mem.clear();
+    bufs.clear();
+    bufs_mem.clear();
+    textures.clear();
+    texture_mem.clear();
+    texture_views.clear();
     graphics_pipeline.~Pipeline();
     cmd_bufs[0].begin({});
     advanceSwapchain();

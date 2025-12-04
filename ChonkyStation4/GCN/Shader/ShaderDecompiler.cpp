@@ -2,6 +2,8 @@
 #include <GCN/Shader/Decoder.hpp>
 #include <GCN/FetchShader.hpp>
 #include <GCN/VSharp.hpp>
+#include <GCN/TSharp.hpp>
+#include <GCN/GCN.hpp>
 #include <sstream>
 #include <unordered_map>
 #include <deque>
@@ -115,16 +117,38 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     return src;
 }
 
-struct DescriptorLocation {
-    u32 sgpr = 0;   // SGPR pair that contains the pointer to the descriptor
-    u32 offs = 0;   // Offset in DWORDs from the pointer above
-};
+template<typename T>
+T* DescriptorLocation::asPtr() {
+    u32 base;
+    switch (stage) {
+    case ShaderStage::Vertex:   base = Reg::mmSPI_SHADER_USER_DATA_VS_0;    break;
+    case ShaderStage::Fragment: base = Reg::mmSPI_SHADER_USER_DATA_PS_0;    break;
+    default:    Helpers::panic("DescriptorLocation::asPtr: unhandled shader stage\n");
+    }
 
-ShaderData decompileShader(u32* data, ShaderStage stage, FetchShader* fetch_shader) {
+    if (is_ptr) {
+        T* desc;
+        std::memcpy(&desc, &GCN::renderer->regs[base + sgpr], sizeof(T*));
+        desc = (T*)((u32*)desc + offs);  // The immediate is an offset in dwords
+        return desc;
+    }
+    else {
+        return (T*)&GCN::renderer->regs[base + sgpr];
+    }
+}
+
+template VSharp* DescriptorLocation::asPtr<VSharp>();
+template TSharp* DescriptorLocation::asPtr<TSharp>();
+
+void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
+    //std::ofstream out;
+    //if (stage == ShaderStage::Fragment) {
+    //    out.open("fs.bin", std::ios::binary);
+    //    out.write((char*)data, 1_KB);
+    //}
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
 
-    ShaderData shader_data;
     shader.clear();
     shader.reserve(16_KB);  // Avoid reallocations
     const_tables.clear();
@@ -157,9 +181,6 @@ vec4 tmp;
     // Map an SGPR to the descriptor location it currently contains
     std::unordered_map<u32, DescriptorLocation> descs;
 
-    // Our buffers
-    std::deque<Buffer> buffers; // deque to avoid reallocations
-
     // Map a buffer load instruction index (buf_mapping_idx) to buffer ptr
     std::unordered_map<int, Buffer*> buffer_map;
 
@@ -186,7 +207,7 @@ vec4 tmp;
             if (!descs.contains(sgpr)) {
                 // We assume that the descriptor is being passed directly as user data.
                 // Check if this buffer already exists, otherwise create a new one
-                for (auto& buf : buffers) {
+                for (auto& buf : out_data.buffers) {
                     if (buf.desc_info.sgpr == sgpr) {
                         // The buffer already exists
                         Helpers::debugAssert(!buf.desc_info.is_ptr, "Error fetching shader descriptor locations");
@@ -196,10 +217,11 @@ vec4 tmp;
                 }
 
                 // Create a new one
-                auto& buf = buffers.emplace_back();
+                auto& buf = out_data.buffers.emplace_back();
                 buf.binding = next_buf_binding++;
                 buf.desc_info.sgpr = sgpr;
                 buf.desc_info.is_ptr = false;
+                buf.desc_info.stage = stage;
                 switch (instr.inst_class) {
                 case InstClass::ScalarMemRd: {
                     buf.desc_info.type = DescriptorType::Vsharp;
@@ -462,9 +484,8 @@ vec4 tmp;
     // Declare main function
     addFunc("void main", main);
 
-    printf("%s\n", shader.c_str());
-    shader_data.source = shader;
-    return shader_data;
+    //printf("%s\n", shader.c_str());
+    out_data.source = shader;
 }
 
 }   // End namespace PS4::GCN::Shader

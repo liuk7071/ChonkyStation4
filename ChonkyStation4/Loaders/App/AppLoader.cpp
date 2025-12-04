@@ -38,7 +38,8 @@ bool getApp(const AppInfo& info, ::App& app) {
     app.name = info.title;
     
     const std::string sysmodules_to_load[] = {
-        "libSceLibcInternal.sprx"
+        "libSceLibcInternal.sprx",
+        //"libSceNgs2.sprx"
     };
 
     const fs::path sysmodules_path = fs::path(SDL_GetPrefPath("ChonkyStation", "ChonkyStation4")) / "sysmodules";

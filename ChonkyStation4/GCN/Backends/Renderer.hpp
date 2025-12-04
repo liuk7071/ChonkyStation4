@@ -17,7 +17,7 @@ public:
     SDL_Window* window;
 
     virtual void init() = 0;
-    virtual void draw(u64 cnt) = 0;
+    virtual void draw(const u64 cnt, const void* idx_buf_ptr = nullptr) = 0;
     virtual void flip() = 0;
 
     u32 regs[0xd000];

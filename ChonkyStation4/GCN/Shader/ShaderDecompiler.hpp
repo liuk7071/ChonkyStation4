@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Common.hpp>
+#include <deque>
 
 
 class FetchShader;
@@ -26,16 +27,27 @@ struct BufferDescriptorInfo {
     DescriptorType type;
 };
 
+// TODO: Duplicated from FetchShader.hpp
+struct DescriptorLocation {
+    u32 sgpr = 0;   // SGPR pair that contains the pointer to the descriptor or the descriptor itself
+    u32 offs = 0;   // Offset in DWORDs from the pointer above
+    bool is_ptr = false;    // Whether or not the user data is a pointer to it or is the descriptor itself
+    DescriptorType type;
+    ShaderStage stage;
+
+    template<typename T> T* asPtr();
+};
+
 struct Buffer {
     int binding = -1;
-    BufferDescriptorInfo desc_info;
+    DescriptorLocation desc_info;
 };
 
 struct ShaderData {
     std::string source;
-    
+    std::deque<Buffer> buffers; // Buffers required by this shader
 };
 
-ShaderData decompileShader(u32* data, ShaderStage stage, FetchShader* fetch_shader = nullptr);
+void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader = nullptr);
 
 }   // End namespace PS4::GCN::Shader

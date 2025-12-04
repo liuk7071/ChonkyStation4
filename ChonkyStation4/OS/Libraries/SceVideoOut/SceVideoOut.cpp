@@ -19,6 +19,9 @@ void init(Module& module) {
     module.addSymbolExport("U46NwOiJpys", "sceVideoOutSubmitFlip", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitFlip);
     module.addSymbolExport("SbU3dwp80lQ", "sceVideoOutGetFlipStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetFlipStatus);
     module.addSymbolExport("6kPnj51T62Y", "sceVideoOutGetResolutionStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetResolutionStatus);
+    
+    module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
+    module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
 }
 
 void SceVideoOutPort::signalFlip(u64 flip_arg) {

@@ -40,6 +40,8 @@ Module buildHLEModule() {
     module.addSymbolStub("GWnWQNXZH5M", "sceNpScoreCreateNpTitleCtxA", "libSceNpScore", "libSceNpScore", 1);
 
     // libSceSaveDataDialog
+    module.addSymbolStub("s9e3+YpRnzw", "sceSaveDataDialogInitialize", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
+    module.addSymbolStub("4tPhsP6FpDI", "sceSaveDataDialogOpen", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
     module.addSymbolStub("KK3Bdg1RWK0", "sceSaveDataDialogUpdateStatus", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
     module.addSymbolStub("yEiJ-qqr6Cg", "sceSaveDataDialogGetResult", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
     

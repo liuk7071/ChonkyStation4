@@ -12,7 +12,7 @@ public:
     VulkanRenderer() : Renderer() {}
 
     void init() override;
-    void draw(u64 cnt) override;
+    void draw(const u64 cnt, const void* idx_buf_ptr = nullptr) override;
     void flip() override;
 
 private:
@@ -33,6 +33,7 @@ private:
     vk::Extent2D                     swapchain_extent;
     std::vector<vk::raii::ImageView> swapchain_image_views;
 
+    vk::raii::DescriptorSetLayout descriptor_set_layout = nullptr;
     vk::raii::PipelineLayout pipeline_layout = nullptr;
     vk::raii::Pipeline graphics_pipeline = nullptr;
 
@@ -46,8 +47,19 @@ private:
     u32 curr_frame = 0;
     u32 current_swapchain_image_idx = 0;
 
+    vk::raii::DescriptorPool descriptor_pool = nullptr;
+    std::vector<vk::raii::DescriptorSet> descriptor_sets;
+
     std::vector<vk::raii::Buffer> vtx_bufs;
     std::vector<vk::raii::DeviceMemory> vtx_bufs_mem;
+    std::vector<vk::raii::Buffer> bufs;
+    std::vector<vk::raii::DeviceMemory> bufs_mem;
+    std::vector<vk::raii::Image> textures;
+    std::vector<vk::raii::DeviceMemory> texture_mem;
+    std::vector<vk::raii::ImageView> texture_views;
+    std::vector<vk::raii::Sampler> texture_samplers;
+    vk::raii::Buffer idx_buf = nullptr;
+    vk::raii::DeviceMemory idx_buf_mem = nullptr;
 
     std::vector<const char*> required_device_exts = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -61,7 +73,8 @@ private:
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
     void recreateSwapChain();
     u32 findMemoryType(u32 typeFilter, vk::MemoryPropertyFlags properties);
-    void VulkanRenderer::transitionImageLayout(
+    void VulkanRenderer::transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout old_layout, vk::ImageLayout new_layout);
+    void VulkanRenderer::transitionImageLayoutForSwapchain(
         u32                     img_idx,
         vk::ImageLayout         old_layout,
         vk::ImageLayout         new_layout,
@@ -70,6 +83,8 @@ private:
         vk::PipelineStageFlags2 src_stage_mask,
         vk::PipelineStageFlags2 dst_stage_mask);
     void advanceSwapchain();
+    vk::raii::CommandBuffer beginCommands();
+    void endCommands(vk::raii::CommandBuffer& cmd_buffer);
 
     vk::Format getVtxBufferFormat(u32 n_elements, u32 type);
 };

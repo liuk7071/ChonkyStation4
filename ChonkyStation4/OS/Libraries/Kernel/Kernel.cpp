@@ -23,7 +23,8 @@ namespace PS4::OS::Libs::Kernel {
 MAKE_LOG_FUNCTION(log, lib_kernel);
 MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
-static u64 stack_chk_guard = 0xA1BE3123DEADBEEF;
+//static u64 stack_chk_guard = 0xA1BE3123DEADBEEF;
+static u64 stack_chk_guard = 0;
 
 void init(Module& module) {
     module.addSymbolExport("wtkt-teR1so", "pthread_attr_init", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
@@ -92,6 +93,8 @@ void init(Module& module) {
     module.addSymbolExport("L-Q3LEjIbgA", "sceKernelMapDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapDirectMemory);
     module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
+    
+    module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel"); // TODO: Important
 }
 
 static thread_local s32 posix_errno = 0;
