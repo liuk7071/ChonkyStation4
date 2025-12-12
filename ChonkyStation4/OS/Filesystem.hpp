@@ -21,6 +21,11 @@ static constexpr s32 SCE_KERNEL_O_DSYNC     = 0x1000;
 static constexpr s32 SCE_KERNEL_O_DIRECT    = 0x10000;
 static constexpr s32 SCE_KERNEL_O_DIRECTORY = 0x20000;
 
+static constexpr s32 SCE_KERNEL_S_IRU   = 0555;
+static constexpr s32 SCE_KERNEL_S_IRWU  = 0777;
+static constexpr s32 SCE_KERNEL_S_IFDIR = 0040000;
+static constexpr s32 SCE_KERNEL_S_IFREG = 0100000;
+
 enum class Device {
     APP0,
     DEV,

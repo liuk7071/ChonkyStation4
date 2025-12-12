@@ -50,7 +50,7 @@ s32 PS4_FUNC scePadInit() {
     std::memset(&pad_state, 0, sizeof(ScePadData));
     pad_state.connected = true;
     pad_state.connected_count = 1;
-    pad_state.left_stick.x = 0x80;
+    pad_state.left_stick.x = 0xff;
     pad_state.left_stick.y = 0x80;
     pad_state.right_stick.x = 0x80;
     pad_state.right_stick.y = 0x80;

@@ -120,6 +120,12 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             case 0:                                             break;      // None
             case 1: std::memcpy(ptr, &data_lo, sizeof(u32));    break;      // 32bit
             case 2: std::memcpy(ptr, &data,    sizeof(u64));    break;      // 64bit
+            case 4: {
+                // TODO: gpu perf counter
+                const u64 dummy = 100000;
+                std::memcpy(ptr, &dummy, sizeof(u64));
+                break;
+            }
             default: Helpers::panic("EventWriteEop: unhandled data_sel %d\n", data_sel);
             }
 

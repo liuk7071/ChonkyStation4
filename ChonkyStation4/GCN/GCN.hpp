@@ -42,7 +42,7 @@ void submitCommandBuffers(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size);
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg);
 
 inline void initVulkan() {
-    renderer = std::make_unique<VulkanRenderer>();
+    renderer = std::make_unique<Vulkan::VulkanRenderer>();
     renderer->init();
 }
 

@@ -4,7 +4,11 @@
 #include <deque>
 
 
+namespace PS4::GCN {
+
 class FetchShader;
+
+}   // End namespace PS4::GCN
 
 namespace PS4::GCN::Shader {
 
@@ -46,6 +50,10 @@ struct Buffer {
 struct ShaderData {
     std::string source;
     std::deque<Buffer> buffers; // Buffers required by this shader
+
+    bool operator==(const ShaderData& other) {
+        return source == other.source;
+    }
 };
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader = nullptr);

@@ -10,6 +10,7 @@ MAKE_LOG_FUNCTION(log, lib_sceSystemService);
 void init(Module& module) {
     module.addSymbolExport("fZo48un7LK4", "sceSystemServiceParamGetInt", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceParamGetInt);
     module.addSymbolExport("rPo6tV8D9bM", "sceSystemServiceGetStatus", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceGetStatus);
+    module.addSymbolExport("1n37q1Bvc5Y", "sceSystemServiceGetDisplaySafeAreaInfo", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceGetDisplaySafeAreaInfo);
     
     module.addSymbolStub("Vo5V8KAwCmk", "sceSystemServiceHideSplashScreen", "libSceSystemService", "libSceSystemService");
 }
@@ -39,6 +40,13 @@ s32 PS4_FUNC sceSystemServiceGetStatus(SceSystemServiceStatus* status) {
     status->is_cpu_mode_7_cpu_normal = true;
     status->is_game_live_streaming_on_air = false;
     status->is_out_of_vr_play_area = false;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceSystemServiceGetDisplaySafeAreaInfo(SceSystemServiceDisplaySafeAreaInfo* info) {
+    log("sceSystemServiceGetDisplaySafeAreaInfo(info=%p)\n", info);
+    
+    info->ratio = 1.0f;
     return SCE_OK;
 }
 

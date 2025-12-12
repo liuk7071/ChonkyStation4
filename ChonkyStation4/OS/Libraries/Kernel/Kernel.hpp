@@ -19,7 +19,7 @@ struct TLSIndex {
     u64 offset;
 };
 
-s32* PS4_FUNC ___error();
+s32* PS4_FUNC kernel_error();
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt);
@@ -29,6 +29,7 @@ s32 PS4_FUNC sceKernelIsNeoMode();
 void* PS4_FUNC sceKernelGetProcParam();
 s32 PS4_FUNC sceKernelGetProcessType();
 void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]);
+u64 PS4_FUNC sceKernelGetTscFrequency();
 
 s32 PS4_FUNC kernel_getpid();
 s32 PS4_FUNC sigfillset();
@@ -40,6 +41,7 @@ s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 me
 s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end, size_t size, size_t align, s32 mem_type, void** out_addr);
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align);
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name);
+s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
 s32 PS4_FUNC sceKernelGetDirectMemorySize();
 
 }   // End namespace PS4::OS::Libs::Kernel

@@ -36,7 +36,8 @@ target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/OS/Libraries/SceNpTrophy/SceNpTrophy.cpp" "ChonkyStation4/OS/Libraries/SceNpTrophy/SceNpTrophy.hpp"
 "ChonkyStation4/OS/Libraries/ScePad/ScePad.cpp" "ChonkyStation4/OS/Libraries/ScePad/ScePad.hpp"
 "ChonkyStation4/OS/Libraries/SceAudioOut/SceAudioOut.cpp" "ChonkyStation4/OS/Libraries/SceAudioOut/SceAudioOut.hpp"
-)
+"ChonkyStation4/OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.cpp" "ChonkyStation4/OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.hpp"
+ "ChonkyStation4/GCN/Backends/Vulkan/Pipeline.cpp" "ChonkyStation4/GCN/Backends/Vulkan/VulkanCommon.cpp" "ChonkyStation4/GCN/Backends/Vulkan/PipelineCache.cpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)

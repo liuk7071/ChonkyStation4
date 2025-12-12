@@ -29,7 +29,13 @@ struct SceSystemServiceStatus {
     u8 reserved[];
 };
 
+struct SceSystemServiceDisplaySafeAreaInfo {
+    float ratio;
+    u8 reserved[];
+};
+
 s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* val);
 s32 PS4_FUNC sceSystemServiceGetStatus(SceSystemServiceStatus* status);
+s32 PS4_FUNC sceSystemServiceGetDisplaySafeAreaInfo(SceSystemServiceDisplaySafeAreaInfo* info);
 
 }   // End namespace PS4::OS::Libs::SceSystemService

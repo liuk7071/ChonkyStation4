@@ -13,6 +13,7 @@ void init(Module& module) {
     module.addSymbolExport("xbxNatawohc", "sceGnmSubmitAndFlipCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitAndFlipCommandBuffers);
     module.addSymbolExport("yvZ73uQUqrk", "sceGnmSubmitDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitDone);
     module.addSymbolExport("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmAddEqEvent);
+    module.addSymbolExport("0H2vBYbTLHI", "sceGnmDrawInitDefaultHardwareState200", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState200);
     module.addSymbolExport("yb2cRhagD1I", "sceGnmDrawInitDefaultHardwareState350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState350);
     module.addSymbolExport("+AFvOEXrKJk", "sceGnmSetEmbeddedVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedVsShader);
     module.addSymbolExport("X9Omw9dwv5M", "sceGnmSetEmbeddedPsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedPsShader);
@@ -21,12 +22,17 @@ void init(Module& module) {
     module.addSymbolExport("oYM+YzfCm2Y", "sceGnmDrawIndexOffset", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawIndexOffset);
     module.addSymbolExport("0BzLGljcwBo", "sceGnmDispatchDirect", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDispatchDirect);
     module.addSymbolExport("gAhCn6UiU4Y", "sceGnmSetVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetVsShader);
+    module.addSymbolExport("V31V01UiScY", "sceGnmUpdateVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmUpdateVsShader);
+    module.addSymbolExport("bQVd5YzCal0", "sceGnmSetPsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetPsShader);
     module.addSymbolExport("5uFKckiJYRM", "sceGnmSetPsShader350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetPsShader350);
+    module.addSymbolExport("4MgRw-bVNQU", "sceGnmUpdatePsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmUpdatePsShader);
+    module.addSymbolExport("KXltnCwEJHQ", "sceGnmSetCsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShader);
     module.addSymbolExport("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShaderWithModifier);
     module.addSymbolExport("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmInsertWaitFlipDone);
     
     module.addSymbolStub("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("jg33rEKLfVs", "sceGnmIsUserPaEnabled", "libSceGnmDriver", "libSceGnmDriver");
 }
 
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg) {
@@ -56,9 +62,18 @@ s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* ud
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState200(u32* buf, u32 size) {
+    log("sceGnmDrawInitDefaultHardwareState200(buf=%p, size=0x%x) TODO\n", buf, size);
+    
+    // TODO
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size) {
     log("sceGnmDrawInitDefaultHardwareState350(buf=%p, size=0x%x) TODO\n", buf, size);
 
+    // TODO
     *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
     return SCE_OK;
 }
@@ -170,6 +185,93 @@ s32 PS4_FUNC sceGnmSetVsShader(u32* buf, u32 size, const u32* vs_regs, u32 shade
     return SCE_OK;
 }
 
+// TODO: What is the difference with SetVsShader?
+s32 PS4_FUNC sceGnmUpdateVsShader(u32* buf, u32 size, const u32* vs_regs, u32 shader_modifier) {
+    log("sceGnmUpdateVsShader(buf=%p, size=0x%x, vs_regs=%p, shader_modifier=0x%x)\n", buf, size, vs_regs, shader_modifier);
+    log("addr_lo=0x%08x\n", vs_regs[0]);
+    log("addr_hi=0x%08x\n", vs_regs[1]);
+
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x48;
+    *buf++ = vs_regs[0];
+    *buf++ = 0;
+    // TODO: libSceGnmDriver.sprx does NOT write to the hi addr register, instead it asserts if it's non-zero.
+    // We can't do that because we don't implement the virtual memory map properly yet, so our addresses aren't going to fit
+    // in the lo register alone.
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x49;
+    *buf++ = vs_regs[1];
+    *buf++ = 0;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x4a;
+    *buf++ = shader_modifier == 0 ? vs_regs[2] : (vs_regs[2] & 0xfcfffc3f) | shader_modifier;
+    *buf++ = vs_regs[3];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x207;
+    *buf++ = vs_regs[6];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b1;
+    *buf++ = vs_regs[4];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1c3;
+    *buf++ = vs_regs[5];
+
+    // TODO: REMOVE THE -4 WHEN I FIX THE TODO ABOVE!!!!!
+    *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 12 - 4); // Trailing NOPs
+    return SCE_OK;
+}
+
+// Same as sceGnmSetPsShader350?
+s32 PS4_FUNC sceGnmSetPsShader(u32* buf, u32 size, const u32* ps_regs) {
+    log("sceGnmSetPsShader(buf=%p, size=0x%x, ps_regs=%p)\n", buf, size, ps_regs);
+    log("addr_lo=0x%08x\n", ps_regs[0]);
+    log("addr_hi=0x%08x\n", ps_regs[1]);
+
+    if (!ps_regs) {
+        Helpers::panic("sceGnmSetPsShader: ps_regs is nullptr (TODO)\n");
+    }
+
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x8;
+    *buf++ = ps_regs[0];
+    *buf++ = 0;
+    // TODO: libSceGnmDriver.sprx does NOT write to the hi addr register, instead it asserts if it's non-zero.
+    // We can't do that because we don't implement the virtual memory map properly yet, so our addresses aren't going to fit
+    // in the lo register alone.
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x9;
+    *buf++ = ps_regs[1];
+    *buf++ = 0;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0xa;
+    *buf++ = ps_regs[2];
+    *buf++ = ps_regs[3];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 4);
+    *buf++ = 0x1c4;
+    *buf++ = ps_regs[4];
+    *buf++ = ps_regs[5];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 4);
+    *buf++ = 0x1b3;
+    *buf++ = ps_regs[6];
+    *buf++ = ps_regs[7];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b6;
+    *buf++ = ps_regs[8];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b8;
+    *buf++ = ps_regs[9];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x203;
+    *buf++ = ps_regs[10];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x8f;
+    *buf++ = ps_regs[11];
+
+    // TODO: REMOVE THE -4 WHEN I FIX THE TODO ABOVE!!!!!
+    *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 12 - 4); // Trailing NOPs
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceGnmSetPsShader350(u32* buf, u32 size, const u32* ps_regs) {
     log("sceGnmSetPsShader350(buf=%p, size=0x%x, ps_regs=%p)\n", buf, size, ps_regs);
     log("addr_lo=0x%08x\n", ps_regs[0]);
@@ -217,6 +319,65 @@ s32 PS4_FUNC sceGnmSetPsShader350(u32* buf, u32 size, const u32* ps_regs) {
     
     // TODO: REMOVE THE -4 WHEN I FIX THE TODO ABOVE!!!!!
     *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 12 - 4); // Trailing NOPs
+    return SCE_OK;
+}
+
+// TODO: What is the difference with SetPsShader?
+s32 PS4_FUNC sceGnmUpdatePsShader(u32* buf, u32 size, const u32* ps_regs) {
+    log("sceGnmUpdatePsShader(buf=%p, size=0x%x, ps_regs=%p)\n", buf, size, ps_regs);
+    log("addr_lo=0x%08x\n", ps_regs[0]);
+    log("addr_hi=0x%08x\n", ps_regs[1]);
+
+    if (!ps_regs) {
+        Helpers::panic("sceGnmUpdatePsShader: ps_regs is nullptr (TODO)\n");
+    }
+
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x8;
+    *buf++ = ps_regs[0];
+    *buf++ = 0;
+    // TODO: libSceGnmDriver.sprx does NOT write to the hi addr register, instead it asserts if it's non-zero.
+    // We can't do that because we don't implement the virtual memory map properly yet, so our addresses aren't going to fit
+    // in the lo register alone.
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x9;
+    *buf++ = ps_regs[1];
+    *buf++ = 0;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0xa;
+    *buf++ = ps_regs[2];
+    *buf++ = ps_regs[3];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 4);
+    *buf++ = 0x1c4;
+    *buf++ = ps_regs[4];
+    *buf++ = ps_regs[5];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 4);
+    *buf++ = 0x1b3;
+    *buf++ = ps_regs[6];
+    *buf++ = ps_regs[7];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b6;
+    *buf++ = ps_regs[8];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b8;
+    *buf++ = ps_regs[9];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x203;
+    *buf++ = ps_regs[10];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x8f;
+    *buf++ = ps_regs[11];
+
+    // TODO: REMOVE THE -4 WHEN I FIX THE TODO ABOVE!!!!!
+    *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 12 - 4); // Trailing NOPs
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmSetCsShader(u32* buf, u32 size, const u32* cs_regs) {
+    log("sceGnmSetCsShader(buf=%p, size=0x%x, cs_regs=%p) TODO\n", buf, size, cs_regs);
+
+    // TODO
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
     return SCE_OK;
 }
 

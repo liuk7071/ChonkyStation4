@@ -13,6 +13,7 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
+#pragma intrinsic(__rdtsc)
 #endif
 
 
@@ -33,10 +34,13 @@ void init(Module& module) {
     module.addSymbolExport("x1X76arYMxU", "scePthreadAttrGet", "libkernel", "libkernel", (void*)&kernel_pthread_attr_get_np);
     module.addSymbolExport("-wzZ7dvA7UU", "pthread_attr_getaffinity_np", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getaffinity_np);
     module.addSymbolExport("8+s5BzZjxSg", "scePthreadAttrGetaffinity", "libkernel", "libkernel", (void*)&scePthreadAttrGetaffinity);
+    module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
+    module.addSymbolExport("UTXzJbWhhTE", "scePthreadAttrSetstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("zHchY8ft5pk", "pthread_attr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("62KCwEMmzcM", "scePthreadAttrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libkernel", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("aI+OeCz8xrQ", "scePthreadSelf", "libkernel", "libkernel", (void*)&kernel_pthread_self);
+
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("9UK1vLZQft4", "scePthreadMutexLock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
@@ -46,7 +50,16 @@ void init(Module& module) {
     module.addSymbolExport("iMp8QpE+XO4", "scePthreadMutexattrSettype", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_settype);
     module.addSymbolExport("cmo1RIYva9o", "scePthreadMutexInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("2Of0f+3mhhE", "scePthreadMutexDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_destroy);
+
+    module.addSymbolExport("mKoTx03HRWA", "pthread_condattr_init", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_init);
+    module.addSymbolExport("m5-2bsNfv7s", "scePthreadCondattrInit", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_init);
+    module.addSymbolExport("2Tb92quprl0", "scePthreadCondInit", "libkernel", "libkernel", (void*)&scePthreadCondInit);
+    module.addSymbolExport("Op8TBGY5KHg", "pthread_cond_wait", "libkernel", "libkernel", (void*)&kernel_pthread_cond_wait);
+    module.addSymbolExport("WKAXJ4XBPQ4", "scePthreadCondWait", "libkernel", "libkernel", (void*)&kernel_pthread_cond_wait);
     module.addSymbolExport("mkx2fVhNMsg", "pthread_cond_broadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
+    module.addSymbolExport("dJcuQVn6-Iw", "pthread_condattr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
+    module.addSymbolExport("waPcxYiR3WA", "scePthreadCondattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
+    
     module.addSymbolExport("Z4QosVuAsA0", "pthread_once", "libkernel", "libkernel", (void*)&kernel_pthread_once);
     module.addSymbolExport("14bOACANTBo", "scePthreadOnce", "libkernel", "libkernel", (void*)&kernel_pthread_once);
     module.addSymbolExport("0-KXaS70xy4", "pthread_getspecific", "libkernel", "libkernel", (void*)&kernel_pthread_getspecific);
@@ -56,8 +69,10 @@ void init(Module& module) {
     module.addSymbolExport("mqULNdimTn0", "pthread_key_create", "libkernel", "libkernel", (void*)&kernel_pthread_key_create);
     module.addSymbolExport("geDaqgH9lTg", "scePthreadKeyCreate", "libkernel", "libkernel", (void*)&kernel_pthread_key_create);
     module.addSymbolExport("6UgtwV+0zb4", "scePthreadCreate", "libkernel", "libkernel", (void*)&scePthreadCreate);
+    module.addSymbolExport("+U1R4WtXvoc", "pthread_detach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
+    module.addSymbolExport("4qGrR6eoP9Y", "scePthreadDetach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
     
-    module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&___error);
+    module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
     module.addSymbolExport("vNe1w4diLCs", "__tls_get_addr", "libkernel", "libkernel", (void*)&__tls_get_addr);
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
@@ -68,6 +83,8 @@ void init(Module& module) {
     module.addSymbolExport("oib76F-12fk", "sceKernelLseek", "libkernel", "libkernel", (void*)&sceKernelLseek);
     module.addSymbolExport("AqBioC2vF3I", "read", "libkernel", "libkernel", (void*)&kernel_read);
     module.addSymbolExport("Cg4srZ6TKbU", "sceKernelRead", "libkernel", "libkernel", (void*)&sceKernelRead);
+    module.addSymbolExport("E6ao34wPw+U", "stat", "libkernel", "libkernel", (void*)&kernel_stat);
+    module.addSymbolExport("eV9wAD2riIA", "sceKernelStat", "libkernel", "libkernel", (void*)&sceKernelStat);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
@@ -84,6 +101,7 @@ void init(Module& module) {
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
     module.addSymbolExport("+g+UP8Pyfmo", "sceKernelGetProcessType", "libkernel", "libkernel", (void*)&sceKernelGetProcessType);
     module.addSymbolExport("p5EcQeEeJAE", "_sceKernelRtldSetApplicationHeapAPI", "libkernel", "libkernel", (void*)&_sceKernelRtldSetApplicationHeapAPI);
+    module.addSymbolExport("1j3S3n-tTW4", "sceKernelGetTscFrequency", "libkernel", "libkernel", (void*)&sceKernelGetTscFrequency);
 
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
@@ -92,9 +110,13 @@ void init(Module& module) {
     module.addSymbolExport("rTXw65xmLIA", "sceKernelAllocateDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateDirectMemory);
     module.addSymbolExport("L-Q3LEjIbgA", "sceKernelMapDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapDirectMemory);
     module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
+    module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
     
+    module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel"); // TODO: Important
     module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel"); // TODO: Important
+    module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
+    module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
 }
 
 static thread_local s32 posix_errno = 0;
@@ -150,7 +172,7 @@ static void* VirtualAllocAlignedBelow(size_t size, size_t alignment, uptr maxAdd
 }
 #endif
 
-s32* PS4_FUNC ___error() {
+s32* PS4_FUNC kernel_error() {
     return &posix_errno;
 }
 
@@ -221,6 +243,36 @@ void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]) {
     log("_sceKernelRtldSetApplicationHeapAPI()\n");
 }
 
+u64 PS4_FUNC sceKernelGetTscFrequency() {
+    log("sceKernelGetTscFrequency()\n");
+
+    u64 final_freq = 0;
+
+#ifdef _WIN32
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+
+    LARGE_INTEGER start;
+    LARGE_INTEGER now;
+    u64 first = __rdtsc();
+    QueryPerformanceCounter(&start);
+    for (;;) {
+        u64 i = __rdtsc();
+        QueryPerformanceCounter(&now);
+        if (now.QuadPart - start.QuadPart >= freq.QuadPart) {
+            final_freq = i - first;
+            printf_s("Measured frequency: %lld\n", final_freq);
+            break;
+        }
+    }
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
+
+    log("freq: %lld\n", final_freq);
+    return final_freq;
+}
+
 s32 PS4_FUNC kernel_getpid() {
     log("getpid()\n");
     return 100;
@@ -258,6 +310,8 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
     return SCE_OK;
 }
 
+void* last_alloc_addr = (void*)0x10000000000;
+
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align) {
     log("sceKernelMapDirectMemory(addr=*%p, len=%lld, prot=%d, flags=%d, dmem_start=0x%016llx, align=%lld)\n", addr, len, prot, flags, dmem_start, align);
 
@@ -268,7 +322,9 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
-    *addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
+    //*addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
+    *addr = VirtualAllocAlignedBelow(len, 1, (u64)last_alloc_addr);
+    last_alloc_addr = *addr;
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
@@ -287,12 +343,26 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
 
     // TODO: prot, flags
 #ifdef _WIN32
-    *addr = VirtualAllocAlignedBelow(len, 1, 0x10000000000);
+    //*addr = VirtualAllocAlignedBelow(len, 1, 0x10000000000);
+    *addr = VirtualAllocAlignedBelow(len, 1, (u64)last_alloc_addr);
+    last_alloc_addr = *addr;
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
 
     log("Allocated at %p\n", *addr);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
+    log("sceKernelMunmap(addr=%p, len=%lld)\n", addr, len);
+
+#ifdef _WIN32
+    VirtualFree(addr, len, MEM_RELEASE);
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
+
     return SCE_OK;
 }
 

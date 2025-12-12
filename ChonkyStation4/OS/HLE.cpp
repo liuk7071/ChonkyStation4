@@ -7,6 +7,7 @@
 #include <OS/Libraries/SceNpManager/SceNpManager.hpp>
 #include <OS/Libraries/SceSysmodule/SceSysmodule.hpp>
 #include <OS/Libraries/SceSaveData/SceSaveData.hpp>
+#include <OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.hpp>
 #include <OS/Libraries/SceNpTrophy/SceNpTrophy.hpp>
 #include <OS/Libraries/ScePad/ScePad.hpp>
 #include <OS/Libraries/SceAudioOut/SceAudioOut.hpp>
@@ -26,6 +27,7 @@ Module buildHLEModule() {
     PS4::OS::Libs::SceNpManager::init(module);
     PS4::OS::Libs::SceSysmodule::init(module);
     PS4::OS::Libs::SceSaveData::init(module);
+    PS4::OS::Libs::SceSaveDataDialog::init(module);
     PS4::OS::Libs::SceNpTrophy::init(module);
     PS4::OS::Libs::ScePad::init(module);
     PS4::OS::Libs::SceAudioOut::init(module);
@@ -37,13 +39,14 @@ Module buildHLEModule() {
     module.addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
     
     // libSceNpScore
+    module.addSymbolStub("KnNA1TEgtBI", "sceNpScoreCreateNpTitleCtx", "libSceNpScore", "libSceNpScore", 1);
     module.addSymbolStub("GWnWQNXZH5M", "sceNpScoreCreateNpTitleCtxA", "libSceNpScore", "libSceNpScore", 1);
-
-    // libSceSaveDataDialog
-    module.addSymbolStub("s9e3+YpRnzw", "sceSaveDataDialogInitialize", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
-    module.addSymbolStub("4tPhsP6FpDI", "sceSaveDataDialogOpen", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
-    module.addSymbolStub("KK3Bdg1RWK0", "sceSaveDataDialogUpdateStatus", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
-    module.addSymbolStub("yEiJ-qqr6Cg", "sceSaveDataDialogGetResult", "libSceSaveDataDialog", "libSceSaveDataDialog", 0);
+    
+    // libSceErrorDialog
+    module.addSymbolStub("I88KChlynSs", "sceErrorDialogInitialize", "libSceErrorDialog", "libSceErrorDialog", 0);
+    
+    // libSceNpProfileDialog
+    module.addSymbolStub("Lg+NCE6pTwQ", "sceNpProfileDialogInitialize", "libSceNpProfileDialog", "libSceNpProfileDialog", 0);
     
     return module;
 }

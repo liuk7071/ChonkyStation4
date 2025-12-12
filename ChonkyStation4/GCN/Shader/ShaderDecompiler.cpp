@@ -111,6 +111,7 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     case OperandField::ConstFloatPos_1_0:   src = "1.0f";                                                                               break;
     case OperandField::ConstFloatPos_2_0:   src = "2.0f";                                                                               break;
     case OperandField::ConstFloatPos_4_0:   src = "4.0f";                                                                               break;
+    case OperandField::ExecLo:              src = "1.0f /* TODO: ExecLo */";                                                            break;
     default:    Helpers::panic("Unhandled SRC %d\n", op.code);
     }
 
@@ -202,23 +203,29 @@ vec4 tmp;
         }
 
         case Shader::Opcode::IMAGE_SAMPLE:
-        case Shader::Opcode::S_BUFFER_LOAD_DWORDX2: {
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX4: {
             const auto sgpr = instr.src[2].code * 4;
             if (!descs.contains(sgpr)) {
                 // We assume that the descriptor is being passed directly as user data.
                 // Check if this buffer already exists, otherwise create a new one
+                bool found = false;
                 for (auto& buf : out_data.buffers) {
                     if (buf.desc_info.sgpr == sgpr) {
                         // The buffer already exists
                         Helpers::debugAssert(!buf.desc_info.is_ptr, "Error fetching shader descriptor locations");
                         buffer_map[buf_mapping_idx++] = &buf;
+                        found = true;
                         break;
                     }
                 }
 
+                if (found) break;
+
                 // Create a new one
                 auto& buf = out_data.buffers.emplace_back();
                 buf.binding = next_buf_binding++;
+                if (stage == ShaderStage::Fragment) buf.binding += 16;  // TODO: Not ideal, should probably use different descriptor sets for each shader stage instead.
                 buf.desc_info.sgpr = sgpr;
                 buf.desc_info.is_ptr = false;
                 buf.desc_info.stage = stage;
@@ -420,8 +427,22 @@ vec4 tmp;
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
             const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
-            main += std::format("s[{}] = uintBitsToFloat({}.data[{}]);\n", instr.dst[0].code, ssbo_name, offset + " + 0");
-            main += std::format("s[{}] = uintBitsToFloat({}.data[{}]);\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
+            break;
+        }
+
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX4: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX4: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 2, ssbo_name, offset + " + 2");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 3, ssbo_name, offset + " + 3");
             break;
         }
 

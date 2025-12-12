@@ -43,34 +43,35 @@ public:
 #endif
 
 // Loader
-static Logger loader_elf            = Logger<1>    ("[Loader ][ELF             ] ");
-static Logger loader_linker         = Logger<1>    ("[Loader ][Linker          ] ");
-static Logger loader_sfo            = Logger<1>    ("[Loader ][SFO             ] ");
-static Logger loader_app            = Logger<1>    ("[Loader ][App             ] ");
+static Logger loader_elf            = Logger<1>    ("[Loader ][ELF              ] ");
+static Logger loader_linker         = Logger<1>    ("[Loader ][Linker           ] ");
+static Logger loader_sfo            = Logger<1>    ("[Loader ][SFO              ] ");
+static Logger loader_app            = Logger<1>    ("[Loader ][App              ] ");
 
 // Libraries
-static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel          ] ");
-static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex     ] ");
-static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue    ] ");
-static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys   ] ");
-static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut     ] ");
-static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver    ] ");
-static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService] ");
-static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService  ] ");
-static Logger lib_sceNpManager      = Logger<true> ("[Lib    ][SceNpManager    ] ");
-static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData     ] ");
-static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy     ] ");
-static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad          ] ");
-static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut     ] ");
+static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel           ] ");
+static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex      ] ");
+static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue     ] ");
+static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");
+static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut      ] ");
+static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver     ] ");
+static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService ] ");
+static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService   ] ");
+static Logger lib_sceNpManager      = Logger<true> ("[Lib    ][SceNpManager     ] ");
+static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData      ] ");
+static Logger lib_sceSaveDataDialog = Logger<true> ("[Lib    ][SceSaveDataDialog] ");
+static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy      ] ");
+static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad           ] ");
+static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut      ] ");
 
 // GCN
-static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command         ] ");
-static Logger gcn_fetch_shader      = Logger<true> ("[GCN    ][Fetch Shader    ] ");
-static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer  ] ");
+static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command          ] ");
+static Logger gcn_fetch_shader      = Logger<true> ("[GCN    ][Fetch Shader     ] ");
+static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer   ] ");
 
 // Other
-static Logger filesystem            = Logger<true> ("[Other  ][Filesystem      ] ");
-static Logger unimplemented         = Logger<0> ("[Other  ][Unimplemented   ] ");
+static Logger filesystem            = Logger<true> ("[Other  ][Filesystem       ] ");
+static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented    ] ");
 
 #undef true
 #undef false

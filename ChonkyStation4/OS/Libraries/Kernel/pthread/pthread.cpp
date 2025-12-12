@@ -52,6 +52,11 @@ s32 PS4_FUNC kernel_pthread_attr_getaffinity_np(const pthread_attr_t* attr, size
     return 0;
 }
 
+s32 PS4_FUNC kernel_pthread_attr_setstacksize(pthread_attr_t* attr, size_t stacksize) {
+    log("pthread_attr_setstacksize(attr=*%p, stacksize=%lld)\n", attr, stacksize);
+    return pthread_attr_setstacksize(attr, stacksize);
+}
+
 s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr) {
     log("pthread_attr_destroy(attr=*%p) TODO\n", attr);
     return 0;
@@ -65,6 +70,11 @@ s32 PS4_FUNC scePthreadCreate(pthread_t* tid, const pthread_attr_t* attr, void* 
     auto thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);
     *tid = thread.getPThread();
     return 0;
+}
+
+s32 PS4_FUNC kernel_pthread_detach(pthread_t tid) {
+    log("pthread_detach(tid=%p)\n", tid);
+    return pthread_detach(tid);
 }
 
 };  // End namespace PS4::OS::Libs::Kernel
