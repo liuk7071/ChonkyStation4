@@ -26,8 +26,8 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
         attrib = { shader_binding.dest_vgpr, n_binding++, getVtxBufferFormat(shader_binding.n_elements, 0 /* TODO: type */), 0 };
 
-        auto& vtx_binding = vtx_bindings.emplace_back();
-        vtx_binding.fetch_shader_binding = shader_binding;
+        auto& vtx_binding = vtx_binding_layout.emplace_back();
+        vtx_binding = shader_binding;
         log("Created attribute binding for location %d\n", shader_binding.dest_vgpr);
     }
 
@@ -102,8 +102,16 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     graphics_pipeline = vk::raii::Pipeline(device, nullptr, pipeline_create_info_chain.get());
 }
 
-void Pipeline::gatherVertices(u32 cnt) {
-    for (auto& vtx_binding : vtx_bindings) {
+std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices(u32 cnt) {
+    // Create a new vertex binding array and initialize it with the fetch shader bindings
+    auto& new_vtx_bindings = vtx_bindings.emplace_back();
+    for (auto& vtx_binding_layout_element : vtx_binding_layout) {
+        auto& binding = new_vtx_bindings.emplace_back();
+        binding.fetch_shader_binding = vtx_binding_layout_element;
+    }
+
+    // Create Vulkan buffers and copy data
+    for (auto& vtx_binding : new_vtx_bindings) {
         // Get pointer to the V#
         VSharp* vsharp = vtx_binding.fetch_shader_binding.vsharp_loc.asPtr();
         // Setup vertex buffer and copy data
@@ -117,6 +125,8 @@ void Pipeline::gatherVertices(u32 cnt) {
         std::memcpy(vtx_buf_data, guest_vtx_buf_data, buf_size);
         vtx_binding.mem.unmapMemory();
     }
+
+    return &new_vtx_bindings;
 }
 
 std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
@@ -148,7 +158,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                     .buffer = *buf,
                     .offset = 0,
                     .range = buf_size,
-                    });
+                });
                 descriptor_writes.push_back(vk::WriteDescriptorSet{
                     .dstSet = nullptr,  // Not used for push descriptors
                     .dstBinding = (u32)buf_info.binding,
@@ -156,7 +166,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                     .descriptorCount = 1,
                     .descriptorType = vk::DescriptorType::eStorageBuffer,
                     .pBufferInfo = &buffer_info.back()
-                    });
+                });
                 break;
             }
 
@@ -242,7 +252,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                     .sampler = *sampler,
                     .imageView = *img_view,
                     .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
-                    });
+                });
                 descriptor_writes.push_back(vk::WriteDescriptorSet{
                     .dstSet = nullptr,  // Not used for push descriptors
                     .dstBinding = (u32)buf_info.binding,
@@ -250,7 +260,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                     .descriptorCount = 1,
                     .descriptorType = vk::DescriptorType::eCombinedImageSampler,
                     .pImageInfo = &image_info.back()
-                    });
+                });
                 break;
             }
             }
@@ -263,6 +273,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
 }
 
 void Pipeline::clearBuffers() {
+    vtx_bindings.clear();
     bufs.clear();
     bufs_mem.clear();
     textures.clear();

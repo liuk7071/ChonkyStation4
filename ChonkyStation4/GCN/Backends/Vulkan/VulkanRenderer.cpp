@@ -327,7 +327,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 
     if (!vs_ptr || !ps_ptr) return;
 
-    // TODO: For now fetch shader address is hardcoded to user register 0:1.
+    // TODO: For now fetch the shader address is hardcoded to user register 0:1.
     // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
@@ -337,7 +337,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     curr_frame_pipelines.push_back(&pipeline);
 
     // Gather vertex data
-    pipeline.gatherVertices(cnt);
+    auto* vtx_bindings = pipeline.gatherVertices(cnt);
 
     // Upload buffers and get descriptor writes
     auto descriptor_writes = pipeline.uploadBuffersAndTextures();
@@ -386,7 +386,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
     cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
 
-    auto* vtx_bindings = pipeline.getVtxBindings();
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[0].bindVertexBuffers(i, *(*vtx_bindings)[i].buf, {0});
     

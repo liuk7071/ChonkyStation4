@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <GCN/Shader/ShaderDecompiler.hpp>
 #include <GCN/FetchShader.hpp>
+#include <deque>
 
 
 class VSharp;
@@ -29,11 +30,8 @@ public:
     vk::raii::PipelineLayout& getVkPipelineLayout() {
         return pipeline_layout;
     }
-    std::vector<VertexBinding>* getVtxBindings() {
-        return &vtx_bindings;
-    }
 
-    void gatherVertices(u32 cnt);
+    std::vector<VertexBinding>* gatherVertices(u32 cnt);
     std::vector<vk::WriteDescriptorSet> uploadBuffersAndTextures();
     void clearBuffers();
 
@@ -42,7 +40,11 @@ private:
     vk::raii::Pipeline graphics_pipeline = nullptr;
     vk::raii::DescriptorSetLayout descriptor_set_layout = nullptr;
 
-    std::vector<VertexBinding> vtx_bindings;
+    std::vector<FetchShaderVertexBinding> vtx_binding_layout;
+    // Each time we gather vertices, create a copy of the above vertex binding "layout"
+    // The VertexBinding struct is basically FetchShaderVertexBinding with Vulkan buffers added on top.
+    // The Vulkan buffers will be populated every time gatherVertices is called and added to this vector.
+    std::deque<std::vector<VertexBinding>> vtx_bindings;
     std::vector<vk::raii::Buffer> bufs;
     std::vector<vk::raii::DeviceMemory> bufs_mem;
     std::vector<vk::raii::Image> textures;
