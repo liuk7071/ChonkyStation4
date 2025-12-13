@@ -16,6 +16,8 @@ static constexpr s32 SCE_USER_SERVICE_USER_ID_INVALID = -1;
 
 static constexpr s32 SCE_USER_SERVICE_ERROR_BUFFER_TOO_SHORT = 0x8096000A;
 
+static constexpr s32 SCE_DEVICE_SERVICE_ERROR_INVALID_USER = 0x809B0001;
+
 struct SceUserServiceLoginUserIdList {
     SceUserServiceUserId user_ids[SCE_USER_SERVICE_MAX_LOGIN_USERS];
 };

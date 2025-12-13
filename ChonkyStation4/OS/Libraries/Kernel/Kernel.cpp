@@ -42,12 +42,16 @@ void init(Module& module) {
     module.addSymbolExport("aI+OeCz8xrQ", "scePthreadSelf", "libkernel", "libkernel", (void*)&kernel_pthread_self);
 
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
+    module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("9UK1vLZQft4", "scePthreadMutexLock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
+    module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_unlock);
     module.addSymbolExport("tn3VlD0hG60", "scePthreadMutexUnlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
     module.addSymbolExport("F8bUHwAG284", "scePthreadMutexattrInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_init);
     module.addSymbolExport("smWEktiyyG0", "scePthreadMutexattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_destroy);
     module.addSymbolExport("iMp8QpE+XO4", "scePthreadMutexattrSettype", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_settype);
+    module.addSymbolExport("ttHNfU+qDBU", "pthread_mutex_init", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
+    module.addSymbolExport("ttHNfU+qDBU", "pthread_mutex_init", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("cmo1RIYva9o", "scePthreadMutexInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("2Of0f+3mhhE", "scePthreadMutexDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_destroy);
 
@@ -117,6 +121,7 @@ void init(Module& module) {
     module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel"); // TODO: Important
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
+    module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
 }
 
 static thread_local s32 posix_errno = 0;
@@ -310,10 +315,11 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
     return SCE_OK;
 }
 
-void* last_alloc_addr = (void*)0x10000000000;
+//void* last_alloc_addr = (void*)0x10000000000;
+void* last_alloc_addr = (void*)0x7ffffc000;
 
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align) {
-    log("sceKernelMapDirectMemory(addr=*%p, len=%lld, prot=%d, flags=%d, dmem_start=0x%016llx, align=%lld)\n", addr, len, prot, flags, dmem_start, align);
+    log("sceKernelMapDirectMemory(addr=*%p, len=%lld, prot=%d, flags=%d, dmem_start=0x%016llx, align=0x%016llx)\n", addr, len, prot, flags, dmem_start, align);
 
     void* in_addr = *addr;
     if (in_addr) {
@@ -323,7 +329,7 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
     //*addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
-    *addr = VirtualAllocAlignedBelow(len, 1, (u64)last_alloc_addr);
+    *addr = VirtualAllocAlignedBelow(len, align, (u64)last_alloc_addr);
     last_alloc_addr = *addr;
 #else
     Helpers::panic("Unsupported platform\n");

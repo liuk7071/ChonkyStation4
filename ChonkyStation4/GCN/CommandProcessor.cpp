@@ -206,7 +206,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
 
         default: {
-            log("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
+            printf("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
             break;
         }
         }

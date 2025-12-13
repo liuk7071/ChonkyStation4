@@ -95,7 +95,7 @@ std::string getType(int n_lanes) {
 
 std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     std::string src;
-
+    
     switch (op.field) {
     case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                                        break;
     case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                                        break;
@@ -505,7 +505,7 @@ vec4 tmp;
     // Declare main function
     addFunc("void main", main);
 
-    //printf("%s\n", shader.c_str());
+    printf("%s\n", shader.c_str());
     out_data.source = shader;
 }
 

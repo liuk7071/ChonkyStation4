@@ -1,10 +1,14 @@
 #pragma once
 #include <cstdarg>
 #include <fstream>
+#include <mutex>
 
 // Ported from Panda3DS
 
 namespace Log {
+
+inline std::mutex logger_mtx;
+
 // Our logger class
 template <bool enabled>
 class Logger {
@@ -16,6 +20,7 @@ public:
     void log(const char* fmt, ...) {
         if constexpr (!enabled) return;
 
+        const std::lock_guard<std::mutex> lock(logger_mtx);
         std::fputs(prefix.c_str(), stdout);
         std::va_list args;
         va_start(args, fmt);
@@ -26,6 +31,7 @@ public:
     void logNoPrefix(const char* fmt, ...) {
         if constexpr (!enabled) return;
 
+        const std::lock_guard<std::mutex> lock(logger_mtx);
         std::va_list args;
         va_start(args, fmt);
         std::vprintf(fmt, args);
@@ -38,7 +44,7 @@ public:
 #ifdef CHONKYSTATION4_USER_BUILD
 #define true false
 #else
-#define true false
+//#define true false
 //#define false true
 #endif
 
@@ -50,7 +56,7 @@ static Logger loader_app            = Logger<1>    ("[Loader ][App              
 
 // Libraries
 static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel           ] ");
-static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex      ] ");
+static Logger lib_kernel_mutex      = Logger<true> ("[Lib    ][KernelMutex      ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue     ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut      ] ");
@@ -101,4 +107,5 @@ static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented    
 #else
 #define MAKE_LOG_FUNCTION(functionName, logger) MAKE_LOG_FUNCTION_USER(functionName, logger)
 #endif
-}
+
+}   // End namespace Log

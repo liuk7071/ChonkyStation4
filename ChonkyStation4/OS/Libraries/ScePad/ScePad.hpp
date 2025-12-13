@@ -90,11 +90,16 @@ struct ScePadData {
     u8 device_unique_data[SCE_PAD_MAX_DEVICE_UNIQUE_DATA_SIZE];
 };
 
+struct ScePadOpenParam {
+    u8 reserved[8];
+};
+
 void clearButtons();
 void pressButton(ScePadButtonDataOffset button);
 void pollPads();
 
 s32 PS4_FUNC scePadInit();
+s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param);
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data);
 
 }   // End namespace PS4::OS::Libs::ScePad

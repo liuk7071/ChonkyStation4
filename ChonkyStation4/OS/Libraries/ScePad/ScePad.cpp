@@ -1,6 +1,7 @@
 #include "ScePad.hpp"
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
+#include <OS/Libraries/SceUserService/SceUserService.hpp>
 #include <SDL.h>
 
 
@@ -10,9 +11,9 @@ MAKE_LOG_FUNCTION(log, lib_scePad);
 
 void init(Module& module) {
     module.addSymbolExport("hv1luiJrqQM", "scePadInit", "libScePad", "libScePad", (void*)&scePadInit);
+    module.addSymbolExport("xk0AcarP3V4", "scePadOpen", "libScePad", "libScePad", (void*)&scePadOpen);
     module.addSymbolExport("YndgXqQVV7c", "scePadReadState", "libScePad", "libScePad", (void*)&scePadReadState);
     
-    module.addSymbolStub("xk0AcarP3V4", "scePadOpen", "libScePad", "libScePad", 1);
     module.addSymbolStub("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad");
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
@@ -55,6 +56,14 @@ s32 PS4_FUNC scePadInit() {
     pad_state.right_stick.x = 0x80;
     pad_state.right_stick.y = 0x80;
     return SCE_OK;
+}
+
+s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param) {
+    log("scePadOpen(uid=%d, type=%d, idx=%d, param=*%p)\n", uid, type, idx, param);
+
+    if (uid == Libs::SceUserService::SCE_USER_SERVICE_USER_ID_INVALID)
+        return Libs::SceUserService::SCE_DEVICE_SERVICE_ERROR_INVALID_USER;
+    return 1;   // Handle
 }
 
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data) {
