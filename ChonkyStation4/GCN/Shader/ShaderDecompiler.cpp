@@ -402,6 +402,11 @@ bool scc;
             break;
         }
 
+        case Shader::Opcode::V_FMA_F32: {
+            main += std::format("v[{}] = {} * {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2]));
+            break;
+        }
+
         case Shader::Opcode::V_MED3_F32: {
             const auto src0 = getSRC(instr.src[0]);
             const auto src1 = getSRC(instr.src[1]);

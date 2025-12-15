@@ -477,6 +477,8 @@ void VulkanRenderer::flip() {
     for (auto& pipeline : curr_frame_pipelines)
         pipeline->clearBuffers();
     curr_frame_pipelines.clear();
+    idx_bufs.clear();
+    idx_buf_mems.clear();
 
     cmd_bufs[0].reset();
     cmd_bufs[0].begin({});
