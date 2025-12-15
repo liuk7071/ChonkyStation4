@@ -24,8 +24,8 @@ namespace PS4::OS::Libs::Kernel {
 MAKE_LOG_FUNCTION(log, lib_kernel);
 MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
-//static u64 stack_chk_guard = 0xA1BE3123DEADBEEF;
-static u64 stack_chk_guard = 0;
+static u64 stack_chk_guard = 0x4452474B43415453;    // "STACKGRD"
+//static u64 stack_chk_guard = 0;
 
 void init(Module& module) {
     module.addSymbolExport("wtkt-teR1so", "pthread_attr_init", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
@@ -36,6 +36,8 @@ void init(Module& module) {
     module.addSymbolExport("8+s5BzZjxSg", "scePthreadAttrGetaffinity", "libkernel", "libkernel", (void*)&scePthreadAttrGetaffinity);
     module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("UTXzJbWhhTE", "scePthreadAttrSetstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
+    module.addSymbolExport("E+tyo3lp5Lw", "pthread_attr_setdetachstate", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setdetachstate);
+    module.addSymbolExport("-Wreprtu0Qs", "scePthreadAttrSetdetachstate", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setdetachstate);
     module.addSymbolExport("zHchY8ft5pk", "pthread_attr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("62KCwEMmzcM", "scePthreadAttrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libkernel", "libkernel", (void*)&kernel_pthread_self);
@@ -44,6 +46,8 @@ void init(Module& module) {
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("9UK1vLZQft4", "scePthreadMutexLock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
+    module.addSymbolExport("K-jXhbt2gn4", "pthread_mutex_trylock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_trylock);
+    module.addSymbolExport("upoVrzMHFeE", "scePthreadMutexTrylock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_trylock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_unlock);
     module.addSymbolExport("tn3VlD0hG60", "scePthreadMutexUnlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
@@ -60,6 +64,8 @@ void init(Module& module) {
     module.addSymbolExport("2Tb92quprl0", "scePthreadCondInit", "libkernel", "libkernel", (void*)&scePthreadCondInit);
     module.addSymbolExport("Op8TBGY5KHg", "pthread_cond_wait", "libkernel", "libkernel", (void*)&kernel_pthread_cond_wait);
     module.addSymbolExport("WKAXJ4XBPQ4", "scePthreadCondWait", "libkernel", "libkernel", (void*)&kernel_pthread_cond_wait);
+    module.addSymbolExport("2MOy+rUfuhQ", "pthread_cond_signal", "libkernel", "libkernel", (void*)&kernel_pthread_cond_signal);
+    module.addSymbolExport("kDh-NfxgMtE", "scePthreadCondSignal", "libkernel", "libkernel", (void*)&kernel_pthread_cond_signal);
     module.addSymbolExport("mkx2fVhNMsg", "pthread_cond_broadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
     module.addSymbolExport("dJcuQVn6-Iw", "pthread_condattr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
     module.addSymbolExport("waPcxYiR3WA", "scePthreadCondattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
@@ -75,6 +81,8 @@ void init(Module& module) {
     module.addSymbolExport("6UgtwV+0zb4", "scePthreadCreate", "libkernel", "libkernel", (void*)&scePthreadCreate);
     module.addSymbolExport("+U1R4WtXvoc", "pthread_detach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
     module.addSymbolExport("4qGrR6eoP9Y", "scePthreadDetach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
+    module.addSymbolExport("B5GmVDKwpn0", "pthread_yield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
+    module.addSymbolExport("T72hz6ffq08", "scePthreadYield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
     
     module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
@@ -99,6 +107,9 @@ void init(Module& module) {
     
     module.addSymbolExport("7NwggrWJ5cA", "__sys_regmgr_call", "libkernel", "libkernel", (void*)&__sys_regmgr_call);
 
+    module.addSymbolExport("yS8U2TGCe1A", "nanosleep", "libkernel", "libkernel", (void*)&kernel_nanosleep);
+    module.addSymbolExport("yS8U2TGCe1A", "nanosleep", "libScePosix", "libkernel", (void*)&kernel_nanosleep);
+    module.addSymbolExport("QcteRwbsnV0", "usleep", "libkernel", "libkernel", (void*)&sceKernelUsleep); // TODO: Technically should be a separate function, but the behavior should be the same
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
@@ -119,9 +130,11 @@ void init(Module& module) {
     
     module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel"); // TODO: Important
     module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel"); // TODO: Important
+    module.addSymbolStub("QBi7HCK03hw", "sceKernelClockGettime", "libkernel", "libkernel"); // TODO: Important
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
+    module.addSymbolStub("bt3CTBKmGyI", "scePthreadSetaffinity", "libkernel", "libkernel");
 }
 
 static thread_local s32 posix_errno = 0;
@@ -220,6 +233,19 @@ size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size) {
     for (char* ptr = (char*)buf; ptr < (char*)buf + size; ptr++)
         std::putc(*ptr, stdout);
     return size;
+}
+
+s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp) {
+    log("nanosleep(rqtp=*%p, rmtp=*%p)\n", rqtp, rmtp);
+
+    const auto sec = std::chrono::seconds(rqtp->tv_sec);
+    const auto nsec = std::chrono::nanoseconds(rqtp->tv_nsec);
+    std::this_thread::sleep_for(sec + nsec);
+    if (rmtp) {
+        rmtp->tv_sec = 0;
+        rmtp->tv_nsec = 0;
+    }
+    return 0;
 }
 
 s32 PS4_FUNC sceKernelUsleep(u32 us) {
@@ -335,6 +361,9 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     Helpers::panic("Unsupported platform\n");
 #endif
 
+    // Clear allocated memory
+    std::memset(*addr, 0, len);
+
     log("Allocated at %p\n", *addr);
     return SCE_OK;
 }
@@ -355,6 +384,9 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
+
+    // Clear allocated memory
+    std::memset(*addr, 0, len);
 
     log("Allocated at %p\n", *addr);
     return SCE_OK;

@@ -13,6 +13,12 @@
 #include <OS/Libraries/SceAudioOut/SceAudioOut.hpp>
 
 
+// Stub until we implement audio input
+s32 sceAudioInInput(s32 handle, void* ptr) {
+    while (true) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return 0;
+}
+
 namespace PS4::OS::HLE {
 
 // Create a dummy HLE module that only contains the symbol exports for HLE functions
@@ -34,6 +40,11 @@ Module buildHLEModule() {
 
     // libSceScreenShot
     module.addSymbolStub("73WQ4Jj0nJI", "sceScreenShotSetOverlayImageWithOrigin", "libSceScreenShot", "libSceScreenShot");
+    
+    // libSceMsgDialog
+    module.addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
+    module.addSymbolStub("b06Hh0DPEaE", "sceMsgDialogOpen", "libSceMsgDialog", "libSceMsgDialog");
+    module.addSymbolStub("6fIC3XKt2k0", "sceMsgDialogUpdateStatus", "libSceMsgDialog", "libSceMsgDialog");
 
     // libSceCommonDialog
     module.addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
@@ -47,6 +58,20 @@ Module buildHLEModule() {
     
     // libSceNpProfileDialog
     module.addSymbolStub("Lg+NCE6pTwQ", "sceNpProfileDialogInitialize", "libSceNpProfileDialog", "libSceNpProfileDialog", 0);
+    
+    // libSceNet
+    module.addSymbolStub("Nlev7Lg8k3A", "sceNetInit", "libSceNet", "libSceNet", 0);
+    module.addSymbolStub("dgJBaeJnGpo", "sceNetPoolCreate", "libSceNet", "libSceNet", 1);
+
+    // libSceSsl
+    module.addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
+    
+    // libSceHttp
+    module.addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
+    
+    // libSceAudioIn
+    module.addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
+    module.addSymbolExport("LozEOU8+anM", "sceAudioInInput", "libSceAudioIn", "libSceAudioIn", (void*)&sceAudioInInput);
     
     return module;
 }

@@ -318,6 +318,9 @@ void VulkanRenderer::init() {
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
 std::vector<Pipeline*> curr_frame_pipelines;
+// Keep track of index buffers needed for this frame and clear after flipping
+std::vector<vk::raii::Buffer> idx_bufs;
+std::vector<vk::raii::DeviceMemory> idx_buf_mems;
 
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
@@ -343,8 +346,13 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     auto descriptor_writes = pipeline.uploadBuffersAndTextures();
 
     // Create index buffer (if needed)
+    vk::raii::Buffer* vk_idx_buf_ptr = nullptr;
     if (idx_buf_ptr) {
         vk::DeviceSize idx_buf_size = cnt * sizeof(u16); // TODO: index type is stubbed
+
+        auto& idx_buf = idx_bufs.emplace_back(nullptr);
+        auto& idx_buf_mem = idx_buf_mems.emplace_back(nullptr);
+        vk_idx_buf_ptr = &idx_buf;
 
         vk::raii::Buffer buf = vk::raii::Buffer(device, { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
         auto mem_requirements = buf.getMemoryRequirements();
@@ -390,7 +398,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         cmd_bufs[0].bindVertexBuffers(i, *(*vtx_bindings)[i].buf, {0});
     
     if (idx_buf_ptr) {
-        cmd_bufs[0].bindIndexBuffer(*idx_buf, 0, vk::IndexType::eUint16);
+        cmd_bufs[0].bindIndexBuffer(**vk_idx_buf_ptr, 0, vk::IndexType::eUint16);
         cmd_bufs[0].drawIndexed(cnt, 1, 0, 0, 0);
     }
     else {

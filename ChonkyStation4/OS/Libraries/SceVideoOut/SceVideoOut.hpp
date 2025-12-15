@@ -48,6 +48,15 @@ struct SceVideoOutFlipStatus {
 	u32 _reserved1;
 };
 
+struct SceVideoOutVblankStatus {
+    u64 count;
+    u64 process_time;
+    u64 tsc;
+    u64 _reserved;
+    u8 flags;
+    u8 pad1[7];
+};
+
 struct SceVideoOutResolutionStatus {
 	u32 full_width;
 	u32 full_height;
@@ -63,6 +72,7 @@ struct SceVideoOutResolutionStatus {
 struct SceVideoOutPort : SceObj {
     u64 buffer_labels[SCE_VIDEO_OUT_MAX_DISPLAY_BUFFERS];
     SceVideoOutFlipStatus flip_status;
+    SceVideoOutVblankStatus vblank_status;
     Libs::Kernel::EventSource flip_ev_source;
 	SceVideoOutResolutionStatus resolution_status;
 
@@ -78,6 +88,7 @@ s32 PS4_FUNC sceVideoOutSetBufferAttribute(SceVideoOutBufferAttribute* attrib, u
 s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVideoOutBufferAttribute* attrib);
 s32 PS4_FUNC sceVideoOutSubmitFlip(s32 handle, s32 buf_idx, s32 flip_mode, s64 flip_arg);
 s32 PS4_FUNC sceVideoOutGetFlipStatus(s32 handle, SceVideoOutFlipStatus* status);
+s32 PS4_FUNC sceVideoOutGetVblankStatus(s32 handle, SceVideoOutVblankStatus* status);
 s32 PS4_FUNC sceVideoOutGetResolutionStatus(s32 handle, SceVideoOutResolutionStatus* status);
 
 }   // End namespace PS4::OS::Libs::SceVideoOut

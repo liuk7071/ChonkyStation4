@@ -21,9 +21,20 @@ s32 PS4_FUNC kernel_pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mut
     return pthread_cond_wait(cond, mutex);
 }
 
-s32 PS4_FUNC kernel_pthread_cond_broadcast() {
-    log("pthread_cond_broadcast() TODO\n");
-    return 0;
+s32 PS4_FUNC kernel_pthread_cond_signal(pthread_cond_t* cond) {
+    log("pthread_cond_signal(cond=*%p)\n", cond);
+
+    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+
+    return pthread_cond_signal(cond);
+}
+
+s32 PS4_FUNC kernel_pthread_cond_broadcast(pthread_cond_t* cond) {
+    log("pthread_cond_broadcast(cond=*%p)\n", cond);
+
+    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+
+    return pthread_cond_broadcast(cond);
 }
 
 s32 PS4_FUNC kernel_pthread_condattr_destroy(pthread_condattr_t* attr) {

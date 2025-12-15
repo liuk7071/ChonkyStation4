@@ -60,6 +60,7 @@ u64 getFileSize(u64 file_id);
 u64 getFileSize(fs::path path);
 bool isDirectory(u64 file_id);
 bool isDirectory(fs::path path);
+bool exists(u64 file_id);
 bool exists(fs::path path);
 File& getFileFromID(u32 id);
 Directory& getDirFromID(u32 id);

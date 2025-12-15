@@ -17,6 +17,9 @@ void init(Module& module) {
     module.addSymbolStub("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad");
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
+    module.addSymbolStub("clVvL4ZDntw", "scePadSetMotionSensorState", "libScePad", "libScePad");
+    module.addSymbolStub("gjP9-KQzoUk", "scePadGetControllerInformation", "libScePad", "libScePad");    // TODO: Important
+    module.addSymbolStub("q1cHNfGycLI", "scePadRead", "libScePad", "libScePad");    // TODO: Important
 }
 
 ScePadData pad_state;

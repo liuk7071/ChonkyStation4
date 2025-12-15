@@ -26,6 +26,7 @@ void init(Module& module) {
     module.addSymbolExport("bQVd5YzCal0", "sceGnmSetPsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetPsShader);
     module.addSymbolExport("5uFKckiJYRM", "sceGnmSetPsShader350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetPsShader350);
     module.addSymbolExport("4MgRw-bVNQU", "sceGnmUpdatePsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmUpdatePsShader);
+    module.addSymbolExport("mLVL7N7BVBg", "sceGnmUpdatePsShader350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmUpdatePsShader350);
     module.addSymbolExport("KXltnCwEJHQ", "sceGnmSetCsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShader);
     module.addSymbolExport("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShaderWithModifier);
     module.addSymbolExport("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmInsertWaitFlipDone);
@@ -325,6 +326,57 @@ s32 PS4_FUNC sceGnmSetPsShader350(u32* buf, u32 size, const u32* ps_regs) {
 // TODO: What is the difference with SetPsShader?
 s32 PS4_FUNC sceGnmUpdatePsShader(u32* buf, u32 size, const u32* ps_regs) {
     log("sceGnmUpdatePsShader(buf=%p, size=0x%x, ps_regs=%p)\n", buf, size, ps_regs);
+    log("addr_lo=0x%08x\n", ps_regs[0]);
+    log("addr_hi=0x%08x\n", ps_regs[1]);
+
+    if (!ps_regs) {
+        Helpers::panic("sceGnmUpdatePsShader: ps_regs is nullptr (TODO)\n");
+    }
+
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x8;
+    *buf++ = ps_regs[0];
+    *buf++ = 0;
+    // TODO: libSceGnmDriver.sprx does NOT write to the hi addr register, instead it asserts if it's non-zero.
+    // We can't do that because we don't implement the virtual memory map properly yet, so our addresses aren't going to fit
+    // in the lo register alone.
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0x9;
+    *buf++ = ps_regs[1];
+    *buf++ = 0;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
+    *buf++ = 0xa;
+    *buf++ = ps_regs[2];
+    *buf++ = ps_regs[3];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 4);
+    *buf++ = 0x1c4;
+    *buf++ = ps_regs[4];
+    *buf++ = ps_regs[5];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 4);
+    *buf++ = 0x1b3;
+    *buf++ = ps_regs[6];
+    *buf++ = ps_regs[7];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b6;
+    *buf++ = ps_regs[8];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x1b8;
+    *buf++ = ps_regs[9];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x203;
+    *buf++ = ps_regs[10];
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetContextReg, 3);
+    *buf++ = 0x8f;
+    *buf++ = ps_regs[11];
+
+    // TODO: REMOVE THE -4 WHEN I FIX THE TODO ABOVE!!!!!
+    *buf = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 12 - 4); // Trailing NOPs
+    return SCE_OK;
+}
+
+// TODO: What is the difference with SetPsShader350?
+s32 PS4_FUNC sceGnmUpdatePsShader350(u32* buf, u32 size, const u32* ps_regs) {
+    log("sceGnmUpdatePsShader350(buf=%p, size=0x%x, ps_regs=%p)\n", buf, size, ps_regs);
     log("addr_lo=0x%08x\n", ps_regs[0]);
     log("addr_hi=0x%08x\n", ps_regs[1]);
 

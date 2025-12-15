@@ -4,9 +4,6 @@
 [submodule "Dependencies/xbyak"]
 	path = Dependencies/xbyak
 	url = https://github.com/herumi/xbyak.git
-[submodule "Dependencies/pthread-win32"]
-	path = Dependencies/pthread-win32
-	url = https://github.com/GerHobbelt/pthread-win32.git
 [submodule "Dependencies/zydis"]
 	path = Dependencies/zydis
 	url = https://github.com/zyantific/zydis.git
@@ -16,3 +13,6 @@
 [submodule "Dependencies/glslang"]
 	path = Dependencies/glslang
 	url = https://github.com/KhronosGroup/glslang.git
+[submodule "Dependencies/pthread-win32"]
+	path = Dependencies/pthread-win32
+	url = https://github.com/GerHobbelt/pthread-win32.git

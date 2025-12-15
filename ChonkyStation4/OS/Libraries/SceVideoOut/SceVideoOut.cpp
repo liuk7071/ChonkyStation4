@@ -18,6 +18,7 @@ void init(Module& module) {
     module.addSymbolExport("IOdgHlCGU-k", "sceVideoOutSubmitChangeBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitChangeBufferAttribute);
     module.addSymbolExport("U46NwOiJpys", "sceVideoOutSubmitFlip", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitFlip);
     module.addSymbolExport("SbU3dwp80lQ", "sceVideoOutGetFlipStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetFlipStatus);
+    module.addSymbolExport("1FZBKy8HeNU", "sceVideoOutGetVblankStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetVblankStatus);
     module.addSymbolExport("6kPnj51T62Y", "sceVideoOutGetResolutionStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetResolutionStatus);
     
     module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
@@ -27,6 +28,9 @@ void init(Module& module) {
 void SceVideoOutPort::signalFlip(u64 flip_arg) {
     flip_ev_source.trigger(flip_arg);
     flip_status.count++;
+    //vblank_status.count++;
+    //vblank_status.process_time = SDL_GetTicks64();
+    //vblank_status.tsc = SDL_GetTicks64();
 }
 
 s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) {
@@ -45,6 +49,9 @@ s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) 
 
     // Initialize event source
     port->flip_ev_source.init(SCE_VIDEO_OUT_FLIP_EVENT_ID, 0);  // TODO: Properly set filter
+
+    std::memset(&port->flip_status, 0, sizeof(SceVideoOutFlipStatus));
+    std::memset(&port->vblank_status, 0, sizeof(SceVideoOutVblankStatus));
 
     port->resolution_status.full_width = 1920;
     port->resolution_status.full_height = 1080;
@@ -128,7 +135,7 @@ s32 PS4_FUNC sceVideoOutSubmitFlip(s32 handle, s32 buf_idx, s32 flip_mode, s64 f
 }
 
 s32 PS4_FUNC sceVideoOutGetFlipStatus(s32 handle, SceVideoOutFlipStatus* status) {
-    log("sceVideoOutGetFlipStatus(handle=%d, status=%p)\n", handle, status);
+    log("sceVideoOutGetFlipStatus(handle=%d, status=*%p)\n", handle, status);
 
     auto port = PS4::OS::find<SceVideoOutPort>(handle);
     if (!port) {
@@ -136,6 +143,23 @@ s32 PS4_FUNC sceVideoOutGetFlipStatus(s32 handle, SceVideoOutFlipStatus* status)
     }
 
     *status = port->flip_status;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceVideoOutGetVblankStatus(s32 handle, SceVideoOutVblankStatus* status) {
+    log("sceVideoOutGetVblankStatus(handle=%d, status=*%p)\n", handle, status);
+
+    auto port = PS4::OS::find<SceVideoOutPort>(handle);
+    if (!port) {
+        Helpers::panic("sceVideoOutGetFlipStatus: handle %d does not exist\n", handle);
+    }
+
+    // TODO: Stubbed to just increment every time it's polled
+    port->vblank_status.count++;
+    port->vblank_status.process_time = SDL_GetTicks64();
+    port->vblank_status.tsc = SDL_GetTicks64();
+
+    *status = port->vblank_status;
     return SCE_OK;
 }
 

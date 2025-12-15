@@ -57,6 +57,20 @@ target_include_directories(ChonkyStation4 PUBLIC Dependencies/pthread-win32)
 target_include_directories(ChonkyStation4 PUBLIC Dependencies/Dolphin)
 target_include_directories(ChonkyStation4 PUBLIC ${SDL2_INCLUDE_DIR})
 
+if (WIN32)
+    if (MSVC)
+        target_link_options(ChonkyStation4 PRIVATE /DYNAMICBASE:NO)
+        target_link_options(ChonkyStation4 PRIVATE /BASE:0x700000000000)
+        target_link_options(ChonkyStation4 PRIVATE /STACK:0x200000,0x200000)
+    else()
+        target_link_options(ChonkyStatio4 PRIVATE -Wl,--disable-dynamicbase)
+        target_link_options(ChonkyStatio4 PRIVATE -Wl,--image-base=0x700000000000)
+        target_link_options(ChonkyStatio4 PRIVATE -Wl,--stack,2097152)
+    endif()
+else()
+    message(FATAL_ERROR "Unsupported platform")
+endif()
+
 target_link_libraries(ChonkyStation4 PRIVATE pthreadVC3 Zydis SDL2-static)
 
 # Vulkan

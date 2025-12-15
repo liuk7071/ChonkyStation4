@@ -56,7 +56,7 @@ static Logger loader_app            = Logger<1>    ("[Loader ][App              
 
 // Libraries
 static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel           ] ");
-static Logger lib_kernel_mutex      = Logger<true> ("[Lib    ][KernelMutex      ] ");
+static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex      ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue     ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut      ] ");

@@ -49,10 +49,10 @@ private:
     std::vector<vk::raii::DeviceMemory> bufs_mem;
     std::vector<vk::raii::Image> textures;
     std::vector<vk::raii::DeviceMemory> texture_mem;
-    std::vector<vk::raii::ImageView> texture_views;
-    std::vector<vk::raii::Sampler> texture_samplers;
-    std::vector<vk::DescriptorBufferInfo> buffer_info;
-    std::vector<vk::DescriptorImageInfo> image_info;
+    std::deque<vk::raii::ImageView> texture_views;
+    std::deque<vk::raii::Sampler> texture_samplers;
+    std::deque<vk::DescriptorBufferInfo> buffer_info;
+    std::deque<vk::DescriptorImageInfo> image_info;
 
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
     vk::Format getVtxBufferFormat(u32 n_elements, u32 type);

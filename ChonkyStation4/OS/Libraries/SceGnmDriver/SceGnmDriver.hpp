@@ -26,6 +26,7 @@ s32 PS4_FUNC sceGnmUpdateVsShader(u32* buf, u32 size, const u32* vs_regs, u32 sh
 s32 PS4_FUNC sceGnmSetPsShader(u32* buf, u32 size, const u32* ps_regs);
 s32 PS4_FUNC sceGnmSetPsShader350(u32* buf, u32 size, const u32* ps_regs);
 s32 PS4_FUNC sceGnmUpdatePsShader(u32* buf, u32 size, const u32* ps_regs);
+s32 PS4_FUNC sceGnmUpdatePsShader350(u32* buf, u32 size, const u32* ps_regs);
 s32 PS4_FUNC sceGnmSetCsShader(u32* buf, u32 size, const u32* cs_regs);
 s32 PS4_FUNC sceGnmSetCsShaderWithModifier(u32* buf, u32 size, const u32* cs_regs, u32 shader_modifier);
 s32 PS4_FUNC sceGnmInsertWaitFlipDone(u32* buf, u32 size, s32 video_out_handle, u32 buf_idx);

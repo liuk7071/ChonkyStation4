@@ -37,10 +37,6 @@ private:
     u32 curr_frame = 0;
     u32 current_swapchain_image_idx = 0;
 
-    
-    vk::raii::Buffer idx_buf = nullptr;
-    vk::raii::DeviceMemory idx_buf_mem = nullptr;
-
     std::vector<const char*> required_device_exts = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	    VK_KHR_SPIRV_1_4_EXTENSION_NAME,

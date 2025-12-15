@@ -9,9 +9,18 @@ MAKE_LOG_FUNCTION(log, lib_kernel_mutex);
 s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
     log("pthread_mutex_lock(mutex=%p)\n", mutex);
 
-    if (*mutex == 0) *mutex = PTHREAD_MUTEX_INITIALIZER;
+    if (*mutex == 0) *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
 
     s32 ret = pthread_mutex_lock(mutex);
+    return ret;
+}
+
+s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
+    log("pthread_mutex_trylock(mutex=%p)\n", mutex);
+
+    if (*mutex == 0) *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
+
+    s32 ret = pthread_mutex_trylock(mutex);
     return ret;
 }
 
@@ -37,6 +46,14 @@ s32 PS4_FUNC kernel_pthread_mutexattr_settype(pthread_mutexattr_t* attr, int kin
 
 s32 PS4_FUNC kernel_pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* attr) {
     log("pthread_mutex_init(mutex=%p, attr=%p)\n", mutex, attr);
+
+    if (!attr) {
+        pthread_mutexattr_t new_attr;
+        pthread_mutexattr_init(&new_attr);
+        pthread_mutexattr_settype(&new_attr, PTHREAD_MUTEX_ERRORCHECK);
+        return pthread_mutex_init(mutex, &new_attr);
+    }
+
     return pthread_mutex_init(mutex, attr);
 }
 

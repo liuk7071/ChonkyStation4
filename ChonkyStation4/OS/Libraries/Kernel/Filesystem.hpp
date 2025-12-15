@@ -2,14 +2,10 @@
 
 #include <Common.hpp>
 #include <deque>
+#include <OS/Libraries/Kernel/Kernel.hpp>   // For SceKernelTimespec
 
 
 namespace PS4::OS::Libs::Kernel {
-
-struct SceKernelTimespec {
-    s64 tv_sec;
-    s64 tv_nsec;
-};
 
 struct SceKernelStat {
     u32 st_dev;

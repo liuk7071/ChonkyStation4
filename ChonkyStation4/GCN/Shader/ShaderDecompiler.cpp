@@ -166,6 +166,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 float s[104];
 float v[104];
 vec4 tmp;
+bool scc;
 
 )";
 
@@ -203,6 +204,7 @@ vec4 tmp;
         }
 
         case Shader::Opcode::IMAGE_SAMPLE:
+        case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4: {
             const auto sgpr = instr.src[2].code * 4;
@@ -339,6 +341,11 @@ vec4 tmp;
             break;
         }
 
+        case Shader::Opcode::S_CMP_LG_U32: {
+            main += std::format("scc = floatBitsToUint({}) != floatBitsToUint({});", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_ADD_F32: {
             main += std::format("v[{}] = {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
             break;
@@ -420,6 +427,17 @@ vec4 tmp;
             break;
         }
 
+        case Shader::Opcode::S_BUFFER_LOAD_DWORD: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORD: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset);
+            break;
+        }
+
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2: {
             const auto buffer_mapping = buf_mapping_idx++;
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX2: no buffer_mapping");  // Unreachable if everything works as intended
@@ -494,6 +512,7 @@ vec4 tmp;
         default: {
             printf("Shader so far:\n%s\n", main.c_str());
             Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //main += "// TODO\n";
         }
         }
     }

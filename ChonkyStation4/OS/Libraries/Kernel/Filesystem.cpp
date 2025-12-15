@@ -12,12 +12,19 @@ MAKE_LOG_FUNCTION(log, lib_kernel_filesystem);
 s32 PS4_FUNC kernel_open(const char* path, s32 flags, u16 mode) {
     log("_open(path=\"%s\", flags=%d, mode=%o)\n", path, flags, mode);
     // TODO: mode
-    return FS::open(path, mode);
+    const auto ret = FS::open(path, mode);
+    if (!ret) {
+        *Kernel::kernel_error() = POSIX_ENOENT;
+        return -1;
+    }
+
+    return ret;
 }
 
 s32 PS4_FUNC sceKernelOpen(const char* path, s32 flags, u16 mode) {
-    const s32 ret = kernel_open(path, flags, mode);
-    return (ret >= 0) ? ret : Error::posixToSce(ret);
+    const auto res = kernel_open(path, flags, mode);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 s64 PS4_FUNC kernel_lseek(s32 fd, s64 offset, s32 whence) {
@@ -26,8 +33,9 @@ s64 PS4_FUNC kernel_lseek(s32 fd, s64 offset, s32 whence) {
 }
 
 s64 PS4_FUNC sceKernelLseek(s32 fd, s64 offset, s32 whence) {
-    const s32 ret = kernel_lseek(fd, offset, whence);
-    return (ret >= 0) ? ret : Error::posixToSce(ret);
+    const auto res = kernel_lseek(fd, offset, whence);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 s64 PS4_FUNC kernel_read(s32 fd, u8* buf, u64 size) {
@@ -36,8 +44,9 @@ s64 PS4_FUNC kernel_read(s32 fd, u8* buf, u64 size) {
 }
 
 s64 PS4_FUNC sceKernelRead(s32 fd, u8* buf, u64 size) {
-    const s32 ret = kernel_read(fd, buf, size);
-    return (ret >= 0) ? ret : Error::posixToSce(ret);
+    const auto res = kernel_read(fd, buf, size);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
@@ -61,18 +70,27 @@ s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
 }
 
 s32 PS4_FUNC sceKernelStat(const char* path, SceKernelStat* stat) {
-    return Error::posixToSce(kernel_stat(path, stat));
+    const auto res = kernel_stat(path, stat);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 s32 PS4_FUNC kernel_close(s32 fd) {
     log("close(fd=%d)\n", fd);
     
+    if (!FS::exists(fd)) {
+        *Kernel::kernel_error() = POSIX_ENOENT;
+        return -1;
+    }
+
     FS::close(fd);
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelClose(s32 fd) {
-    return Error::posixToSce(kernel_close(fd));
+    const auto res = kernel_close(fd);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 }   // End namespace PS4::OS::Libs::Kernel

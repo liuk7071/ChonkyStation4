@@ -37,6 +37,8 @@ struct SceAudioOutPort : SceObj {
     u32 len;
     u32 freq;
     u32 format;
+    u32 n_channels;
+    u32 sdl_format;
 };
 
 s32 PS4_FUNC sceAudioOutInit();

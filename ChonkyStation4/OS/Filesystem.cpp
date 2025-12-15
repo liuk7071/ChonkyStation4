@@ -172,6 +172,10 @@ bool isDirectory(fs::path path) {
     return fs::is_directory(guestPathToHost(path));
 }
 
+bool exists(u64 file_id) {
+    return open_files.contains(file_id);
+}
+
 bool exists(fs::path path) {
     return fs::exists(guestPathToHost(path));
 }

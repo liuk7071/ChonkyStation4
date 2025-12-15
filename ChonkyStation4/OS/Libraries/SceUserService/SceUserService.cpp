@@ -8,12 +8,28 @@ namespace PS4::OS::Libs::SceUserService {
 MAKE_LOG_FUNCTION(log, lib_sceUserService);
 
 void init(Module& module) {
+    module.addSymbolExport("yH17Q6NWtVg", "sceUserServiceGetEvent", "libSceUserService", "libSceUserService", (void*)&sceUserServiceGetEvent);
     module.addSymbolExport("CdWp0oHWGr0", "sceUserServiceGetInitialUser", "libSceUserService", "libSceUserService", (void*)&sceUserServiceGetInitialUser);
     module.addSymbolExport("fPhymKNvK-A", "sceUserServiceGetLoginUserIdList", "libSceUserService", "libSceUserService", (void*)&sceUserServiceGetLoginUserIdList);
     module.addSymbolExport("1xxcMiGu2fo", "sceUserServiceGetUserName", "libSceUserService", "libSceUserService", (void*)&sceUserServiceGetUserName);
     
     module.addSymbolStub("j3YMu1MVNNo", "sceUserServiceInitialize", "libSceUserService", "libSceUserService");
-    module.addSymbolStub("yH17Q6NWtVg", "sceUserServiceGetEvent", "libSceUserService", "libSceUserService", 0x80960007 /* SCE_USER_SERVICE_ERROR_NO_EVENT */);
+}
+
+bool is_logged_in = false;
+
+s32 PS4_FUNC sceUserServiceGetEvent(SceUserServiceEvent* event) {
+    log("sceUserServiceGetEvent(event=*%p)\n", event);
+    
+    // Send a login event
+    if (!is_logged_in) {
+        is_logged_in = true;
+        event->event = SceUserServiceEventType::Login;
+        event->user_id = 100;
+        return SCE_OK;
+    }
+
+    return SCE_USER_SERVICE_ERROR_NO_EVENT;
 }
 
 s32 PS4_FUNC sceUserServiceGetInitialUser(SceUserServiceUserId* user_id) {

@@ -12,9 +12,15 @@ s32 PS4_FUNC kernel_pthread_once(pthread_once_t* once_control, void(*init_routin
     return pthread_once(once_control, init_routine);
 }
 
-pthread_t PS4_FUNC kernel_pthread_self() {
+void* PS4_FUNC kernel_pthread_self() {
     log("pthread_self()\n");
-    return pthread_self();
+    pthread_t self = pthread_self();
+    for (auto& thread : PS4::OS::Thread::threads) {
+        if (self.p == thread.getPThread().p) {
+            return &thread.getPThread();
+        }
+    }
+    Helpers::panic("pthread_self(): could not find self pthread\n");
 }
 
 s32 PS4_FUNC kernel_pthread_getspecific() {
@@ -37,8 +43,8 @@ s32 PS4_FUNC kernel_pthread_attr_init(pthread_attr_t* attr) {
     return pthread_attr_init(attr);
 }
 
-s32 PS4_FUNC kernel_pthread_attr_get_np(pthread_t pthread, pthread_attr_t* attr) {
-    log("pthread_attr_get_np(pthread=*%p, attr=*%p) TODO\n", pthread.p, attr);
+s32 PS4_FUNC kernel_pthread_attr_get_np(void* pthread, pthread_attr_t* attr) {
+    log("pthread_attr_get_np(pthread=*%p, attr=*%p) TODO\n", pthread, attr);
     return 0;
 }
 
@@ -57,24 +63,34 @@ s32 PS4_FUNC kernel_pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack
     return pthread_attr_setstacksize(attr, stacksize);
 }
 
+s32 PS4_FUNC kernel_pthread_attr_setdetachstate(pthread_attr_t* attr, int detachstate) {
+    log("pthread_attr_setdetachstate(attr=*%p, detachstate=%d)\n", attr, detachstate);
+    return pthread_attr_setdetachstate(attr, detachstate);
+}
+
 s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr) {
     log("pthread_attr_destroy(attr=*%p) TODO\n", attr);
     return 0;
 }
 
-s32 PS4_FUNC scePthreadCreate(pthread_t* tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
+s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
     log("pthread_create(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name);
-    
     // TODO: attr
     std::string name_str = name ? name : "unnamed";
-    auto thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);
-    *tid = thread.getPThread();
+    auto& thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);
+    *tid = (void*)&thread.getPThread();
     return 0;
 }
 
-s32 PS4_FUNC kernel_pthread_detach(pthread_t tid) {
+s32 PS4_FUNC kernel_pthread_detach(void* tid) {
     log("pthread_detach(tid=%p)\n", tid);
-    return pthread_detach(tid);
+    return pthread_detach(*(pthread_t*)tid);
+}
+
+s32 PS4_FUNC kernel_pthread_yield() {
+    log("pthread_yield()\n");
+    //std::this_thread::yield();
+    return 0;
 }
 
 };  // End namespace PS4::OS::Libs::Kernel
