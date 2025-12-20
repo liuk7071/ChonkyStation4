@@ -150,7 +150,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                 mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
                 buf.bindMemory(*mem, 0);
                 void* buf_data = mem.mapMemory(0, buf_size);
-                void* guest_buf_data = (void*)(vsharp->base << 8);
+                void* guest_buf_data = (void*)(vsharp->base);
                 std::memcpy(buf_data, guest_buf_data, buf_size);
                 mem.unmapMemory();
 
@@ -304,6 +304,16 @@ vk::Format Pipeline::getVtxBufferFormat(u32 n_elements, u32 type) {
 // Returns a Vulkan format alongside the size of 1 pixel in bytes
 std::pair<vk::Format, size_t> Pipeline::getTexFormatAndSize(u32 dfmt, u32 nfmt) {
     switch ((DataFormat)dfmt) {
+
+    case DataFormat::Format8: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eR8Unorm, sizeof(u8) };
+
+        default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
 
     case DataFormat::Format8_8_8_8: {
         switch ((NumberFormat)nfmt) {

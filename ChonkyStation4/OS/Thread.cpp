@@ -2,6 +2,7 @@
 #include <Loaders/App.hpp>
 #ifdef _WIN32
 #define NOMINMAX
+#include <codecvt>
 #include <windows.h>
 #endif
 #include <thread>
@@ -64,7 +65,7 @@ Thread& createThread(const std::string& name, ThreadStartFunc entry, void* args)
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, 1_MB); // Default stacksize is 1MB. TODO: Make this function take in a pthread_attr and just pass that in below
+    pthread_attr_setstacksize(&attr, 2_MB); // Default stacksize is 1MB. TODO: Make this function take in a pthread_attr and just pass that in below
     pthread_create(&thread.getPThread(), &attr, (void*(*)(void*))threadStart, &thread);
     return thread;
 }
@@ -78,6 +79,13 @@ void joinThread(Thread& thread) {
 }
 
 void* threadStart(Thread* thread) {
+#ifdef _WIN32
+    // For debugging, set the thread name
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    const std::string name = "[PS4] " + thread->name;
+    SetThreadDescription(GetCurrentThread(), (PCWSTR)converter.from_bytes(name.c_str()).c_str());
+#endif
+
     // Initialize TLS
     // I made a simple TLS test and for some reason thread_local variables seem to start 0x10 bytes earlier than the reported TLS address?
     // Not sure what's happening but I just allocate 0x10 bytes extra to be safe

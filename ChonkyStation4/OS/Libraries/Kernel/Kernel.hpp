@@ -9,6 +9,25 @@ namespace PS4::OS::Libs::Kernel {
 
 void init(Module& module);
 
+static constexpr s32 SCE_KERNEL_CLOCK_REALTIME = 0;
+static constexpr s32 SCE_KERNEL_CLOCK_VIRTUAL = 1;
+static constexpr s32 SCE_KERNEL_CLOCK_PROF = 2;
+static constexpr s32 SCE_KERNEL_CLOCK_MONOTONIC = 4;
+static constexpr s32 SCE_KERNEL_CLOCK_UPTIME = 5;
+static constexpr s32 SCE_KERNEL_CLOCK_UPTIME_PRECISE = 7;
+static constexpr s32 SCE_KERNEL_CLOCK_UPTIME_FAST = 8;
+static constexpr s32 SCE_KERNEL_CLOCK_REALTIME_PRECISE = 9;
+static constexpr s32 SCE_KERNEL_CLOCK_REALTIME_FAST = 10;
+static constexpr s32 SCE_KERNEL_CLOCK_MONOTONIC_PRECISE = 11;
+static constexpr s32 SCE_KERNEL_CLOCK_MONOTONIC_FAST = 12;
+static constexpr s32 SCE_KERNEL_CLOCK_SECOND = 13;
+static constexpr s32 SCE_KERNEL_CLOCK_THREAD_CPUTIME_ID = 14;
+static constexpr s32 SCE_KERNEL_CLOCK_PROCTIME = 15;
+static constexpr s32 SCE_KERNEL_CLOCK_EXT_NETWORK = 16;
+static constexpr s32 SCE_KERNEL_CLOCK_EXT_DEBUG_NETWORK = 17;
+static constexpr s32 SCE_KERNEL_CLOCK_EXT_AD_NETWORK = 18;
+static constexpr s32 SCE_KERNEL_CLOCK_EXT_RAW_NETWORK = 19;
+
 struct KernelIovec {
     void* iov_base;
     size_t iov_len;
@@ -31,6 +50,8 @@ size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt);
 size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size);
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
+s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts);
+s32 PS4_FUNC sceKernelClockGettime(u32 clock_id, SceKernelTimespec* ts);
 s32 PS4_FUNC sceKernelIsNeoMode();
 void* PS4_FUNC sceKernelGetProcParam();
 s32 PS4_FUNC sceKernelGetProcessType();

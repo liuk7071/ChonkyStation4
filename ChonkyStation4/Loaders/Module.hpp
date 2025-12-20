@@ -51,8 +51,13 @@ static std::string encodeID(u16 id) {
     
     if (id < 64) {
         res += charset[id];
+    } else if (id < 0x1000) {
+        res += charset[(id >> 6) & 0x3fu];
+        res += charset[id & 0x3fu];
     } else {
-        Helpers::panic("encodeID: unimplemented ID >= 64\n", id);
+        res += charset[(id >> 12) & 0x3fu];
+        res += charset[(id >> 6) & 0x3fu];
+        res += charset[id & 0x3fu];
     }
 
     return res;

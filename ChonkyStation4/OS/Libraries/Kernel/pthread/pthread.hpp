@@ -22,6 +22,7 @@ s32 PS4_FUNC scePthreadAttrGetaffinity(pthread_attr_t* attr, u64* mask);
 s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr);
 s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name);
 s32 PS4_FUNC kernel_pthread_detach(void* tid);
+s32 PS4_FUNC kernel_pthread_equal(void* tid1, void* tid2);
 s32 PS4_FUNC kernel_pthread_yield();
 
 };  // End namespace PS4::OS::Libs::Kernel

@@ -46,6 +46,8 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 &&  operands[1].type == ZYDIS_OPERAND_TYPE_MEMORY
                 &&  operands[1].mem.segment == ZYDIS_REGISTER_FS
                 &&  operands[1].mem.disp.value == 0
+                &&  operands[0].reg.value >= ZYDIS_REGISTER_RAX // There seem to be some instructions that move from FS to other segment registers. I don't know if those need to be patched and if so with what
+                &&  operands[0].reg.value <= ZYDIS_REGISTER_R15
                ) {
                 u8* instr_addr = code_ptr + offs;
                 log("- Found TLS access with size %d @ %p\n", instruction.length, instr_addr);

@@ -47,6 +47,7 @@ void* PS4_FUNC initAndJumpToEntry(std::vector<Module>* modules) {
     // Dummy arguments
     Params params;
     params.argc = 0;
+    std::memset(params.argv, 0, 33 * sizeof(char*));
     params.argv[0] = nullptr;
     params.entry = (*modules)[0].entry;
 

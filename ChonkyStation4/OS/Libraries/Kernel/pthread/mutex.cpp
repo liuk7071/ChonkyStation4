@@ -41,6 +41,9 @@ s32 PS4_FUNC kernel_pthread_mutexattr_destroy(pthread_mutexattr_t* attr) {
 
 s32 PS4_FUNC kernel_pthread_mutexattr_settype(pthread_mutexattr_t* attr, int kind) {
     log("pthread_mutexattr_settype(attr=%p, kind=%d)\n", attr, kind);
+
+    if (kind == 4) kind = PTHREAD_MUTEX_ADAPTIVE_NP;
+    
     return pthread_mutexattr_settype(attr, kind);
 }
 

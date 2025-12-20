@@ -34,7 +34,7 @@ public:
         s64 d_tag;
         union {
             u64 d_val;
-            u64  d_ptr;
+            u64 d_ptr;
         } d_un;
     } Elf64_Dyn;
 

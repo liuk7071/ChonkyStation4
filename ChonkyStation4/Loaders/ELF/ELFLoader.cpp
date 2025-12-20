@@ -28,7 +28,7 @@ Module ELFLoader::load(const fs::path& path) {
     u64 max_vaddr = 0;
     for (auto& seg : elf.segments) {
         const auto type = seg->get_type();
-        if (type != PT_LOAD && type != PT_DYNAMIC) continue;
+        if (type != PT_LOAD) continue;
         u64 start = seg->get_virtual_address();
         u64 end   = start + seg->get_memory_size();
         if (start < min_vaddr) min_vaddr = start;

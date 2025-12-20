@@ -87,6 +87,11 @@ s32 PS4_FUNC kernel_pthread_detach(void* tid) {
     return pthread_detach(*(pthread_t*)tid);
 }
 
+s32 PS4_FUNC kernel_pthread_equal(void* tid1, void* tid2) {
+    log("pthread_equal(tid1=%p, tid2=%p)\n", tid1, tid2);
+    return pthread_equal(*(pthread_t*)tid1, *(pthread_t*)tid2);
+}
+
 s32 PS4_FUNC kernel_pthread_yield() {
     log("pthread_yield()\n");
     //std::this_thread::yield();

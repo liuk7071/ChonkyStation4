@@ -224,7 +224,7 @@ static constexpr s32 POSIX_ETIME = 1074;
 
 namespace Error {
 
-s32 posixToSce(s32 err) { return (err != 0) ? (SCE_KERNEL_ERROR_UNKNOWN + err) : 0; }
-s32 sceToPosix(s32 err) { return (err != 0) ? (err - SCE_KERNEL_ERROR_UNKNOWN) : 0; }
+inline s32 posixToSce(s32 err) { return (err != 0) ? (SCE_KERNEL_ERROR_UNKNOWN + err) : 0; }
+inline s32 sceToPosix(s32 err) { return (err != 0) ? (err - SCE_KERNEL_ERROR_UNKNOWN) : 0; }
 
 }   // End namespace Error

@@ -93,29 +93,57 @@ std::string getType(int n_lanes) {
     }
 }
 
+template<bool is_int = false>
 std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     std::string src;
     
     switch (op.field) {
-    case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                                        break;
-    case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                                        break;
-    case OperandField::LiteralConst:        src = std::format("{}f", reinterpret_cast<const float&>(op.code));                          break;
-    case OperandField::SignedConstIntPos:   src = std::format("intBitsToFloat({})", (s32)op.code - SignedConstIntPosMin + 1);           break;
-    case OperandField::SignedConstIntNeg:   src = std::format("intBitsToFloat({})", -(s32)(op.code - SignedConstIntNegMin + 1));        break;
-    case OperandField::ConstFloatNeg_4_0:   src = "-4.0f";                                                                              break;
-    case OperandField::ConstFloatNeg_2_0:   src = "-2.0f";                                                                              break;
-    case OperandField::ConstFloatNeg_1_0:   src = "-1.0f";                                                                              break;
-    case OperandField::ConstFloatNeg_0_5:   src = "-0.5f";                                                                              break;
-    case OperandField::ConstZero:           src = "0.0f";                                                                               break;
-    case OperandField::ConstFloatPos_0_5:   src = "0.5f";                                                                               break;
-    case OperandField::ConstFloatPos_1_0:   src = "1.0f";                                                                               break;
-    case OperandField::ConstFloatPos_2_0:   src = "2.0f";                                                                               break;
-    case OperandField::ConstFloatPos_4_0:   src = "4.0f";                                                                               break;
-    case OperandField::ExecLo:              src = "1.0f /* TODO: ExecLo */";                                                            break;
+    case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                        break;
+    case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                        break;
+    case OperandField::LiteralConst:        src = std::format("f2u({}f)", reinterpret_cast<const float&>(op.code));     break;
+    case OperandField::SignedConstIntPos:   src = std::format("{}", (s32)op.code - SignedConstIntPosMin + 1);           break;
+    case OperandField::SignedConstIntNeg:   src = std::format("{}", -(s32)(op.code - SignedConstIntNegMin + 1));        break;
+    case OperandField::ConstFloatNeg_4_0:   src = "f2u(-4.0f)";                                                         break;
+    case OperandField::ConstFloatNeg_2_0:   src = "f2u(-2.0f)";                                                         break;
+    case OperandField::ConstFloatNeg_1_0:   src = "f2u(-1.0f)";                                                         break;
+    case OperandField::ConstFloatNeg_0_5:   src = "f2u(-0.5f)";                                                         break;
+    case OperandField::ConstZero:           src = "f2u(0.0f)";                                                          break;
+    case OperandField::ConstFloatPos_0_5:   src = "f2u(0.5f)";                                                          break;
+    case OperandField::ConstFloatPos_1_0:   src = "f2u(1.0f)";                                                          break;
+    case OperandField::ConstFloatPos_2_0:   src = "f2u(2.0f)";                                                          break;
+    case OperandField::ConstFloatPos_4_0:   src = "f2u(4.0f)";                                                          break;
+    case OperandField::ExecLo:              src = "f2u(1.0f) /* TODO: ExecLo */";                                       break;
+    case OperandField::VccLo:               src = "f2u(1.0f) /* TODO: VccLo */";                                        break;
+    case OperandField::VccHi:               src = "f2u(1.0f) /* TODO: VccHi */";                                        break;
     default:    Helpers::panic("Unhandled SRC %d\n", op.code);
     }
 
+    if constexpr (!is_int)
+        src = "u2f(" + src + ")";
     return src;
+}
+
+template<bool is_int = false>
+std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
+    std::string code;
+    std::string src;
+    if constexpr (!is_int)
+        src = "f2u(" + val + ")";
+    else
+        src = val;
+
+    switch (op.field) {
+    case OperandField::ScalarGPR:           code = std::format("s[{}] = {};\n", op.code, src);      break;
+    case OperandField::VectorGPR:           code = std::format("v[{}] = {};\n", op.code, src);      break;
+    case OperandField::VccLo:               code = "// TODO: Set VccLo\n";                          break;
+    case OperandField::VccHi:               code = "// TODO: Set VccHi\n";                          break;
+    case OperandField::M0:                  code = "// TODO: Set M0\n";                             break;
+    case OperandField::ExecLo:              code = "// TODO: Set ExecLo\n";                         break;
+    case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                         break;
+    default:    Helpers::panic("Unhandled DST %d\n", op.code);
+    }
+
+    return code;
 }
 
 template<typename T>
@@ -142,7 +170,7 @@ template VSharp* DescriptorLocation::asPtr<VSharp>();
 template TSharp* DescriptorLocation::asPtr<TSharp>();
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
-    //std::ofstream out;
+    std::ofstream out;
     //if (stage == ShaderStage::Fragment) {
     //    out.open("fs.bin", std::ios::binary);
     //    out.write((char*)data, 1_KB);
@@ -163,8 +191,11 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 #version 430 core
 #extension GL_ARB_shading_language_packing : require
 
-float s[104];
-float v[104];
+#define u2f(x) uintBitsToFloat(x)
+#define f2u(x) floatBitsToUint(x)
+
+uint s[104];
+uint v[104];
 vec4 tmp;
 bool scc;
 
@@ -207,7 +238,9 @@ bool scc;
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4: {
-            const auto sgpr = instr.src[2].code * 4;
+            const int idx  = instr.opcode == Shader::Opcode::IMAGE_SAMPLE ? 2 : 0;
+            const int mult = instr.opcode == Shader::Opcode::IMAGE_SAMPLE ? 4 : 2;
+            const auto sgpr = instr.src[idx].code * mult;
             if (!descs.contains(sgpr)) {
                 // We assume that the descriptor is being passed directly as user data.
                 // Check if this buffer already exists, otherwise create a new one
@@ -250,6 +283,7 @@ bool scc;
                 }
                 
                 buffer_map[buf_mapping_idx++] = &buf;
+                //printf("Found V# in SGPR %d\n", buf.desc_info.sgpr);
                 //printf("Added buffer %s\n", name.c_str());
             }
             else {
@@ -285,7 +319,7 @@ bool scc;
                 else if (swizzle == DSEL_B) val = attr + ".z";
                 else if (swizzle == DSEL_A) val = attr + ".w";
 
-                main += std::format("v[{}] = {};\n", binding.dest_vgpr + i, val);
+                main += std::format("v[{}] = floatBitsToUint({});\n", binding.dest_vgpr + i, val);
             }
         }
         break;
@@ -312,22 +346,12 @@ bool scc;
         }
 
         case Shader::Opcode::S_MOV_B32: {
-            if (instr.dst[0].code > 104) {
-                main += "// TODO: S_MOV_B32 to special register\n";
-                continue;
-            }
-
-            main += std::format("s[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST<true>(instr.dst[0], getSRC<true>(instr.src[0]));
             break;
         }
 
         case Shader::Opcode::S_MOV_B64: {
-            if (instr.dst[0].code > 104) {
-                main += "// TODO: S_MOV_B64 to special register\n";
-                continue;
-            }
-
-            main += std::format("s[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST<true>(instr.dst[0], getSRC<true>(instr.src[0]));
             break;
         }
 
@@ -347,32 +371,32 @@ bool scc;
         }
 
         case Shader::Opcode::V_ADD_F32: {
-            main += std::format("v[{}] = {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            main += setDST(instr.dst[0], std::format("{} + {}", getSRC(instr.src[0]), getSRC(instr.src[1])));
             break;
         }
 
         case Shader::Opcode::V_SUB_F32: {
-            main += std::format("v[{}] = {} - {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            main += setDST(instr.dst[0], std::format("{} - {}", getSRC(instr.src[0]), getSRC(instr.src[1])));
             break;
         }
 
         case Shader::Opcode::V_MUL_F32: {
-            main += std::format("v[{}] = {} * {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            main += setDST(instr.dst[0], std::format("{} * {}", getSRC(instr.src[0]), getSRC(instr.src[1])));
             break;
         }
 
         case Shader::Opcode::V_MAC_F32: {
-            main += std::format("v[{}] = {} * {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.dst[0]));
+            main += setDST(instr.dst[0], std::format("{} * {} + {}", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.dst[0])));
             break;
         }
 
         case Shader::Opcode::V_CVT_PKRTZ_F16_F32: {
-            main += std::format("v[{}] = uintBitsToFloat(packHalf2x16(vec2({}, {})));\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]));
+            main += setDST<true>(instr.dst[0], std::format("packHalf2x16(vec2({}, {}))", getSRC(instr.src[0]), getSRC(instr.src[1])));
             break;
         }
 
         case Shader::Opcode::V_MOV_B32: {
-            main += std::format("v[{}] = {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST(instr.dst[0], getSRC(instr.src[0]));
             break;
         }
 
@@ -383,27 +407,27 @@ bool scc;
             };
             addFloatConstTable("cvt_off_f32_i4", (float*)cvt_table, 16);
 
-            main += std::format("v[{}] = cvt_off_f32_i4[floatBitsToInt({}) & 0xf];\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST(instr.dst[0], std::format("cvt_off_f32_i4[{} & 0xf]", getSRC<true>(instr.src[0])));
             break;
         }
 
         case Shader::Opcode::V_FRACT_F32: {
-            main += std::format("v[{}] = fract({});\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST(instr.dst[0], std::format("fract({})", getSRC(instr.src[0])));
             break;
         }
 
         case Shader::Opcode::V_FLOOR_F32: {
-            main += std::format("v[{}] = floor({});\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST(instr.dst[0], std::format("floor({})", getSRC(instr.src[0])));
             break;
         }
 
         case Shader::Opcode::V_RCP_F32: {
-            main += std::format("v[{}] = 1.0f / {};\n", instr.dst[0].code, getSRC(instr.src[0]));
+            main += setDST(instr.dst[0], std::format("1.0f / {}", getSRC(instr.src[0])));
             break;
         }
 
         case Shader::Opcode::V_FMA_F32: {
-            main += std::format("v[{}] = {} * {} + {};\n", instr.dst[0].code, getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2]));
+            main += setDST(instr.dst[0], std::format("{} * {} + {}", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
             break;
         }
 
@@ -412,7 +436,7 @@ bool scc;
             const auto src1 = getSRC(instr.src[1]);
             const auto src2 = getSRC(instr.src[2]);
             // med3(a, b, c) = max(min(a, b), min(max(a, b), c))
-            main += std::format("v[{}] = max(min({}, {}), min(max({}, {}), {}));\n", instr.dst[0].code, src0, src1, src0, src1, src2);
+            main += setDST(instr.dst[0], std::format("max(min({}, {}), min(max({}, {}), {}))", src0, src1, src0, src1, src2));
             break;
         }
 
@@ -420,7 +444,7 @@ bool scc;
             const std::string attr = std::format("ps_attr{}", instr.control.vintrp.attr);
             addInAttr(attr, "vec4", instr.control.vintrp.attr);
             char lanes[4] = { 'x', 'y', 'z', 'w' };
-            main += std::format("v[{}] = {}.{}; // V_INTERP_P1_F32\n", instr.dst[0].code, attr, lanes[instr.control.vintrp.chan]);
+            main += setDST(instr.dst[0], std::format("{}.{}", attr, lanes[instr.control.vintrp.chan]));
             break;
         }
 
@@ -428,7 +452,7 @@ bool scc;
             const std::string attr = std::format("ps_attr{}", instr.control.vintrp.attr);
             addInAttr(attr, "vec4", instr.control.vintrp.attr);
             char lanes[4] = { 'x', 'y', 'z', 'w' };
-            main += std::format("v[{}] = {}.{}; // V_INTERP_P2_F32\n", instr.dst[0].code, attr, lanes[instr.control.vintrp.chan]);
+            main += setDST(instr.dst[0], std::format("{}.{}", attr, lanes[instr.control.vintrp.chan]));
             break;
         }
 
@@ -439,6 +463,7 @@ bool scc;
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
             const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+
             main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset);
             break;
         }
@@ -450,6 +475,7 @@ bool scc;
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
             const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+
             main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
             main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
             break;
@@ -475,12 +501,12 @@ bool scc;
             auto* buf = buffer_map[buffer_mapping];
 
             const auto sampler_name = std::format("tex{}", buf->binding);
-            const std::string texcoords = std::format("vec2(v[{}], v[{}])", instr.src[0].code, instr.src[0].code + 1);
+            const std::string texcoords = std::format("vec2(u2f(v[{}]), u2f(v[{}]))", instr.src[0].code, instr.src[0].code + 1);
             main += std::format("tmp = texture({}, {});\n", sampler_name, texcoords);
-            main += std::format("v[{}] = tmp.x;\n", instr.dst[0].code + 0);
-            main += std::format("v[{}] = tmp.y;\n", instr.dst[0].code + 1);
-            main += std::format("v[{}] = tmp.z;\n", instr.dst[0].code + 2);
-            main += std::format("v[{}] = tmp.w;\n", instr.dst[0].code + 3);
+            main += std::format("v[{}] = f2u(tmp.x);\n", instr.dst[0].code + 0);
+            main += std::format("v[{}] = f2u(tmp.y);\n", instr.dst[0].code + 1);
+            main += std::format("v[{}] = f2u(tmp.z);\n", instr.dst[0].code + 2);
+            main += std::format("v[{}] = f2u(tmp.w);\n", instr.dst[0].code + 3);
             break;
         }
 
@@ -492,7 +518,7 @@ bool scc;
             if (!instr.control.exp.compr)
                 data = std::format("vec4({}, {}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2]), getSRC(instr.src[3]));
             else
-                data = std::format("vec4(unpackHalf2x16(floatBitsToUint({})), unpackHalf2x16(floatBitsToUint({})))", getSRC(instr.src[0]), getSRC(instr.src[1]));
+                data = std::format("vec4(unpackHalf2x16({}), unpackHalf2x16({}))", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
 
             // Color targets
             if (tgt >= 0 && tgt <= 8) {
@@ -529,7 +555,7 @@ bool scc;
     // Declare main function
     addFunc("void main", main);
 
-    printf("%s\n", shader.c_str());
+    //printf("%s\n", shader.c_str());
     out_data.source = shader;
 }
 

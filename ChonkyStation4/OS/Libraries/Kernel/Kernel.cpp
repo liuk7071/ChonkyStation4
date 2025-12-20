@@ -1,5 +1,6 @@
 #include "Kernel.hpp"
 #include <Logger.hpp>
+#include <ErrorCodes.hpp>
 #include <Loaders/Module.hpp>
 #include <Loaders/App.hpp>
 #include <OS/Thread.hpp>
@@ -15,6 +16,7 @@
 #include <windows.h>
 #pragma intrinsic(__rdtsc)
 #endif
+#include <SDL.h>    // For performance counters
 
 
 extern App g_app;
@@ -81,6 +83,8 @@ void init(Module& module) {
     module.addSymbolExport("6UgtwV+0zb4", "scePthreadCreate", "libkernel", "libkernel", (void*)&scePthreadCreate);
     module.addSymbolExport("+U1R4WtXvoc", "pthread_detach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
     module.addSymbolExport("4qGrR6eoP9Y", "scePthreadDetach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
+    module.addSymbolExport("7Xl257M4VNI", "pthread_equal", "libkernel", "libkernel", (void*)&kernel_pthread_equal);
+    module.addSymbolExport("3PtV6p3QNX4", "scePthreadEqual", "libkernel", "libkernel", (void*)&kernel_pthread_equal);
     module.addSymbolExport("B5GmVDKwpn0", "pthread_yield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
     module.addSymbolExport("T72hz6ffq08", "scePthreadYield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
     
@@ -111,6 +115,9 @@ void init(Module& module) {
     module.addSymbolExport("yS8U2TGCe1A", "nanosleep", "libScePosix", "libkernel", (void*)&kernel_nanosleep);
     module.addSymbolExport("QcteRwbsnV0", "usleep", "libkernel", "libkernel", (void*)&sceKernelUsleep); // TODO: Technically should be a separate function, but the behavior should be the same
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
+    module.addSymbolExport("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel", (void*)&kernel_clock_gettime);
+    module.addSymbolExport("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel", (void*)&kernel_clock_gettime);
+    module.addSymbolExport("QBi7HCK03hw", "sceKernelClockGettime", "libkernel", "libkernel", (void*)&sceKernelClockGettime);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
@@ -128,9 +135,7 @@ void init(Module& module) {
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
     
-    module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel"); // TODO: Important
-    module.addSymbolStub("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel"); // TODO: Important
-    module.addSymbolStub("QBi7HCK03hw", "sceKernelClockGettime", "libkernel", "libkernel"); // TODO: Important
+    module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
@@ -251,6 +256,40 @@ s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp) 
 s32 PS4_FUNC sceKernelUsleep(u32 us) {
     std::this_thread::sleep_for(std::chrono::microseconds(us));
     return SCE_OK;
+}
+
+s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts) {
+    log("clock_gettime(clock_id=%d, ts=*%p)\n", clock_id, ts);
+
+    switch (clock_id) {
+    case SCE_KERNEL_CLOCK_MONOTONIC: {
+        auto counter = SDL_GetPerformanceCounter();
+        auto freq = SDL_GetPerformanceFrequency();
+        ts->tv_sec = counter / freq;
+        ts->tv_nsec = (counter % freq) * 1000000000ull / freq;
+        break;
+    }
+
+    case SCE_KERNEL_CLOCK_SECOND: {
+        auto now = std::chrono::system_clock::now();
+        auto sec = std::chrono::time_point_cast<std::chrono::seconds>(now);
+        auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now - sec);
+
+        ts->tv_sec = sec.time_since_epoch().count();
+        ts->tv_nsec = ns.count();
+        break;
+    }
+    
+    default: Helpers::panic("clock_gettime: unhandled clock_id=%d\n", clock_id);
+    }
+
+    return 0;
+}
+
+s32 PS4_FUNC sceKernelClockGettime(u32 clock_id, SceKernelTimespec* ts) {
+    const auto res = kernel_clock_gettime(clock_id, ts);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 s32 PS4_FUNC sceKernelIsNeoMode() {
