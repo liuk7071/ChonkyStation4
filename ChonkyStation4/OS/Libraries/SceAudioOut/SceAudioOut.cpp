@@ -14,6 +14,7 @@ void init(Module& module) {
     module.addSymbolExport("JfEPXVxhFqA", "sceAudioOutInit", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutInit);
     module.addSymbolExport("ekNvsT22rsY", "sceAudioOutOpen", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOpen);
     module.addSymbolExport("QOQtbeDqsT4", "sceAudioOutOutput", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutput);
+    module.addSymbolExport("w3PdaSTSwGE", "sceAudioOutOutputs", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutputs);
 
     module.addSymbolStub("b+uAV89IlxE", "sceAudioOutSetVolume", "libSceAudioOut", "libSceAudioOut");
 }
@@ -83,6 +84,16 @@ s32 PS4_FUNC sceAudioOutOutput(s32 handle, const void* ptr) {
         SDL_Delay(1);
     }
     return port->len * port->n_channels;
+}
+
+s32 PS4_FUNC sceAudioOutOutputs(SceAudioOutOutputParam* param, u32 num) {
+    log("sceAudioOutOutputs(param=*%p, num=%d)\n", param, num);
+
+    u32 samples = 0;
+    for (int i = 0; i < num; i++) {
+        samples += sceAudioOutOutput(param[i].handle, param[i].ptr);
+    }
+    return samples;
 }
 
 }   // End namespace PS4::OS::Libs::SceAudioOut

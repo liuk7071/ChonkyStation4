@@ -41,11 +41,13 @@ void loadAndRun(const fs::path& path) {
             g_app.name = path.filename().generic_string();
         }
 
-        // Log application base address (for debugging)
-        const auto base_address_str = std::format("{:p}", g_app.modules[0].base_address);
+        // Log module base addresses (for debugging)
         std::ofstream log_out;
         log_out.open("log_baseaddress.txt");
-        log_out.write(base_address_str.c_str(), base_address_str.length());
+        for (auto& mod : g_app.modules) {
+            const auto base_address_str = std::format("{:016p}:\t{}\n", mod.base_address, mod.filename);
+            log_out.write(base_address_str.c_str(), base_address_str.length());
+        }
         log_out.close();
 
         g_app.run();

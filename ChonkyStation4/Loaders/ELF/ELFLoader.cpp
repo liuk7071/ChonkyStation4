@@ -14,6 +14,7 @@ static int tls_modid = 0;
 Module ELFLoader::load(const fs::path& path) {
     elfio elf;
     Module module;
+    module.filename = path.filename().generic_string();
 
     auto str = path.generic_string();
     if (!elf.load(str.c_str())) {

@@ -2,6 +2,10 @@
 #include <cstdarg>
 #include <fstream>
 #include <mutex>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 // Ported from Panda3DS
 
@@ -22,6 +26,11 @@ public:
 
         const std::lock_guard<std::mutex> lock(logger_mtx);
         std::fputs(prefix.c_str(), stdout);
+#ifdef _WIN32
+        PWSTR thread_name;
+        GetThreadDescription(GetCurrentThread(), &thread_name);
+        std::wprintf(L"(%ls) ", thread_name);
+#endif
         std::va_list args;
         va_start(args, fmt);
         std::vprintf(fmt, args);
@@ -44,7 +53,7 @@ public:
 #ifdef CHONKYSTATION4_USER_BUILD
 #define true false
 #else
-#define true false
+//#define true false
 //#define false true
 #endif
 

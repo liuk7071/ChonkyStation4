@@ -24,6 +24,7 @@ namespace PS4::OS::HLE {
 // Create a dummy HLE module that only contains the symbol exports for HLE functions
 Module buildHLEModule() {
     Module module;
+    module.filename = "HLE";
 
     PS4::OS::Libs::Kernel::init(module);
     PS4::OS::Libs::SceVideoOut::init(module);
