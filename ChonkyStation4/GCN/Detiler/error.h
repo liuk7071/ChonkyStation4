@@ -1,0 +1,16 @@
+#ifndef _GPUADDRESS_ERROR_H_
+#define _GPUADDRESS_ERROR_H_
+
+typedef enum {
+	GPA_ERR_OK = 0,
+	GPA_ERR_INVALID_ARGS,
+	GPA_ERR_OVERFLOW,
+	GPA_ERR_TILING_ERROR,
+	GPA_ERR_UNSUPPORTED,
+	GPA_ERR_INTERNAL_ERROR,
+	GPA_ERR_NOT_COMPRESSED,
+} GpaError;
+
+const char* gpaStrError(const GpaError err);
+
+#endif	// _GPUADDRESS_ERROR_H_

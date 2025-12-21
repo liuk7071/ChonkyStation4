@@ -4,6 +4,7 @@
 #include <mutex>
 #include <semaphore>
 #include <deque>
+#include <chrono>
 
 
 namespace PS4::GCN {
@@ -13,6 +14,11 @@ std::counting_semaphore<256> sem { 0 };
 std::mutex mtx;
 
 void gcnThread() {
+    using clock = std::chrono::high_resolution_clock;
+    const double target_fps = 60.0; // Stubbed for now
+    const auto frame_duration = std::chrono::duration<double>(1.0 / target_fps);
+    auto frame_start = clock::now();
+
     // Initialize renderer
     initVulkan();
 
@@ -54,8 +60,14 @@ void gcnThread() {
                 Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
             }
             port->signalFlip(cmd.flip_arg);
-
             buf_label[cmd.buf_idx] = 0;
+
+            // Frame limiter
+            auto frame_end = clock::now();
+            auto frame_time = frame_end - frame_start;
+            if (frame_time < frame_duration)
+                std::this_thread::sleep_for(frame_duration - frame_time);
+            frame_start = clock::now();
             break;
         }
         }

@@ -47,16 +47,10 @@ private:
     std::deque<std::vector<VertexBinding>> vtx_bindings;
     std::vector<vk::raii::Buffer> bufs;
     std::vector<vk::raii::DeviceMemory> bufs_mem;
-    std::vector<vk::raii::Image> textures;
-    std::vector<vk::raii::DeviceMemory> texture_mem;
-    std::deque<vk::raii::ImageView> texture_views;
-    std::deque<vk::raii::Sampler> texture_samplers;
     std::deque<vk::DescriptorBufferInfo> buffer_info;
-    std::deque<vk::DescriptorImageInfo> image_info;
 
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
     vk::Format getVtxBufferFormat(u32 n_elements, u32 type);
-    std::pair<vk::Format, size_t> getTexFormatAndSize(u32 dfmt, u32 nfmt);
 };
 
 }   // End namespace PS4::GCN::Vulkan

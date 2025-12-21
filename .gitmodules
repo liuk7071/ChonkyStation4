@@ -16,3 +16,6 @@
 [submodule "Dependencies/pthread-win32"]
 	path = Dependencies/pthread-win32
 	url = https://github.com/liuk7071/pthread-win32.git
+[submodule "Dependencies/xxHash"]
+	path = Dependencies/xxHash
+	url = https://github.com/Cyan4973/xxHash.git

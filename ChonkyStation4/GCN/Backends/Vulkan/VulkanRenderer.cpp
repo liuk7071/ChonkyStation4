@@ -45,7 +45,7 @@ static vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::Surfac
     assert(!available_formats.empty());
     const auto format_it = std::ranges::find_if(
         available_formats,
-        [](const auto &format) { return format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; });
+        [](const auto &format) { return format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; });
     return format_it != available_formats.end() ? *format_it : available_formats[0];
 }
 

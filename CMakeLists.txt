@@ -37,13 +37,17 @@ target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/OS/Libraries/ScePad/ScePad.cpp" "ChonkyStation4/OS/Libraries/ScePad/ScePad.hpp"
 "ChonkyStation4/OS/Libraries/SceAudioOut/SceAudioOut.cpp" "ChonkyStation4/OS/Libraries/SceAudioOut/SceAudioOut.hpp"
 "ChonkyStation4/OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.cpp" "ChonkyStation4/OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.hpp"
- "ChonkyStation4/GCN/Backends/Vulkan/Pipeline.cpp" "ChonkyStation4/GCN/Backends/Vulkan/VulkanCommon.cpp" "ChonkyStation4/GCN/Backends/Vulkan/PipelineCache.cpp")
+ "ChonkyStation4/GCN/Backends/Vulkan/Pipeline.cpp" "ChonkyStation4/GCN/Backends/Vulkan/VulkanCommon.cpp" "ChonkyStation4/GCN/Backends/Vulkan/PipelineCache.cpp"
+"ChonkyStation4/GCN/Detiler/decompress.c" "ChonkyStation4/GCN/Detiler/error.c" "ChonkyStation4/GCN/Detiler/surface.c" "ChonkyStation4/GCN/Detiler/surfgen.c" "ChonkyStation4/GCN/Detiler/tilemodes.c"
+"ChonkyStation4/GCN/Detiler/tiler.c" "ChonkyStation4/GCN/Detiler/gnm/dataformat.c" "ChonkyStation4/GCN/Detiler/gnm/platform_generic.c" "ChonkyStation4/GCN/Detiler/gnm/texture.c"
+ "ChonkyStation4/GCN/Backends/Vulkan/TextureCache.cpp" "ChonkyStation4/GCN/Backends/Vulkan/TextureCache.hpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)
 add_subdirectory(Dependencies/zydis)
 add_subdirectory(Dependencies/pthread-win32)
 add_subdirectory(Dependencies/SDL)
+add_subdirectory(Dependencies/xxHash/cmake_unofficial EXCLUDE_FROM_ALL)
 
 set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
 add_subdirectory(Dependencies/glslang)
@@ -56,6 +60,7 @@ target_include_directories(ChonkyStation4 PUBLIC Dependencies/xbyak)
 target_include_directories(ChonkyStation4 PUBLIC Dependencies/pthread-win32)
 target_include_directories(ChonkyStation4 PUBLIC Dependencies/Dolphin)
 target_include_directories(ChonkyStation4 PUBLIC ${SDL2_INCLUDE_DIR})
+target_include_directories(ChonkyStation4 PUBLIC Dependencies/xxHash)
 
 if (WIN32)
     if (MSVC)
@@ -71,7 +76,7 @@ else()
     message(FATAL_ERROR "Unsupported platform")
 endif()
 
-target_link_libraries(ChonkyStation4 PRIVATE pthreadVC3 Zydis SDL2-static)
+target_link_libraries(ChonkyStation4 PRIVATE pthreadVC3 Zydis SDL2-static xxHash::xxhash)
 
 # Vulkan
 find_package(Vulkan REQUIRED)
