@@ -47,7 +47,25 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
 
     vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eNone, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
-    vk::PipelineColorBlendAttachmentState color_blend_attachment = { .blendEnable = vk::False, .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+    
+    //vk::PipelineColorBlendAttachmentState color_blend_attachment = { .blendEnable = vk::False, .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+    vk::PipelineColorBlendAttachmentState color_blend_attachment = {
+        .blendEnable = VK_TRUE,
+        
+        .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+        .dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+        .colorBlendOp = vk::BlendOp::eAdd,
+
+        .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+        .alphaBlendOp = vk::BlendOp::eAdd,
+
+        .colorWriteMask =
+            vk::ColorComponentFlagBits::eR |
+            vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB |
+            vk::ColorComponentFlagBits::eA
+    };
     vk::PipelineColorBlendStateCreateInfo color_blending = { .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &color_blend_attachment };
 
     std::vector dynamic_states = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };

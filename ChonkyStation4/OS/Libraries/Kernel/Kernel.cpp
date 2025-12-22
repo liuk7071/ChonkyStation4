@@ -44,6 +44,7 @@ void init(Module& module) {
     module.addSymbolExport("62KCwEMmzcM", "scePthreadAttrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libkernel", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("aI+OeCz8xrQ", "scePthreadSelf", "libkernel", "libkernel", (void*)&kernel_pthread_self);
+    module.addSymbolExport("onNY9Byn-W8", "scePthreadJoin", "libkernel", "libkernel", (void*)&kernel_pthread_join);
 
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_lock);
@@ -71,6 +72,7 @@ void init(Module& module) {
     module.addSymbolExport("mkx2fVhNMsg", "pthread_cond_broadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
     module.addSymbolExport("dJcuQVn6-Iw", "pthread_condattr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
     module.addSymbolExport("waPcxYiR3WA", "scePthreadCondattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
+    module.addSymbolStub("g+PZd2hiacg", "scePthreadCondDestroy", "libkernel", "libkernel");   // TODO
     
     module.addSymbolExport("Z4QosVuAsA0", "pthread_once", "libkernel", "libkernel", (void*)&kernel_pthread_once);
     module.addSymbolExport("14bOACANTBo", "scePthreadOnce", "libkernel", "libkernel", (void*)&kernel_pthread_once);

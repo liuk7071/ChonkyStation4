@@ -95,8 +95,7 @@ void* threadStart(Thread* thread) {
     std::memcpy(guest_tls_ptr, tls_image_ptr, tls_image_size);
 
     // Call entry function
-    thread->entry(thread->args);
-    return nullptr;
+    return thread->entry(thread->args);
 }
 
 }   // End namespace PS4::OS::Thread

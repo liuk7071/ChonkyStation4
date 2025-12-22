@@ -14,7 +14,7 @@ std::counting_semaphore<256> sem { 0 };
 std::mutex mtx;
 
 void gcnThread() {
-    using clock = std::chrono::high_resolution_clock;
+    using clock = std::chrono::steady_clock;
     const double target_fps = 60.0; // Stubbed for now
     const auto frame_duration = std::chrono::duration<double>(1.0 / target_fps);
     auto frame_start = clock::now();

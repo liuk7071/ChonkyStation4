@@ -98,4 +98,17 @@ s32 PS4_FUNC kernel_pthread_yield() {
     return 0;
 }
 
+s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
+    log("pthread_join(pthread=*%p, ret=*%p)\n", pthread, ret);
+    pthread_t* tid = (pthread_t*)pthread;
+
+    for (auto& thread : PS4::OS::Thread::threads) {
+        if (tid->p == thread.getPThread().p) {
+            OS::Thread::joinThread(thread, ret);
+            return SCE_OK;
+        }
+    }
+    Helpers::panic("pthread_join: invalid thread\n");
+}
+
 };  // End namespace PS4::OS::Libs::Kernel

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Common.hpp>
+#include <SDL.h>
 
 
 class Module;
@@ -9,8 +10,14 @@ namespace PS4::OS::Libs::ScePad {
 
 void init(Module& module);
 
+inline SDL_GameController* controller;
+
+static constexpr s32 SCE_PAD_ERROR_INVALID_HANDLE = 0x80920003;
+static constexpr s32 SCE_PAD_ERROR_ALREADY_OPENED = 0x80920004;
+
 static constexpr s32 SCE_PAD_MAX_TOUCH_NUM = 2;
 static constexpr s32 SCE_PAD_MAX_DEVICE_UNIQUE_DATA_SIZE = 12;
+static constexpr s32 SCE_PAD_CONNECTION_TYPE_LOCAL = 0;
 
 enum ScePadButtonDataOffset {
     SCE_PAD_BUTTON_L3           = 0x00000002,
@@ -61,7 +68,7 @@ struct ScePadTouch {
 struct ScePadTouchData {
     u8 n_touch;
     u8 reserve[3];
-    u8 reserve1;
+    u32 reserve1;
     ScePadTouch touch[SCE_PAD_MAX_TOUCH_NUM];
 };
 
@@ -90,6 +97,43 @@ struct ScePadData {
     u8 device_unique_data[SCE_PAD_MAX_DEVICE_UNIQUE_DATA_SIZE];
 };
 
+enum class ScePadDeviceClass {
+    SCE_PAD_DEVICE_CLASS_INVALID = -1,
+    SCE_PAD_DEVICE_CLASS_STANDARD = 0,
+    SCE_PAD_DEVICE_CLASS_GUITAR = 1,
+    SCE_PAD_DEVICE_CLASS_DRUM = 2,
+    SCE_PAD_DEVICE_CLASS_DJ_TURNTABLE = 3,
+    SCE_PAD_DEVICE_CLASS_DANCEMAT = 4,
+    SCE_PAD_DEVICE_CLASS_NAVIGATION = 5,
+    SCE_PAD_DEVICE_CLASS_STEERING_WHEEL = 6,
+    SCE_PAD_DEVICE_CLASS_STICK = 7,
+    SCE_PAD_DEVICE_CLASS_FLIGHT_STICK = 8,
+    SCE_PAD_DEVICE_CLASS_GUN = 9,
+};
+
+struct ScePadTouchPadInformation {
+    float pixel_density;
+    struct {
+        u16 x;
+        u16 y;
+    } resolution;
+};
+
+struct ScePadStickInformation {
+    u8 deadzone_left;
+    u8 deadzone_right;
+};
+
+struct ScePadControllerInformation {
+    ScePadTouchPadInformation touchpad_info;
+    ScePadStickInformation stick_info;
+    u8 connection_type;
+    u8 connected_count;
+    bool connected;
+    ScePadDeviceClass device_class;
+    u8 reserve[8];
+};
+
 struct ScePadOpenParam {
     u8 reserved[8];
 };
@@ -101,5 +145,6 @@ void pollPads();
 s32 PS4_FUNC scePadInit();
 s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param);
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data);
+s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info);
 
 }   // End namespace PS4::OS::Libs::ScePad

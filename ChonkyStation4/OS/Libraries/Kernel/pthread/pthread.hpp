@@ -24,5 +24,6 @@ s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4
 s32 PS4_FUNC kernel_pthread_detach(void* tid);
 s32 PS4_FUNC kernel_pthread_equal(void* tid1, void* tid2);
 s32 PS4_FUNC kernel_pthread_yield();
+s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret);
 
 };  // End namespace PS4::OS::Libs::Kernel

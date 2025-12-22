@@ -453,6 +453,20 @@ void VulkanRenderer::flip() {
             exit(0);
             break;
         }
+        
+        case SDL_CONTROLLERDEVICEADDED: {
+            if (!PS4::OS::Libs::ScePad::controller) {
+                PS4::OS::Libs::ScePad::controller = SDL_GameControllerOpen(e.cdevice.which);
+            }
+            break;
+        }
+        case SDL_CONTROLLERDEVICEREMOVED: {
+            if (PS4::OS::Libs::ScePad::controller && e.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(PS4::OS::Libs::ScePad::controller))) {
+                SDL_GameControllerClose(PS4::OS::Libs::ScePad::controller);
+                PS4::OS::Libs::ScePad::controller = nullptr;
+            }
+            break;
+        }
         }
     }
 

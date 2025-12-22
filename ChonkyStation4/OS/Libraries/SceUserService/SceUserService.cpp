@@ -56,6 +56,7 @@ s32 PS4_FUNC sceUserServiceGetUserName(const SceUserServiceUserId user_id, char*
     const std::string name = "Alber";
     if (size < name.size()) return SCE_USER_SERVICE_ERROR_BUFFER_TOO_SHORT;
 
+    std::memset(username, '\0', size);
     std::strcpy(username, name.c_str());
     return SCE_OK;
 }
