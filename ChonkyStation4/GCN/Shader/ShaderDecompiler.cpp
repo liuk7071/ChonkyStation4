@@ -171,10 +171,10 @@ template TSharp* DescriptorLocation::asPtr<TSharp>();
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
     std::ofstream out;
-    //if (stage == ShaderStage::Fragment) {
-    //    out.open("fs.bin", std::ios::binary);
-    //    out.write((char*)data, 1_KB);
-    //}
+    if (stage == ShaderStage::Fragment) {
+        out.open("fs.bin", std::ios::binary);
+        out.write((char*)data, 1_KB);
+    }
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
 

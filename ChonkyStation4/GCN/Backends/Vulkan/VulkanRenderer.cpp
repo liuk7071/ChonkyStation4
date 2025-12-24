@@ -149,7 +149,6 @@ void VulkanRenderer::init() {
     if (window == nullptr) {
         Helpers::panic("Failed to create SDL window: %s\n", SDL_GetError());
     }
-    //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     
     // ---- Setup Vulkan ----
     
@@ -439,6 +438,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     cmd_bufs[0].endRendering();
 }
 
+static bool fullscreen = false;
+
 void VulkanRenderer::flip() {
     // After rendering, transition the swapchain image to PRESENT_SRC
     transitionImageLayoutForSwapchain(
@@ -507,6 +508,15 @@ void VulkanRenderer::flip() {
             break;
         }
         
+        case SDL_MOUSEBUTTONDOWN: {
+            if (e.button.button == SDL_BUTTON_LEFT && e.button.clicks == 2) {
+                fullscreen = !fullscreen;
+                SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+                SDL_ShowCursor(fullscreen ? SDL_DISABLE : SDL_ENABLE);
+            }
+            break;
+        }
+
         case SDL_CONTROLLERDEVICEADDED: {
             if (!PS4::OS::Libs::ScePad::controller) {
                 PS4::OS::Libs::ScePad::controller = SDL_GameControllerOpen(e.cdevice.which);

@@ -50,6 +50,7 @@ struct Buffer {
 struct ShaderData {
     std::string source;
     std::deque<Buffer> buffers; // Buffers required by this shader
+    u64 hash;
 
     bool operator==(const ShaderData& other) {
         return source == other.source;
