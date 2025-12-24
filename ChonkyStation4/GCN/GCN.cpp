@@ -16,8 +16,8 @@ std::mutex mtx;
 void gcnThread() {
     using clock = std::chrono::steady_clock;
     const double target_fps = 60.0; // Stubbed for now
-    const auto frame_duration = std::chrono::duration<double>(1.0 / target_fps);
-    auto frame_start = clock::now();
+    const clock::duration frame_duration = std::chrono::duration_cast<clock::duration>(std::chrono::duration<double>(1.0 / target_fps));
+    auto frame_time = clock::now();
 
     // Initialize renderer
     initVulkan();
@@ -63,11 +63,12 @@ void gcnThread() {
             buf_label[cmd.buf_idx] = 0;
 
             // Frame limiter
-            auto frame_end = clock::now();
-            auto frame_time = frame_end - frame_start;
-            if (frame_time < frame_duration)
-                std::this_thread::sleep_for(frame_duration - frame_time);
-            frame_start = clock::now();
+            frame_time += frame_duration;
+            auto now = clock::now();
+            if (now < frame_time) {
+                std::this_thread::sleep_until(frame_time);
+            }
+            else frame_time = now;
             break;
         }
         }
