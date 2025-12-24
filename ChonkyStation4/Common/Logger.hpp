@@ -59,12 +59,12 @@ public:
 
 // Loader
 static Logger loader_elf            = Logger<1>    ("[Loader ][ELF              ] ");
-static Logger loader_linker         = Logger<1>    ("[Loader ][Linker           ] ");
+static Logger loader_linker         = Logger<0>    ("[Loader ][Linker           ] ");
 static Logger loader_sfo            = Logger<1>    ("[Loader ][SFO              ] ");
 static Logger loader_app            = Logger<1>    ("[Loader ][App              ] ");
 
 // Libraries
-static Logger lib_kernel            = Logger<1> ("[Lib    ][Kernel           ] ");
+static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel           ] ");
 static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex      ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue     ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");

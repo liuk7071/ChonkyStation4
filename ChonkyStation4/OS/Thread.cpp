@@ -46,11 +46,12 @@ void* getTLSPtr(u32 modid) {
     if (!tls_map.contains(modid)) {
         // We are accessing this TLS block for the first time on this thread, allocate it
         // Find module that contains this image
-        auto [tls_image_ptr, tls_image_size] = g_app.getTLSImage(modid);
+        auto [tls_image_ptr, tls_image_size, tls_mem_size] = g_app.getTLSImage(modid);
         // TODO: We should use the guest alloc function from _sceKernelRtldSetApplicationHeapAPI
-        void* tls_ptr = (u8*)std::malloc(tls_image_size + 0x10) + 0x10;
+        void* tls_ptr = (u8*)std::malloc(tls_mem_size + 0x10) + 0x10;
         std::memset((u8*)tls_ptr - 0x10, 0, 0x10);
         std::memcpy(tls_ptr, tls_image_ptr, tls_image_size);
+        std::memset((u8*)tls_ptr + tls_image_size, 0, tls_mem_size - tls_image_size);
         tls_map[modid] = tls_ptr;
     }
     
@@ -71,7 +72,7 @@ Thread& createThread(const std::string& name, ThreadStartFunc entry, void* args)
 }
 
 void joinThread(Thread& thread, void** ret) {
-    pthread_join(thread.getPThread(), ret);
+    Helpers::debugAssert(pthread_join(thread.getPThread(), ret) == 0, "pthread_join failed");
 }
 
 void joinThread(Thread& thread) {
@@ -89,13 +90,17 @@ void* threadStart(Thread* thread) {
     // Initialize TLS
     // I made a simple TLS test and for some reason thread_local variables seem to start 0x10 bytes earlier than the reported TLS address?
     // Not sure what's happening but I just allocate 0x10 bytes extra to be safe
-    auto [tls_image_ptr, tls_image_size] = g_app.getTLSImage(0);
-    guest_tls_ptr = (u8*)std::malloc(tls_image_size + 0x10) + 0x10;
+    auto [tls_image_ptr, tls_image_size, tls_mem_size] = g_app.getTLSImage(0);
+    guest_tls_ptr = (u8*)std::malloc(tls_mem_size + 0x10) + 0x10;
     std::memset((u8*)guest_tls_ptr - 0x10, 0, 0x10);
     std::memcpy(guest_tls_ptr, tls_image_ptr, tls_image_size);
+    std::memset((u8*)guest_tls_ptr + tls_image_size, 0, tls_mem_size - tls_image_size);
 
     // Call entry function
-    return thread->entry(thread->args);
+    void* ret = thread->entry(thread->args);
+    // Set exited flag
+    thread->exited = true;
+    return ret;
 }
 
 }   // End namespace PS4::OS::Thread

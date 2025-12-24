@@ -55,15 +55,17 @@ void setStickY(ScePadAnalogStick& stick, float val) {
     stick.y = std::clamp<float>(((val + 1.0f) / 2.0f) * 255, 0, 255);
 }
 
+static constexpr float deadzone = 0.10f;
+
 void setStickXWithDeadzone(ScePadAnalogStick& stick, float val) {
     // Deadzone
-    if (val < -0.2f || val > 0.2f)
+    if (val < -deadzone || val > deadzone)
         setStickX(stick, val);
 }
 
 void setStickYWithDeadzone(ScePadAnalogStick& stick, float val) {
     // Deadzone
-    if (val < -0.2f || val > 0.2f)
+    if (val < -deadzone || val > deadzone)
         setStickY(stick, val);
 }
 

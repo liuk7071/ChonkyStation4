@@ -107,7 +107,8 @@ public:
     std::vector<LibraryInfo> exported_libs;
     std::vector<Symbol> exported_symbols;
     u64 tls_vaddr = 0;
-    u64 tls_size = 0;
+    u64 tls_filesz = 0;
+    u64 tls_memsz = 0;
     u32 tls_modid = 0;
     u64 proc_param_ptr = 0;
 

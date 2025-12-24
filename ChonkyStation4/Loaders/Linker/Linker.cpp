@@ -114,7 +114,7 @@ void doRelocations(App& app) {
                 } else {
                     // Symbol is not a nid
                     log("* Could not resolve non-nid symbol %s\n", sym_name.c_str());
-                    ptr = generateTrampolineForUnresolvedSymbol(app, sym_name);
+                    break;
                 }
                 
 

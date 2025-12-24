@@ -4,6 +4,7 @@
 
 #include <Common.hpp>
 #include <unordered_map>
+#include <mutex>
 
 namespace PS4::FS {
 
@@ -37,6 +38,7 @@ struct File {
     fs::path path;
     fs::path guest_path;
     u32 flags = 0;
+    std::mutex mtx;
 };
 
 struct Directory {
@@ -56,6 +58,7 @@ u64 write(u64 file_id, u8* buf, u64 size);
 u64 seek(u64 file_id, s64 offs, u32 mode);
 u64 tell(u64 file_id);
 bool mkdir(fs::path path);
+std::unique_lock<std::mutex> getFileLock(u64 file_id);
 u64 getFileSize(u64 file_id);
 u64 getFileSize(fs::path path);
 bool isDirectory(u64 file_id);

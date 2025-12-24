@@ -39,6 +39,9 @@ Module buildHLEModule() {
     PS4::OS::Libs::ScePad::init(module);
     PS4::OS::Libs::SceAudioOut::init(module);
 
+    // libSceAppContent
+    module.addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
+
     // libSceScreenShot
     module.addSymbolStub("73WQ4Jj0nJI", "sceScreenShotSetOverlayImageWithOrigin", "libSceScreenShot", "libSceScreenShot");
     
@@ -81,7 +84,17 @@ Module buildHLEModule() {
     // libSceAudioIn
     module.addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
     module.addSymbolExport("LozEOU8+anM", "sceAudioInInput", "libSceAudioIn", "libSceAudioIn", (void*)&sceAudioInInput);
+
+    // libSceDiscMap
+    module.addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
     
+    // libScePlayGo
+    module.addSymbolStub("ts6GlZOKRrE", "scePlayGoInitialize", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("M1Gma1ocrGE", "scePlayGoOpen", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("uWIYLFkkwqk", "scePlayGoGetLocus", "libScePlayGo", "libScePlayGo", 0x80B2000E /* PlayGo not supported */);
+    module.addSymbolStub("Nn7zKwnA5q0", "scePlayGoGetToDoList", "libScePlayGo", "libScePlayGo");
+
     return module;
 }
 

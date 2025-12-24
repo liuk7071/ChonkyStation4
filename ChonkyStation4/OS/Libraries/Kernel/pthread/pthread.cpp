@@ -7,6 +7,25 @@ namespace PS4::OS::Libs::Kernel {
 
 MAKE_LOG_FUNCTION(log, lib_kernel);
 
+PS4::OS::Thread::Thread& findThread(void* tid) {
+    pthread_t* pthread = (pthread_t*)tid;
+    PS4::OS::Thread::Thread* curr_thread = nullptr;
+    for (auto& thread : PS4::OS::Thread::threads) {
+        if (pthread->p == thread.getPThread().p) {
+            if (curr_thread == nullptr)
+                curr_thread = &thread;
+            else {
+                if (thread.getPThread().x > curr_thread->getPThread().x)
+                    curr_thread = &thread;
+            }
+        }
+    }
+
+    if (!curr_thread)
+        Helpers::panic("Could not find pthread");
+    return *curr_thread;
+}
+
 s32 PS4_FUNC kernel_pthread_once(pthread_once_t* once_control, void(*init_routine)()) {
     log("pthread_once(once_control=*%p, init_routine=%p)\n", once_control, init_routine);
     return pthread_once(once_control, init_routine);
@@ -16,7 +35,7 @@ void* PS4_FUNC kernel_pthread_self() {
     log("pthread_self()\n");
     pthread_t self = pthread_self();
     for (auto& thread : PS4::OS::Thread::threads) {
-        if (self.p == thread.getPThread().p) {
+        if (self.p == thread.getPThread().p && self.x == thread.getPThread().x) {
             return &thread.getPThread();
         }
     }
@@ -89,7 +108,7 @@ s32 PS4_FUNC kernel_pthread_detach(void* tid) {
 
 s32 PS4_FUNC kernel_pthread_equal(void* tid1, void* tid2) {
     log("pthread_equal(tid1=%p, tid2=%p)\n", tid1, tid2);
-    return pthread_equal(*(pthread_t*)tid1, *(pthread_t*)tid2);
+    return tid1 == tid2;
 }
 
 s32 PS4_FUNC kernel_pthread_yield() {
@@ -100,15 +119,9 @@ s32 PS4_FUNC kernel_pthread_yield() {
 
 s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
     log("pthread_join(pthread=*%p, ret=*%p)\n", pthread, ret);
-    pthread_t* tid = (pthread_t*)pthread;
-
-    for (auto& thread : PS4::OS::Thread::threads) {
-        if (tid->p == thread.getPThread().p) {
-            OS::Thread::joinThread(thread, ret);
-            return SCE_OK;
-        }
-    }
-    Helpers::panic("pthread_join: invalid thread\n");
+    auto thread = findThread(pthread);
+    OS::Thread::joinThread(thread, ret);
+    return SCE_OK;
 }
 
 };  // End namespace PS4::OS::Libs::Kernel

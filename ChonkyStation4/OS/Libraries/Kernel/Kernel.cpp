@@ -8,6 +8,7 @@
 #include <OS/Libraries/Kernel/pthread/mutex.hpp>
 #include <OS/Libraries/Kernel/pthread/cond.hpp>
 #include <OS/Libraries/Kernel/Equeue.hpp>
+#include <OS/Libraries/Kernel/Eflag.hpp>
 #include <OS/Libraries/Kernel/Filesystem.hpp>
 #include <chrono>
 #include <thread>
@@ -70,6 +71,7 @@ void init(Module& module) {
     module.addSymbolExport("2MOy+rUfuhQ", "pthread_cond_signal", "libkernel", "libkernel", (void*)&kernel_pthread_cond_signal);
     module.addSymbolExport("kDh-NfxgMtE", "scePthreadCondSignal", "libkernel", "libkernel", (void*)&kernel_pthread_cond_signal);
     module.addSymbolExport("mkx2fVhNMsg", "pthread_cond_broadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
+    module.addSymbolExport("JGgj7Uvrl+A", "scePthreadCondBroadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
     module.addSymbolExport("dJcuQVn6-Iw", "pthread_condattr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
     module.addSymbolExport("waPcxYiR3WA", "scePthreadCondattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
     module.addSymbolStub("g+PZd2hiacg", "scePthreadCondDestroy", "libkernel", "libkernel");   // TODO
@@ -101,12 +103,15 @@ void init(Module& module) {
     module.addSymbolExport("oib76F-12fk", "sceKernelLseek", "libkernel", "libkernel", (void*)&sceKernelLseek);
     module.addSymbolExport("AqBioC2vF3I", "read", "libkernel", "libkernel", (void*)&kernel_read);
     module.addSymbolExport("Cg4srZ6TKbU", "sceKernelRead", "libkernel", "libkernel", (void*)&sceKernelRead);
+    module.addSymbolExport("ezv-RSBNKqI", "pread", "libkernel", "libkernel", (void*)&kernel_pread);
+    module.addSymbolExport("+r3rMFwItV4", "sceKernelPread", "libkernel", "libkernel", (void*)&sceKernelPread);
+    module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
+    module.addSymbolExport("4wSze92BhLI", "sceKernelWrite", "libkernel", "libkernel", (void*)&sceKernelWrite);
+    module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
     module.addSymbolExport("E6ao34wPw+U", "stat", "libkernel", "libkernel", (void*)&kernel_stat);
     module.addSymbolExport("eV9wAD2riIA", "sceKernelStat", "libkernel", "libkernel", (void*)&sceKernelStat);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
-    module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
-    module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libkernel", "libkernel", (void*)&kernel_getpid);
     module.addSymbolExport("VkTAsrZDcJ0", "sigfillset", "libkernel", "libkernel", (void*)&sigfillset);
@@ -120,6 +125,8 @@ void init(Module& module) {
     module.addSymbolExport("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel", (void*)&kernel_clock_gettime);
     module.addSymbolExport("lLMT9vJAck0", "clock_gettime", "libScePosix", "libkernel", (void*)&kernel_clock_gettime);
     module.addSymbolExport("QBi7HCK03hw", "sceKernelClockGettime", "libkernel", "libkernel", (void*)&sceKernelClockGettime);
+    module.addSymbolExport("n88vx3C5nW8", "gettimeofday", "libkernel", "libkernel", (void*)&kernel_gettimeofday);
+    module.addSymbolExport("n88vx3C5nW8", "gettimeofday", "libScePosix", "libkernel", (void*)&kernel_gettimeofday);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
@@ -129,6 +136,13 @@ void init(Module& module) {
 
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
+    
+    module.addSymbolStub("BpFoboUJoZU", "sceKernelCreateEventFlag", "libkernel", "libkernel");
+    module.addSymbolExport("JTvBflhYazQ", "sceKernelWaitEventFlag", "libkernel", "libkernel", (void*)&sceKernelWaitEventFlag);
+    
+    module.addSymbolStub("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel");
+    module.addSymbolStub("Ox9i0c7L5w0", "scePthreadRwlockRdlock", "libkernel", "libkernel");
+    module.addSymbolStub("+L98PIbGttk", "scePthreadRwlockUnlock", "libkernel", "libkernel");
     
     module.addSymbolExport("B+vc2AO2Zrc", "sceKernelAllocateMainDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateMainDirectMemory);
     module.addSymbolExport("rTXw65xmLIA", "sceKernelAllocateDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateDirectMemory);
@@ -142,6 +156,13 @@ void init(Module& module) {
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
     module.addSymbolStub("bt3CTBKmGyI", "scePthreadSetaffinity", "libkernel", "libkernel");
+    module.addSymbolStub("W0Hpm2X0uPE", "scePthreadSetprio", "libkernel", "libkernel");
+    module.addSymbolStub("eXbUSpEaTsA", "scePthreadAttrSetinheritsched", "libkernel", "libkernel");
+    module.addSymbolStub("DzES9hQF4f4", "scePthreadAttrSetschedparam", "libkernel", "libkernel");
+    module.addSymbolStub("3qxgM4ezETA", "scePthreadAttrSetaffinity", "libkernel", "libkernel");
+    module.addSymbolStub("rNhWz+lvOMU", "_sceKernelSetThreadDtors", "libkernel", "libkernel");  // void
+    module.addSymbolStub("pB-yGZ2nQ9o", "_sceKernelSetThreadAtexitCount", "libkernel", "libkernel");  // void
+    module.addSymbolStub("WhCc1w3EhSI", "_sceKernelSetThreadAtexitReport", "libkernel", "libkernel");  // void
 }
 
 static thread_local s32 posix_errno = 0;
@@ -202,6 +223,8 @@ s32* PS4_FUNC kernel_error() {
 }
 
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx) {
+    //log("__tls_get_addr(tls_idx=*%p)\n", tls_idx);
+    //log("modid=%d, offset=0x%x\n", tls_idx->modid, tls_idx->offset);
     return (void*)((u64)Thread::getTLSPtr(tls_idx->modid) + tls_idx->offset);
 }
 
@@ -209,37 +232,6 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
     log("mmap(addr=%p, len=0x%llx, prot=0x%x, flags=0x%x, fd=%d, offs=0x%llx)\n", addr, len, prot, flags, fd, offs);
     // TODO: This is stubbed as malloc for now
     return std::malloc(len);
-}
-
-size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt) {
-    //log("_writev(fd=%d, iov=%p, iovcnt=%d)\n", fd, iov, iovcnt);
-
-    if (fd != 0 && fd != 1) {
-        Helpers::panic("_writev: fd is not stdin or stdout (TODO)\n");
-    }
-    
-    size_t written = 0;
-    for (int i = 0; i < iovcnt; i++) {
-        char* ptr = nullptr;
-        for (ptr = (char*)iov[i].iov_base; ptr < (char*)iov[i].iov_base + iov[i].iov_len; ptr++)
-            std::putc(*ptr, stdout);
-
-        written += iov[i].iov_len;
-    }
-    
-    return written;
-}
-
-size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size) {
-    //log("_write(fd=%d, buf=%p, size=%d)\n", fd, buf, size);
-
-    if (fd != 0 && fd != 1 && fd != 2) {
-        Helpers::panic("_write: fd is not stdin or stdout or stderr (TODO)\n");
-    }
-
-    for (char* ptr = (char*)buf; ptr < (char*)buf + size; ptr++)
-        std::putc(*ptr, stdout);
-    return size;
 }
 
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp) {
@@ -273,9 +265,9 @@ s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts) {
     }
 
     case SCE_KERNEL_CLOCK_SECOND: {
-        auto now = std::chrono::system_clock::now();
-        auto sec = std::chrono::time_point_cast<std::chrono::seconds>(now);
-        auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now - sec);
+        const auto now = std::chrono::system_clock::now();
+        const auto sec = std::chrono::time_point_cast<std::chrono::seconds>(now);
+        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now - sec);
 
         ts->tv_sec = sec.time_since_epoch().count();
         ts->tv_nsec = ns.count();
@@ -292,6 +284,22 @@ s32 PS4_FUNC sceKernelClockGettime(u32 clock_id, SceKernelTimespec* ts) {
     const auto res = kernel_clock_gettime(clock_id, ts);
     if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
     return res;
+}
+
+s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz) {
+    log("gettimeofday(tv=*%p, tz=*%p)\n", tv, tz);
+
+    const auto now = std::chrono::system_clock::now();
+    const auto sec = std::chrono::time_point_cast<std::chrono::seconds>(now);
+    const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now - sec);
+
+    tv->tv_sec = sec.time_since_epoch().count();
+    tv->tv_nsec = ns.count();
+    if (tz) {
+        tz->tz_dsttime = 0;
+        tz->tz_minuteswest = 0;
+    }
+    return 0;
 }
 
 s32 PS4_FUNC sceKernelIsNeoMode() {
@@ -383,24 +391,40 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
 }
 
 //void* last_alloc_addr = (void*)0x10000000000;
-void* last_alloc_addr = (void*)0x7ffffc000;
+void* last_alloc_addr = (void*)0x7'ffff'c000;
 
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align) {
     log("sceKernelMapDirectMemory(addr=*%p, len=%lld, prot=%d, flags=%d, dmem_start=0x%016llx, align=0x%016llx)\n", addr, len, prot, flags, dmem_start, align);
 
     void* in_addr = *addr;
-    if (in_addr) {
-        Helpers::panic("TODO: sceKernelMapDirectMemory with non-zero input addr\n");
-    }
+    log("in_addr=%p\n", in_addr);
 
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
-    //*addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
-    *addr = VirtualAllocAlignedBelow(len, align, (u64)last_alloc_addr);
-    last_alloc_addr = *addr;
+    if (!in_addr) {
+        //*addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
+        *addr = VirtualAllocAlignedBelow(len, align, (u64)last_alloc_addr);
+        last_alloc_addr = *addr;
+    }
+    else {
+        *addr = VirtualAlloc(in_addr, len, MEM_COMMIT, PAGE_READWRITE);
+        if (*addr != in_addr) {
+            if (flags & SCE_KERNEL_MAP_FIXED)
+                Helpers::panic("sceKernelMapDirectMemory: failed to allocate at %p (allocation happened at %p)\n", in_addr, *addr);
+            else {
+                // Fallback to normal allocation
+                // TODO: In theory we should use in_addr as the address to begin searching from...
+                *addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
+            }
+        }
+    }
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
+
+    if (!*addr) {
+        Helpers::panic("sceKernelMapDirectMemory: failed to allocate\n");
+    }
 
     // Clear allocated memory
     std::memset(*addr, 0, len);

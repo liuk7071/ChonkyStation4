@@ -35,7 +35,8 @@ Module ELFLoader::load(const fs::path& path) {
         if (start < min_vaddr) min_vaddr = start;
         if (end   > max_vaddr) max_vaddr = end;
     }
-    const size_t total_size = max_vaddr - min_vaddr;
+    //const size_t total_size = max_vaddr - min_vaddr;
+    const size_t total_size = max_vaddr;
     log("* Total size of ELF: %d bytes (%f KB)\n", total_size, total_size / 1024.0f);
 
     // Allocate memory
@@ -47,6 +48,7 @@ Module ELFLoader::load(const fs::path& path) {
 #endif
 
     log("* Base address of ELF: 0x%016llx\n", (u64)module.base_address);
+    log("* Mapped area: %p - %p (%p - %p)\n", module.base_address, (u64)module.base_address + total_size, 0, total_size);
 
     module.entry = (void*)((u8*)module.base_address + elf.get_entry());
     log("* Entry: 0x%016llx\n", (u64)module.entry);
@@ -89,7 +91,8 @@ Module ELFLoader::load(const fs::path& path) {
         // TLS info
         case PT_TLS: {
             module.tls_vaddr = seg->get_virtual_address() + (u64)module.base_address;
-            module.tls_size = seg->get_file_size();
+            module.tls_filesz = seg->get_file_size();
+            module.tls_memsz = seg->get_memory_size();
             module.tls_modid = tls_modid++;
             break;
         }
@@ -178,7 +181,10 @@ Module ELFLoader::load(const fs::path& path) {
         const std::string sym_name = module.dyn_str_table + sym->st_name;
 
         // Export STB_GLOBAL and STB_WEAK symbols (not local symbols) that have st_value != 0
-        if (bind == STB_LOCAL || sym->st_value == 0) continue;
+        if (bind == STB_LOCAL || sym->st_value == 0) {
+            log("* Skipped local symbol %s\n", sym_name.c_str());
+            continue;
+        }
 
         // Find library and module
         auto tokens = Helpers::split(sym_name, "#");
@@ -215,7 +221,7 @@ Module ELFLoader::load(const fs::path& path) {
 
     // Fix permissions for each segment
     for (auto& seg : elf.segments) {
-        if (seg->get_type() != PT_LOAD && seg->get_type() != PT_SCE_RELRO) continue;
+        if (seg->get_type() != PT_LOAD) continue;
 
 #ifdef _WIN32
         // Set permissions
@@ -260,7 +266,6 @@ void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module) {
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
-
     // Apply patches if the segment is executable
     const bool x = seg.get_flags() & PF_X;
     if (x) PS4::Loader::ELF::patchCode(module, (u8*)ptr, size);

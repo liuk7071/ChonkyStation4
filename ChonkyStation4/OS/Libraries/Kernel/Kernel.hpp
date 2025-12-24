@@ -28,10 +28,7 @@ static constexpr s32 SCE_KERNEL_CLOCK_EXT_DEBUG_NETWORK = 17;
 static constexpr s32 SCE_KERNEL_CLOCK_EXT_AD_NETWORK = 18;
 static constexpr s32 SCE_KERNEL_CLOCK_EXT_RAW_NETWORK = 19;
 
-struct KernelIovec {
-    void* iov_base;
-    size_t iov_len;
-};
+static constexpr s32 SCE_KERNEL_MAP_FIXED = 0x10;
 
 struct TLSIndex {
     u64 modid;
@@ -43,15 +40,24 @@ struct SceKernelTimespec {
     s64 tv_nsec;
 };
 
+struct SceKernelTimeval {
+    s64 tv_sec;
+    s64 tv_nsec;
+};
+
+struct SceKernelTimezone {
+    s32 tz_minuteswest;
+    s32 tz_dsttime;
+};
+
 s32* PS4_FUNC kernel_error();
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
-size_t PS4_FUNC kernel_writev(s32 fd, KernelIovec* iov, int iovcnt);
-size_t PS4_FUNC kernel_write(s32 fd, const void* buf, size_t size);
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
 s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts);
 s32 PS4_FUNC sceKernelClockGettime(u32 clock_id, SceKernelTimespec* ts);
+s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz);
 s32 PS4_FUNC sceKernelIsNeoMode();
 void* PS4_FUNC sceKernelGetProcParam();
 s32 PS4_FUNC sceKernelGetProcessType();

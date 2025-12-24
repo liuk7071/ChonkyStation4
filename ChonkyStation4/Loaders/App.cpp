@@ -37,6 +37,7 @@ void* PS4_FUNC initAndJumpToEntry(std::vector<Module>* modules) {
 
         auto& mod = (*modules)[i];
         if (mod.init_func) {
+            printf("Calling start func for module %s @ %p\n", mod.exported_modules[0].name.c_str(), mod.init_func);
             mod.init_func(0, nullptr, nullptr);
             if (mod.exported_modules.size())
                 printf("Initialized module %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
@@ -85,12 +86,12 @@ void App::run() {
     PS4::OS::Thread::joinThread(main_thread);
 }
 
-std::pair<u8*, size_t> App::getTLSImage(u32 modid) {
+std::tuple<u8*, size_t, size_t> App::getTLSImage(u32 modid) {
     Helpers::debugAssert(modules.size(), "App::getTLSImage: no modules loaded\n");
     // Find module that contains the TLS block with id == modid
     for (auto& mod : modules) {
         if (mod.tls_modid == modid) {
-            return { (u8*)mod.tls_vaddr, (size_t)mod.tls_size };
+            return { (u8*)mod.tls_vaddr, (size_t)mod.tls_filesz, (size_t)mod.tls_memsz };
         }
     }
 

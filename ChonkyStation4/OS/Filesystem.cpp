@@ -10,7 +10,7 @@ namespace PS4::FS {
 MAKE_LOG_FUNCTION(log, filesystem);
 
 std::unordered_map<Device, fs::path> mounted_devices;
-std::unordered_map<u64, File> open_files;
+std::unordered_map<u64, std::unique_ptr<File>> open_files;
 std::unordered_map<u64, Directory> open_dirs;
 
 void mount(Device device, fs::path path) {
@@ -79,7 +79,7 @@ u64 open(fs::path path, u32 flags) {
     if (!file) {
         Helpers::panic("Failed to open file %s with mode %s\n", host_path.generic_string().c_str(), mode.c_str());
     }
-    open_files[new_file_id] = { file, host_path, path, flags };
+    open_files[new_file_id] = std::make_unique<File>(file, host_path, path, flags);
     log("Opened file %s\n", host_path.generic_string().c_str());
     return new_file_id;
 }
@@ -148,8 +148,13 @@ bool mkdir(fs::path path) {
     return true;
 }
 
+std::unique_lock<std::mutex> getFileLock(u64 file_id) {
+    auto& file = getFileFromID(file_id);
+    return std::unique_lock<std::mutex>(file.mtx);
+}
+
 u64 getFileSize(u64 file_id) {
-    auto file = getFileFromID(file_id);
+    auto& file = getFileFromID(file_id);
     
     // If the file doesn't exist but the flag to create it was specified, return 0 size
     if ((file.flags & SCE_KERNEL_O_CREAT) && !fs::exists(file.path)) {
@@ -164,7 +169,7 @@ u64 getFileSize(fs::path path) {
 }
 
 bool isDirectory(u64 file_id) {
-    auto file = getFileFromID(file_id);
+    auto& file = getFileFromID(file_id);
     return fs::is_directory(file.path);
 }
 
@@ -183,7 +188,7 @@ bool exists(fs::path path) {
 File& getFileFromID(u32 id) {
     if (!open_files.contains(id))
         Helpers::panic("File id %d does not exist\n", id);
-    return open_files[id];
+    return *open_files[id];
 }
 
 Directory& getDirFromID(u32 id) {

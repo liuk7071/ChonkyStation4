@@ -6,6 +6,7 @@
 #include <xbyak/xbyak.h>
 
 #include <memory>
+#include <tuple>
 #include <deque>
 
 
@@ -19,7 +20,7 @@ public:
     std::vector<std::unique_ptr<Xbyak::CodeGenerator>> unresolved_symbol_handlers;
 
     void run();
-    std::pair<u8*, size_t> getTLSImage(u32 modid);
+    std::tuple<u8*, size_t, size_t> getTLSImage(u32 modid);
 
 private:
     MAKE_LOG_FUNCTION(log, loader_app);
