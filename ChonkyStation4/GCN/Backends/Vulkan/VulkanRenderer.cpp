@@ -65,7 +65,33 @@ static vk::Extent2D chooseSwapExtent(SDL_Window* window, const vk::SurfaceCapabi
 }
 
 void VulkanRenderer::recreateSwapChain() {
+    device.waitIdle();
+    swapchain_image_views.clear();
+    swapchain = nullptr;
+    auto surface_capabilities = physical_device.getSurfaceCapabilitiesKHR(*surface);
+    swapchain_extent = chooseSwapExtent(window, surface_capabilities);
+    swapchain_surface_format = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
+    vk::SwapchainCreateInfoKHR swapchain_create_info = { .surface = *surface,
+                                                       .minImageCount = chooseSwapMinImageCount(surface_capabilities),
+                                                       .imageFormat = swapchain_surface_format.format,
+                                                       .imageColorSpace = swapchain_surface_format.colorSpace,
+                                                       .imageExtent = swapchain_extent,
+                                                       .imageArrayLayers = 1,
+                                                       .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+                                                       .imageSharingMode = vk::SharingMode::eExclusive,
+                                                       .preTransform = surface_capabilities.currentTransform,
+                                                       .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+                                                       .presentMode = chooseSwapPresentMode(physical_device.getSurfacePresentModesKHR(*surface)),
+                                                       .clipped = true };
 
+    swapchain = vk::raii::SwapchainKHR(device, swapchain_create_info);
+    swapchain_images = swapchain.getImages();
+    assert(swapchain_image_views.empty());
+    vk::ImageViewCreateInfo image_view_create_info = { .viewType = vk::ImageViewType::e2D, .format = swapchain_surface_format.format, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+    for (auto image : swapchain_images) {
+        image_view_create_info.image = image;
+        swapchain_image_views.emplace_back(device, image_view_create_info);
+    }
 }
 
 void VulkanRenderer::transitionImageLayoutForSwapchain(u32 img_idx, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::AccessFlags2 src_access_mask, vk::AccessFlags2 dst_access_mask, vk::PipelineStageFlags2 src_stage_mask, vk::PipelineStageFlags2 dst_stage_mask) {
@@ -95,27 +121,21 @@ void VulkanRenderer::transitionImageLayoutForSwapchain(u32 img_idx, vk::ImageLay
 }
 
 void VulkanRenderer::advanceSwapchain() {
-    auto [result, image_idx] = swapchain.acquireNextImage(UINT64_MAX, *present_sema, nullptr);
-    current_swapchain_image_idx = image_idx;
+    while (true) {
+        auto [result, image_idx] = swapchain.acquireNextImage(UINT64_MAX, *present_sema, nullptr);
+        current_swapchain_image_idx = image_idx;
 
-    if (result == vk::Result::eErrorOutOfDateKHR) {
-        recreateSwapChain();
-        return;
-    }
-    if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
-        Helpers::panic("Vulkan: failed to acquire swapchain image!");
-    }
+        if (result == vk::Result::eErrorOutOfDateKHR) {
+            recreateSwapChain();
+            continue;   // Retry to acquire next image
+        }
 
-    // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
-    transitionImageLayoutForSwapchain(
-        current_swapchain_image_idx,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        {},                                                        // srcAccessMask (no need to wait for previous operations)
-        vk::AccessFlagBits2::eColorAttachmentWrite,                // dstAccessMask
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
-    );
+        if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
+            Helpers::panic("Vulkan: failed to acquire swapchain image!");
+        }
+
+        break;
+    }
 }
 
 void VulkanRenderer::init() {
@@ -129,6 +149,7 @@ void VulkanRenderer::init() {
     if (window == nullptr) {
         Helpers::panic("Failed to create SDL window: %s\n", SDL_GetError());
     }
+    //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     
     // ---- Setup Vulkan ----
     
@@ -309,8 +330,19 @@ void VulkanRenderer::init() {
     device.resetFences(*draw_fence);
 
     cmd_bufs[0].reset();
-    cmd_bufs[0].begin({});
     advanceSwapchain();
+    cmd_bufs[0].begin({});
+
+    // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
+    transitionImageLayoutForSwapchain(
+        current_swapchain_image_idx,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        {},                                                        // srcAccessMask (no need to wait for previous operations)
+        vk::AccessFlagBits2::eColorAttachmentWrite,                // dstAccessMask
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
+    );
 
     log("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
@@ -424,23 +456,43 @@ void VulkanRenderer::flip() {
     const vk::SubmitInfo  submit_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*present_sema, .pWaitDstStageMask = &wait_dest_stage_mask, .commandBufferCount = 1, .pCommandBuffers = &*cmd_bufs[0], .signalSemaphoreCount = 1, .pSignalSemaphores = &*render_sema };
     queue.submit(submit_info, *draw_fence);
 
+    auto recreate_swapchain = [&]() {
+        device.waitIdle();
+        cmd_bufs[0].reset();
+        recreateSwapChain();
+        advanceSwapchain();
+        cmd_bufs[0].begin({});
+        // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
+        transitionImageLayoutForSwapchain(
+            current_swapchain_image_idx,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            {},                                                        // srcAccessMask (no need to wait for previous operations)
+            vk::AccessFlagBits2::eColorAttachmentWrite,                // dstAccessMask
+            vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
+            vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
+        );
+    };
+
     try {
         const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema, .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
         auto result = queue.presentKHR(present_info);
         if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebuffer_resized) {
             framebuffer_resized = false;
-            recreateSwapChain();
+            recreate_swapchain();
         }
         else if (result != vk::Result::eSuccess) {
             Helpers::panic("Vulkan: failed to present swapchain image!");
         }
     }
     catch (const vk::SystemError& e) {
-        if (e.code().value() == static_cast<int>(vk::Result::eErrorOutOfDateKHR)) {
-            recreateSwapChain();
-            return;
+        if (e.code().value() == (int)vk::Result::eErrorOutOfDateKHR) {
+            framebuffer_resized = false;
+            recreate_swapchain();
         }
-        else throw;
+        else {
+            Helpers::panic("Vulkan: failed to present swapchain image!");
+        }
     }
 
     // TODO: Move generic flip operations out of the vulkan specific code (i.e. SDL events, polling pads, FPS counter etc)
@@ -450,7 +502,8 @@ void VulkanRenderer::flip() {
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
         case SDL_QUIT: {
-            exit(0);
+            //exit(0);
+            std::_Exit(0);
             break;
         }
         
@@ -495,8 +548,18 @@ void VulkanRenderer::flip() {
     idx_buf_mems.clear();
 
     cmd_bufs[0].reset();
-    cmd_bufs[0].begin({});
     advanceSwapchain();
+    cmd_bufs[0].begin({});
+    // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
+    transitionImageLayoutForSwapchain(
+        current_swapchain_image_idx,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        {},                                                        // srcAccessMask (no need to wait for previous operations)
+        vk::AccessFlagBits2::eColorAttachmentWrite,                // dstAccessMask
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
+    );
 }
 
 }   // End namespace PS4::GCN::Vulkan
