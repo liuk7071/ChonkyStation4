@@ -80,6 +80,7 @@ static Logger lib_sceSaveDataDialog = Logger<true> ("[Lib    ][SceSaveDataDialog
 static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy      ] ");
 static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad           ] ");
 static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut      ] ");
+static Logger lib_scePlayGo         = Logger<true> ("[Lib    ][ScePlayGo        ] ");
 
 // GCN
 static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command          ] ");

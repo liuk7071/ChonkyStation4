@@ -11,6 +11,7 @@
 #include <OS/Libraries/SceNpTrophy/SceNpTrophy.hpp>
 #include <OS/Libraries/ScePad/ScePad.hpp>
 #include <OS/Libraries/SceAudioOut/SceAudioOut.hpp>
+#include <OS/Libraries/ScePlayGo/ScePlayGo.hpp>
 
 
 // Stub until we implement audio input
@@ -38,6 +39,7 @@ Module buildHLEModule() {
     PS4::OS::Libs::SceNpTrophy::init(module);
     PS4::OS::Libs::ScePad::init(module);
     PS4::OS::Libs::SceAudioOut::init(module);
+    PS4::OS::Libs::ScePlayGo::init(module);
 
     // libSceAppContent
     module.addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
@@ -87,13 +89,6 @@ Module buildHLEModule() {
 
     // libSceDiscMap
     module.addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
-    
-    // libScePlayGo
-    module.addSymbolStub("ts6GlZOKRrE", "scePlayGoInitialize", "libScePlayGo", "libScePlayGo");
-    module.addSymbolStub("M1Gma1ocrGE", "scePlayGoOpen", "libScePlayGo", "libScePlayGo");
-    module.addSymbolStub("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo");
-    module.addSymbolStub("uWIYLFkkwqk", "scePlayGoGetLocus", "libScePlayGo", "libScePlayGo", 0x80B2000E /* PlayGo not supported */);
-    module.addSymbolStub("Nn7zKwnA5q0", "scePlayGoGetToDoList", "libScePlayGo", "libScePlayGo");
 
     return module;
 }
