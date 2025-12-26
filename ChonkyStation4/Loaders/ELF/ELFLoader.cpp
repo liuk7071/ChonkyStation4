@@ -10,6 +10,7 @@
 using namespace ELFIO;
 
 static int tls_modid = 0;
+static void* last_load_addr = (void*)0x80'0000'0000;
 
 Module ELFLoader::load(const fs::path& path) {
     elfio elf;
@@ -41,7 +42,16 @@ Module ELFLoader::load(const fs::path& path) {
 
     // Allocate memory
 #ifdef _WIN32
-    module.base_address = VirtualAlloc(nullptr, total_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    while (true) {
+        MEMORY_BASIC_INFORMATION mbi;
+        VirtualQuery(last_load_addr, &mbi, sizeof(mbi));
+        if (mbi.State == MEM_RESERVE && mbi.RegionSize > total_size) {
+            module.base_address = VirtualAlloc(mbi.BaseAddress, total_size, MEM_COMMIT, PAGE_READWRITE);
+            last_load_addr = (void*)((u64)module.base_address + total_size);
+            break;
+        }
+        last_load_addr = (void*)((u64)mbi.BaseAddress + mbi.RegionSize);
+    }
     Helpers::debugAssert(module.base_address, "ELFLoader: VirtualAlloc failed");
 #else
     Helpers::panic("Unsupported platform\n");

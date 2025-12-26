@@ -69,14 +69,19 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 // TODO: Add a timeout or something
                 void* addr = code_ptr + offs;
                 while (!patch_code_ptr || !is_addr_ok(patch_code_ptr)) {
-                    patch_code_ptr = (u8*)VirtualAlloc(addr, 128, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);    // NOTE: WE STUBBED THE ALLOCATION TO 128 BYTES!!!
+                    MEMORY_BASIC_INFORMATION mbi;
+                    VirtualQuery((void*)addr, &mbi, sizeof(mbi));
+                    if (mbi.State == MEM_RESERVE && mbi.RegionSize >= 128) {
+                        patch_code_ptr = (u8*)VirtualAlloc(addr, 128, MEM_COMMIT, PAGE_EXECUTE_READWRITE);    // NOTE: WE STUBBED THE ALLOCATION TO 128 BYTES!!!
+                    }
+                    else patch_code_ptr = nullptr;
 
                     if (patch_code_ptr && !is_addr_ok(patch_code_ptr)) {
-                        VirtualFree(patch_code_ptr, 0, MEM_RELEASE);
+                        VirtualFree(patch_code_ptr, 128, MEM_DECOMMIT);
                         patch_code_ptr = nullptr;
                     }
 
-                    addr = (u8*)addr + 128_KB;
+                    addr = (u8*)((u64)mbi.BaseAddress + mbi.RegionSize);
                 }
 #else
                 Helpers::panic("Unsupported platform\n");

@@ -343,6 +343,20 @@ void VulkanRenderer::init() {
         vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
     );
 
+    vk::RenderingAttachmentInfo attachment_info = {
+        .imageView = *swapchain_image_views[current_swapchain_image_idx],
+        .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .storeOp = vk::AttachmentStoreOp::eStore
+    };
+    vk::RenderingInfo render_info = {
+        .renderArea = {.offset = { 0, 0 }, .extent = swapchain_extent },
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &attachment_info
+    };
+
+    cmd_bufs[0].beginRendering(render_info);
+
     log("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
 }
@@ -404,19 +418,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     }
 
     // Draw
-    vk::RenderingAttachmentInfo attachment_info = {
-        .imageView = *swapchain_image_views[current_swapchain_image_idx],
-        .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .storeOp = vk::AttachmentStoreOp::eStore
-    };
-    vk::RenderingInfo render_info = {
-        .renderArea = { .offset = { 0, 0 }, .extent = swapchain_extent },
-        .layerCount = 1,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &attachment_info
-    };
-
-    cmd_bufs[0].beginRendering(render_info);
     cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
 
     if (descriptor_writes.size())
@@ -435,12 +436,12 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     else {
         cmd_bufs[0].draw(cnt, 1, 0, 0);
     }
-    cmd_bufs[0].endRendering();
 }
 
 static bool fullscreen = false;
 
 void VulkanRenderer::flip() {
+    cmd_bufs[0].endRendering();
     // After rendering, transition the swapchain image to PRESENT_SRC
     transitionImageLayoutForSwapchain(
         current_swapchain_image_idx,
@@ -570,6 +571,19 @@ void VulkanRenderer::flip() {
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
         vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
     );
+    vk::RenderingAttachmentInfo attachment_info = {
+        .imageView = *swapchain_image_views[current_swapchain_image_idx],
+        .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .storeOp = vk::AttachmentStoreOp::eStore
+    };
+    vk::RenderingInfo render_info = {
+        .renderArea = {.offset = { 0, 0 }, .extent = swapchain_extent },
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &attachment_info
+    };
+
+    cmd_bufs[0].beginRendering(render_info);
 }
 
 }   // End namespace PS4::GCN::Vulkan

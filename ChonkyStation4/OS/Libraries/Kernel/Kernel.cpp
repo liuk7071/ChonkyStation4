@@ -137,7 +137,7 @@ void init(Module& module) {
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
     
-    module.addSymbolStub("BpFoboUJoZU", "sceKernelCreateEventFlag", "libkernel", "libkernel");
+    module.addSymbolExport("BpFoboUJoZU", "sceKernelCreateEventFlag", "libkernel", "libkernel", (void*)&sceKernelCreateEventFlag);
     module.addSymbolExport("JTvBflhYazQ", "sceKernelWaitEventFlag", "libkernel", "libkernel", (void*)&sceKernelWaitEventFlag);
     
     module.addSymbolStub("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel");
@@ -168,53 +168,38 @@ void init(Module& module) {
 static thread_local s32 posix_errno = 0;
 
 #ifdef _WIN32
-static void* VirtualAllocAlignedBelow(size_t size, size_t alignment, uptr maxAddress) {
-    if ((alignment & (alignment - 1)) != 0) return NULL;
+void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
+    if (reservation_start >= reservation_end) return nullptr;
+    if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
+    if (size == 0) return nullptr;
 
-    SYSTEM_INFO si; GetSystemInfo(&si);
-    size_t gran = si.dwAllocationGranularity;
-    size_t reserveSize = size + alignment;
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const size_t page_size = si.dwAllocationGranularity ;
+    alignment = alignment < page_size ? page_size : alignment;
+    size = (size + page_size - 1) & ~(page_size - 1);
 
-    MEMORY_BASIC_INFORMATION mbi;
-    uptr addr = maxAddress ? maxAddress - 1 : 0;
-
-    while (addr > 0) {
-        if (!VirtualQuery((void*)addr, &mbi, sizeof(mbi))) break;
-
-        if (mbi.State == MEM_FREE) {
-            uptr base = (uptr)mbi.BaseAddress;
-            uptr end  = base + mbi.RegionSize;
-            if (end > maxAddress) end = maxAddress;
-
-            if (base + reserveSize <= end) {
-                uptr tryBase = end - reserveSize;
-
-                void* reserve = VirtualAlloc((void*)tryBase, reserveSize, MEM_RESERVE, PAGE_READWRITE);
-                if (reserve) {
-                    uptr rbase = (uptr)reserve;
-                    uptr aligned = (rbase + (alignment - 1)) & ~(alignment - 1);
-
-                    void* commit = VirtualAlloc((void*)aligned, size, MEM_COMMIT, PAGE_READWRITE);
-                    if (!commit) { VirtualFree(reserve, 0, MEM_RELEASE); return NULL; }
-
-                    if (aligned > rbase)
-                        VirtualFree((void*)rbase, aligned - rbase, MEM_RELEASE);
-
-                    uptr endAligned = aligned + size;
-                    uptr endReserve = rbase + reserveSize;
-                    if (endAligned < endReserve)
-                        VirtualFree((void*)endAligned, endReserve - endAligned, MEM_RELEASE);
-
-                    return commit;
-                }
+    uptr cur_addr = reservation_start;
+    while (true) {
+        MEMORY_BASIC_INFORMATION mbi;
+        VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi));
+        if (mbi.State == MEM_RESERVE) {
+            if (mbi.RegionSize >= size) {
+                // Try to commit memory
+                void* ret = VirtualAlloc((void*)cur_addr, size, MEM_COMMIT, PAGE_READWRITE);
+                if (ret) return ret;
             }
-        }
 
-        if ((uptr)mbi.BaseAddress <= gran) break;
-        addr = (uptr)mbi.BaseAddress - gran;
+            // Free area wasn't big enough to allocate or VirtualAlloc failed
+        }
+        cur_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+        // Align up
+        cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+        
+        if (cur_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
     }
 
-    return NULL;
+    return nullptr;
 }
 #endif
 
@@ -377,7 +362,7 @@ s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 me
 
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)0x12345678;
+    *out_addr = (void*)0x100000;
     return SCE_OK;
 }
 
@@ -386,37 +371,26 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
 
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)0x12345678;
+    *out_addr = (void*)0x100000;
     return SCE_OK;
 }
 
-//void* last_alloc_addr = (void*)0x10000000000;
-void* last_alloc_addr = (void*)0x7'ffff'c000;
-
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align) {
-    log("sceKernelMapDirectMemory(addr=*%p, len=%lld, prot=%d, flags=%d, dmem_start=0x%016llx, align=0x%016llx)\n", addr, len, prot, flags, dmem_start, align);
+    log("sceKernelMapDirectMemory(addr=*%p, len=0x%llx, prot=%d, flags=%d, dmem_start=0x%016llx, align=0x%016llx)\n", addr, len, prot, flags, dmem_start, align);
 
     void* in_addr = *addr;
     log("in_addr=%p\n", in_addr);
 
+    align = align ? align : 16_KB;
+
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
     if (!in_addr) {
-        //*addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
-        *addr = VirtualAllocAlignedBelow(len, align, (u64)last_alloc_addr);
-        last_alloc_addr = *addr;
+        *addr = allocate(0x2'0000'0000, 0x2'0000'0000 + 500_GB, len, align);
     }
     else {
-        *addr = VirtualAlloc(in_addr, len, MEM_COMMIT, PAGE_READWRITE);
-        if (*addr != in_addr) {
-            if (flags & SCE_KERNEL_MAP_FIXED)
-                Helpers::panic("sceKernelMapDirectMemory: failed to allocate at %p (allocation happened at %p)\n", in_addr, *addr);
-            else {
-                // Fallback to normal allocation
-                // TODO: In theory we should use in_addr as the address to begin searching from...
-                *addr = VirtualAllocAlignedBelow(len, align, 0x10000000000);
-            }
-        }
+        // TODO
+        *addr = allocate(0x2'0000'0000, 0x2'0000'0000 + 500_GB, len, align);
     }
 #else
     Helpers::panic("Unsupported platform\n");
@@ -434,7 +408,7 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 }
 
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name) {
-    log("sceKernelMapNamedFlexibleMemory(addr=*%p, len=%lld, prot=%d, flags=%d, name=\"%s\")\n", addr, len, prot, flags, name);
+    log("sceKernelMapNamedFlexibleMemory(addr=*%p, len=0x%llx, prot=%d, flags=%d, name=\"%s\")\n", addr, len, prot, flags, name);
 
     void* in_addr = *addr;
     if (in_addr) {
@@ -443,9 +417,7 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
 
     // TODO: prot, flags
 #ifdef _WIN32
-    //*addr = VirtualAllocAlignedBelow(len, 1, 0x10000000000);
-    *addr = VirtualAllocAlignedBelow(len, 1, (u64)last_alloc_addr);
-    last_alloc_addr = *addr;
+    *addr = allocate(0x2'0000'0000, 0x2'0000'0000 + 500_GB, len, 16_KB);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
@@ -458,10 +430,10 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
 }
 
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
-    log("sceKernelMunmap(addr=%p, len=%lld)\n", addr, len);
+    log("sceKernelMunmap(addr=%p, len=0x%llx)\n", addr, len);
 
 #ifdef _WIN32
-    VirtualFree(addr, len, MEM_RELEASE);
+    VirtualFree(addr, len, MEM_DECOMMIT);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
