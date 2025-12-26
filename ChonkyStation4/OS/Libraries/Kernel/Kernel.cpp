@@ -9,6 +9,7 @@
 #include <OS/Libraries/Kernel/pthread/cond.hpp>
 #include <OS/Libraries/Kernel/Equeue.hpp>
 #include <OS/Libraries/Kernel/Eflag.hpp>
+#include <OS/Libraries/Kernel/Semaphore.hpp>
 #include <OS/Libraries/Kernel/Filesystem.hpp>
 #include <chrono>
 #include <thread>
@@ -110,6 +111,8 @@ void init(Module& module) {
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
     module.addSymbolExport("E6ao34wPw+U", "stat", "libkernel", "libkernel", (void*)&kernel_stat);
     module.addSymbolExport("eV9wAD2riIA", "sceKernelStat", "libkernel", "libkernel", (void*)&sceKernelStat);
+    module.addSymbolExport("mqQMh1zPPT8", "fstat", "libkernel", "libkernel", (void*)&kernel_fstat);
+    module.addSymbolExport("kBwCPsYX-m4", "fstat", "libkernel", "libkernel", (void*)&sceKernelFstat);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
     
@@ -127,6 +130,7 @@ void init(Module& module) {
     module.addSymbolExport("QBi7HCK03hw", "sceKernelClockGettime", "libkernel", "libkernel", (void*)&sceKernelClockGettime);
     module.addSymbolExport("n88vx3C5nW8", "gettimeofday", "libkernel", "libkernel", (void*)&kernel_gettimeofday);
     module.addSymbolExport("n88vx3C5nW8", "gettimeofday", "libScePosix", "libkernel", (void*)&kernel_gettimeofday);
+    module.addSymbolExport("4J2sUJmuHZQ", "sceKernelGetProcessTime", "libkernel", "libkernel", (void*)&sceKernelGetProcessTime);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
@@ -136,9 +140,14 @@ void init(Module& module) {
 
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
+    module.addSymbolExport("4R6-OvI2cEA", "sceKernelAddUserEvent", "libkernel", "libkernel", (void*)&sceKernelAddUserEvent);
     
     module.addSymbolExport("BpFoboUJoZU", "sceKernelCreateEventFlag", "libkernel", "libkernel", (void*)&sceKernelCreateEventFlag);
+    module.addSymbolExport("IOnSvHzqu6A", "sceKernelSetEventFlag", "libkernel", "libkernel", (void*)&sceKernelSetEventFlag);
     module.addSymbolExport("JTvBflhYazQ", "sceKernelWaitEventFlag", "libkernel", "libkernel", (void*)&sceKernelWaitEventFlag);
+    module.addSymbolExport("9lvj5DjHZiA", "sceKernelPollEventFlag", "libkernel", "libkernel", (void*)&sceKernelPollEventFlag);
+    
+    module.addSymbolExport("188x57JYp0g", "sceKernelCreateSema", "libkernel", "libkernel", (void*)&sceKernelCreateSema);
     
     module.addSymbolStub("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel");
     module.addSymbolStub("Ox9i0c7L5w0", "scePthreadRwlockRdlock", "libkernel", "libkernel");
@@ -285,6 +294,14 @@ s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz) {
         tz->tz_minuteswest = 0;
     }
     return 0;
+}
+
+static const auto process_start_time = std::chrono::steady_clock::now();
+u64 PS4_FUNC sceKernelGetProcessTime() {
+    log("sceKernelGetProcessTime()\n");
+
+    const auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(now - process_start_time).count();
 }
 
 s32 PS4_FUNC sceKernelIsNeoMode() {

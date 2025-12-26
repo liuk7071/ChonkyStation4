@@ -115,7 +115,6 @@ s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
         return -1;
     }
     
-    // TODO: lock file mutex here too?
     std::memset(stat, 0, sizeof(SceKernelStat));
     const bool is_dir = FS::isDirectory(path);
     stat->st_mode = FS::SCE_KERNEL_S_IRWU;  // read-write
@@ -124,12 +123,37 @@ s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
     stat->st_gid = 0;
     // TODO: time
     stat->st_size = FS::getFileSize(path);
-    stat->st_blksize = 4096;    // TODO: ?
+    stat->st_blksize = 512;    // TODO: ?
+    stat->st_blocks = (stat->st_size + stat->st_blksize - 1) / stat->st_blksize;    // TODO: ?
     return 0;
 }
 
 s32 PS4_FUNC sceKernelStat(const char* path, SceKernelStat* stat) {
     const auto res = kernel_stat(path, stat);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
+}
+
+s32 PS4_FUNC kernel_fstat(s32 fd, SceKernelStat* stat) {
+    log("fstat(fd=%d, stat=*%p)\n", fd, stat);
+    auto lock = FS::getFileLock(fd);
+
+    // TODO: Avoid duplicated code from stat
+    std::memset(stat, 0, sizeof(SceKernelStat));
+    const bool is_dir = FS::isDirectory(fd);
+    stat->st_mode = FS::SCE_KERNEL_S_IRWU;  // read-write
+    stat->st_mode |= !is_dir ? FS::SCE_KERNEL_S_IFREG : FS::SCE_KERNEL_S_IFDIR;
+    stat->st_uid = 0;
+    stat->st_gid = 0;
+    // TODO: time
+    stat->st_size = FS::getFileSize(fd);
+    stat->st_blksize = 512;    // TODO: ?
+    stat->st_blocks = (stat->st_size + stat->st_blksize - 1) / stat->st_blksize;
+    return 0;
+}
+
+s32 PS4_FUNC sceKernelFstat(s32 fd, SceKernelStat* stat) {
+    const auto res = kernel_fstat(fd, stat);
     if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
     return res;
 }

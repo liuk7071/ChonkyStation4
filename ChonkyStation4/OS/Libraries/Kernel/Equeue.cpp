@@ -114,4 +114,18 @@ s32 PS4_FUNC sceKernelWaitEqueue(SceKernelEqueue eq, SceKernelEvent* ev, s32 n_e
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceKernelAddUserEvent(SceKernelEqueue eq, s32 id) {
+    log("sceKernelAddUserEvent(eq=%p, id=%d)\n", eq, id);
+
+    eq->registerEvent({
+        .ident = (u64)id,
+        .filter = 0,
+        .flags = 0,     
+        .fflags = 0,    
+        .data = 0,
+        .udata = 0,
+    });
+    return SCE_OK;
+}
+
 };  // End namespace PS4::OS::Libs::Kernel

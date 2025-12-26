@@ -68,6 +68,7 @@ static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel           
 static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex      ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue     ] ");
 static Logger lib_kernel_eflag      = Logger<true> ("[Lib    ][KernelEflag      ] ");
+static Logger lib_kernel_sema       = Logger<true> ("[Lib    ][KernelSemaphore  ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut      ] ");
 static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver     ] ");
