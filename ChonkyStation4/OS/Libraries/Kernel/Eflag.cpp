@@ -54,6 +54,12 @@ void Eflag::set(u64 bitptn) {
     }
 }
 
+void Eflag::clear(u64 bitptn) {
+    auto lk = std::unique_lock<std::mutex>(mtx);
+    this->bitptn = this->bitptn & bitptn;
+    // Clearing a flag can't wake up any threads so there is nothing else to do
+}
+
 bool Eflag::wait(u64 bitptn, u32 wait_mode, u64& result) {
     auto lk = std::unique_lock<std::mutex>(mtx);
     
@@ -118,6 +124,13 @@ s32 PS4_FUNC sceKernelSetEventFlag(SceKernelEventFlag ef, u64 bitptn) {
     log("sceKernelSetEventFlag(ef=%p, bitptn=0x%016llx)\n", ef, bitptn);
 
     ef->set(bitptn);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelClearEventFlag(SceKernelEventFlag ef, u64 bitptn) {
+    log("sceKernelClearEventFlag(ef=%p, bitptn=0x%016llx)\n", ef, bitptn);
+
+    ef->clear(bitptn);
     return SCE_OK;
 }
 

@@ -2,6 +2,7 @@
 
 #include <Common.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <GCN/DataFormats.hpp>
 
 
 namespace PS4::GCN::Vulkan {
@@ -17,5 +18,6 @@ vk::raii::CommandBuffer beginCommands();
 void endCommands(vk::raii::CommandBuffer& cmd_buffer);
 void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout old_layout, vk::ImageLayout new_layout);
 u32 findMemoryType(u32 typeFilter, vk::MemoryPropertyFlags properties);
+std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt);
 
 }   // End namespace PS4::GCN::Vulkan

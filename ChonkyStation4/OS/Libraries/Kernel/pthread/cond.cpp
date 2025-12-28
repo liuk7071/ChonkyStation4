@@ -11,6 +11,11 @@ s32 PS4_FUNC kernel_pthread_condattr_init(pthread_condattr_t* attr) {
     return pthread_condattr_init(attr);
 }
 
+s32 PS4_FUNC kernel_pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr) {
+    log("pthread_cond_init(cond=*%p, attr=*%p)\n", cond, attr);
+    return pthread_cond_init(cond, attr);
+}
+
 s32 PS4_FUNC scePthreadCondInit(pthread_cond_t* cond, const pthread_condattr_t* attr, const char* name) {
     log("scePthreadCondInit(cond=*%p, attr=*%p, name=\"%s\")\n", cond, attr, name);
     return pthread_cond_init(cond, attr);
@@ -19,6 +24,14 @@ s32 PS4_FUNC scePthreadCondInit(pthread_cond_t* cond, const pthread_condattr_t* 
 s32 PS4_FUNC kernel_pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
     log("pthread_cond_wait(cond=*%p, mutex=*%p)\n", cond, mutex);
     return pthread_cond_wait(cond, mutex);
+}
+
+s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, const SceKernelTimespec* abstime) {
+    log("pthread_cond_timedwait(cond=*%p, mutex=*%p, abstime=*%p)\n", cond, mutex, abstime);
+    timespec time;
+    time.tv_sec  = abstime->tv_sec;
+    time.tv_nsec = abstime->tv_nsec;
+    return pthread_cond_timedwait(cond, mutex, &time);
 }
 
 s32 PS4_FUNC kernel_pthread_cond_signal(pthread_cond_t* cond) {

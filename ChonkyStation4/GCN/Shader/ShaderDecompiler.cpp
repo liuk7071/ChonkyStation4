@@ -3,6 +3,7 @@
 #include <GCN/FetchShader.hpp>
 #include <GCN/VSharp.hpp>
 #include <GCN/TSharp.hpp>
+#include <GCN/DataFormats.hpp>
 #include <GCN/GCN.hpp>
 #include <sstream>
 #include <unordered_map>
@@ -83,13 +84,24 @@ void addFloatConstTable(std::string name, float* table, size_t size) {
     const_tables += ");\n";
 }
 
-std::string getType(int n_lanes) {
+std::string getType(int n_lanes, u32 nfmt) {
     switch (n_lanes) {
-    case 1: return "float";
-    case 2: return "vec2";
-    case 3: return "vec3";
-    case 4: return "vec4";
-    default: Helpers::panic("ShaderDecompiler: getType: invalid n_lanes (%d)\n", n_lanes);
+    case 1: {
+        switch ((NumberFormat)nfmt) {
+        case NumberFormat::Float: return "float";
+        default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
+        }
+        break;
+    }
+    default: {
+        switch ((NumberFormat)nfmt) {
+        case NumberFormat::Unorm: return std::format("vec{}", n_lanes);
+        case NumberFormat::Sscaled: return std::format("vec{}", n_lanes);
+        case NumberFormat::Float: return std::format("vec{}", n_lanes);
+        default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
+        }
+        break;
+    }
     }
 }
 
@@ -100,7 +112,13 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     switch (op.field) {
     case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                        break;
     case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                        break;
-    case OperandField::LiteralConst:        src = std::format("f2u({}f)", reinterpret_cast<const float&>(op.code));     break;
+    case OperandField::LiteralConst: {
+        if constexpr (!is_int)
+            src = std::format("f2u({}f)", reinterpret_cast<const float&>(op.code));
+        else
+            src = std::format("{}", op.code);
+        break;
+    }
     case OperandField::SignedConstIntPos:   src = std::format("{}", (s32)op.code - SignedConstIntPosMin + 1);           break;
     case OperandField::SignedConstIntNeg:   src = std::format("{}", -(s32)(op.code - SignedConstIntNegMin + 1));        break;
     case OperandField::ConstFloatNeg_4_0:   src = "f2u(-4.0f)";                                                         break;
@@ -230,7 +248,7 @@ bool scc;
         case Shader::Opcode::S_LOAD_DWORDX4: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair] = { sgpr_pair, instr.control.smrd.offset };
+            descs[dest_pair] = { sgpr_pair, instr.control.smrd.offset, true };
             break;
         }
 
@@ -238,31 +256,22 @@ bool scc;
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4: {
-            const int idx  = instr.opcode == Shader::Opcode::IMAGE_SAMPLE ? 2 : 0;
-            const int mult = instr.opcode == Shader::Opcode::IMAGE_SAMPLE ? 4 : 2;
-            const auto sgpr = instr.src[idx].code * mult;
-            if (!descs.contains(sgpr)) {
-                // We assume that the descriptor is being passed directly as user data.
-                // Check if this buffer already exists, otherwise create a new one
-                bool found = false;
+            auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0) -> Buffer& {
+                // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
-                    if (buf.desc_info.sgpr == sgpr) {
+                    if (buf.desc_info.sgpr == sgpr && buf.desc_info.is_ptr == is_ptr && buf.desc_info.offs == offs) {
                         // The buffer already exists
-                        Helpers::debugAssert(!buf.desc_info.is_ptr, "Error fetching shader descriptor locations");
-                        buffer_map[buf_mapping_idx++] = &buf;
-                        found = true;
-                        break;
+                        return buf;
                     }
                 }
-
-                if (found) break;
 
                 // Create a new one
                 auto& buf = out_data.buffers.emplace_back();
                 buf.binding = next_buf_binding++;
                 if (stage == ShaderStage::Fragment) buf.binding += 16;  // TODO: Not ideal, should probably use different descriptor sets for each shader stage instead.
                 buf.desc_info.sgpr = sgpr;
-                buf.desc_info.is_ptr = false;
+                buf.desc_info.is_ptr = is_ptr;
+                buf.desc_info.offs = offs;
                 buf.desc_info.stage = stage;
                 switch (instr.inst_class) {
                 case InstClass::ScalarMemRd: {
@@ -281,13 +290,24 @@ bool scc;
 
                 default: Helpers::panic("ShaderDecompiler: unreachable\n");
                 }
-                
+
+                return buf;
+            };
+
+            const int idx  = instr.opcode == Shader::Opcode::IMAGE_SAMPLE ? 2 : 0;
+            const int mult = instr.opcode == Shader::Opcode::IMAGE_SAMPLE ? 4 : 2;
+            const auto sgpr = instr.src[idx].code * mult;
+            if (!descs.contains(sgpr)) {
+                // We assume that the descriptor is being passed directly as user data.
+                auto& buf = get_buffer(sgpr, false);
                 buffer_map[buf_mapping_idx++] = &buf;
                 //printf("Found V# in SGPR %d\n", buf.desc_info.sgpr);
                 //printf("Added buffer %s\n", name.c_str());
             }
             else {
-                Helpers::panic("TODO: shader descriptor is not passed directly as user data\n");
+                auto& desc = descs[sgpr];
+                auto& buf = get_buffer(desc.sgpr, desc.is_ptr, desc.offs);
+                buffer_map[buf_mapping_idx++] = &buf;
             }
             break;
         }
@@ -304,7 +324,7 @@ bool scc;
         for (auto& binding : fetch_shader->bindings) {
             VSharp* vsharp = binding.vsharp_loc.asPtr();
             std::string attr = std::format("vs_attr{}", binding.dest_vgpr);
-            addInAttr(attr, getType(binding.n_elements), binding.dest_vgpr);
+            addInAttr(attr, getType(binding.n_elements, vsharp->nfmt), binding.dest_vgpr);
 
             // In main(), move the input data to the VGPRs.
             // Handle swizzling
@@ -345,6 +365,25 @@ bool scc;
             break;
         }
 
+        case Shader::Opcode::S_CSELECT_B32: {
+            main += setDST<true>(instr.dst[0], std::format("scc ? {} : {}", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1])));
+            break;
+        }
+        
+        case Shader::Opcode::S_AND_B32: {
+            main += setDST<true>(instr.dst[0], std::format("{} & {}", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1])));
+            main += std::format("scc = {} != 0;\n", getSRC<true>(instr.dst[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_BFE_U32: {
+            const auto src0 = getSRC<true>(instr.src[0]);
+            const auto src1 = getSRC<true>(instr.src[1]);
+            main += setDST<true>(instr.dst[0], std::format("bitfieldExtract({}, {} & 0x1f, bitfieldExtract({}, 16, 7))", src0, src1, src1));
+            main += std::format("scc = {} != 0;\n", getSRC<true>(instr.dst[0]));
+            break;
+        }
+
         case Shader::Opcode::S_MOV_B32: {
             main += setDST<true>(instr.dst[0], getSRC<true>(instr.src[0]));
             break;
@@ -365,8 +404,13 @@ bool scc;
             break;
         }
 
+        case Shader::Opcode::S_CMP_EQ_U32: {
+            main += std::format("scc = {} == {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::S_CMP_LG_U32: {
-            main += std::format("scc = floatBitsToUint({}) != floatBitsToUint({});", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            main += std::format("scc = {} != {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
             break;
         }
 
@@ -426,8 +470,13 @@ bool scc;
             break;
         }
 
-        case Shader::Opcode::V_FMA_F32: {
+        case Shader::Opcode::V_MAD_F32: {
             main += setDST(instr.dst[0], std::format("{} * {} + {}", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+
+        case Shader::Opcode::V_FMA_F32: {
+            main += setDST(instr.dst[0], std::format("fma({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
             break;
         }
 
@@ -453,6 +502,11 @@ bool scc;
             addInAttr(attr, "vec4", instr.control.vintrp.attr);
             char lanes[4] = { 'x', 'y', 'z', 'w' };
             main += setDST(instr.dst[0], std::format("{}.{}", attr, lanes[instr.control.vintrp.chan]));
+            break;
+        }
+
+        case Shader::Opcode::S_LOAD_DWORDX4: {
+            main += "// TODO: S_LOAD_DWORDX4\n";
             break;
         }
 
@@ -541,9 +595,9 @@ bool scc;
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            main += "// TODO\n";
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //main += "// TODO\n";
         }
         }
     }

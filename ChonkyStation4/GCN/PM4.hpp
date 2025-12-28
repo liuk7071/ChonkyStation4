@@ -58,6 +58,24 @@ enum class DmaDataSrc : u32 {
 
 }   // End namespace DmaData
 
+namespace MemSemaphore {
+
+enum class ClientCode : u32 {
+    CommandProcessor = 0u,
+    CommandBuffer = 1u,
+    DataBuffer = 2u,
+};
+enum class Select : u32 {
+    SignalSemaphore = 6u,
+    WaitSemaphore = 7u,
+};
+enum class SignalType : u32 {
+    Increment = 0u,
+    Write = 1u,
+};
+
+}   // End namespace MemSemaphore
+
 enum class PM4ItOpcode : u32 {
     Nop = 0x10,
     SetBase = 0x11,

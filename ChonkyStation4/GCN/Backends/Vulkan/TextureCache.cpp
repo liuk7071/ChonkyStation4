@@ -28,9 +28,16 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     const u32 height = tsharp->height + 1;
     const u32 pitch = tsharp->pitch + 1;
 
-    const auto [vk_fmt, pixel_size] = getTexFormatAndSize(tsharp->data_format, tsharp->num_format);
+    auto [vk_fmt, pixel_size] = getBufFormatAndSize(tsharp->data_format, tsharp->num_format);
     void* ptr = (void*)(tsharp->base_address << 8);
-    const size_t img_size = pitch * height * pixel_size;
+
+    size_t img_size;
+    if (vk_fmt == vk::Format::eBc3UnormBlock) {
+        const auto blk_width  = (width  + 3) / 4;
+        const auto blk_height = (height + 3) / 4;
+        img_size = blk_width * blk_height * 16;
+
+    } else img_size = pitch * height * pixel_size;
     
     // Hash the texture
     u64 hash = XXH3_64bits(ptr, img_size);
@@ -59,13 +66,13 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     log("texture nfmt: %d\n", (u32)tsharp->num_format);
     log("texture pitch: %d\n", (u32)tsharp->pitch + 1);
 
-    // Detile texture
+    // Detile the texture
     auto detiled_buf = std::make_unique<u8[]>(img_size);
     const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
     GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
 
     //std::ofstream out;
-    //out.open(std::format("{}.bin", (tsharp->base_address << 8)), std::ios::binary);
+    //out.open(std::format("{}_{}_{}_{}.bin", width, height, pitch, (tsharp->base_address << 8)), std::ios::binary);
     //out.write((char*)(tsharp->base_address << 8), img_size);
 
     vk::raii::Buffer tex_buf = vk::raii::Buffer(device, { .size = img_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
@@ -136,46 +143,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     };
     cache[hash] = entry;
     *out_info = &entry->image_info;
-}
-
-// Returns a Vulkan format alongside the size of 1 pixel in bytes
-std::pair<vk::Format, size_t> getTexFormatAndSize(u32 dfmt, u32 nfmt) {
-    switch ((DataFormat)dfmt) {
-
-    case DataFormat::Format8: {
-        switch ((NumberFormat)nfmt) {
-
-        case NumberFormat::Unorm: return { vk::Format::eR8Unorm, sizeof(u8) };
-
-        default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
-        }
-        break;
-    }
-
-    case DataFormat::Format8_8_8_8: {
-        switch ((NumberFormat)nfmt) {
-
-        case NumberFormat::Unorm: return { vk::Format::eR8G8B8A8Unorm, sizeof(u32) };
-
-        default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
-        }
-        break;
-    }
-
-    case DataFormat::Format5_6_5: {
-        switch ((NumberFormat)nfmt) {
-
-        case NumberFormat::Unorm: return { vk::Format::eR5G6B5UnormPack16, sizeof(u16) };
-
-        default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
-        }
-        break;
-    }
-
-    default:    Helpers::panic("Unimplemented texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
-    }
-
-    Helpers::panic("getTexFormatAndSize: unreachable\n");
 }
 
 } // End namespace PS4::GCN::Vulkan

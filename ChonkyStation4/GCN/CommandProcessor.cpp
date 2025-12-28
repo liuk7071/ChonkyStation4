@@ -19,8 +19,8 @@ union WaitRegMem1 {
 union WaitRegMem2 {
     u32 raw;
     BitField<0, 16, u32> reg;
-    BitField<2, 30, u32> poll_addr_lo;
     BitField<0, 2, u32> swap;
+    BitField<2, 30, u32> poll_addr_lo;
 };
 
 union DmaData1 {
@@ -35,6 +35,20 @@ union DmaData1 {
     BitField<27, 1, u32> dst_volatile;
     BitField<29, 2, DmaData::DmaDataSrc> src_sel;
     BitField<31, 1, u32> cp_sync;
+};
+
+union MemSemaphore1 {
+    u32 raw;
+    BitField<3, 29, u32> addr_lo;
+};
+
+union MemSemaphore2 {
+    u32 raw;
+    BitField<0,  8, u32> addr_hi;
+    BitField<16, 1, u32> use_mailbox;
+    BitField<20, 1, MemSemaphore::SignalType> signal_type;
+    BitField<24, 2, MemSemaphore::ClientCode> client_code;
+    BitField<29, 3, MemSemaphore::Select> sem_sel;
 };
 
 void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
@@ -70,6 +84,36 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             break;
         }
 
+        case PM4ItOpcode::MemSemaphore: {
+            using namespace MemSemaphore;
+            MemSemaphore1 d1 = { .raw = *args++ };
+            MemSemaphore2 d2 = { .raw = *args++ };
+            u64* sem_ptr = (u64*)(((u64)d1.addr_lo << 3) | ((u64)d2.addr_hi << 32));
+            
+            log("MemSemaphore: ptr=%p\n", sem_ptr);
+            switch (d2.sem_sel) {
+            case Select::SignalSemaphore: {
+                log("Signalling semaphore\n");
+                switch (d2.signal_type) {
+                case SignalType::Increment: (*ptr)++;   break;
+                case SignalType::Write:     *ptr = 1;   break;
+
+                default: Helpers::panic("invalid MemSemaphore signal type %d\n", d2.signal_type.Value());
+                }
+                break;
+            }
+
+            case Select::WaitSemaphore: {
+                log("Waiting on semaphore\n");
+                while (*ptr == 0) std::this_thread::sleep_for(std::chrono::microseconds(10));
+                break;
+            }
+
+            default: Helpers::panic("invalid MemSemaphore mode %d\n", d2.sem_sel.Value());
+            }
+            break;
+        }
+
         case PM4ItOpcode::WaitRegMem: {
             using namespace WaitRegMem;
             WaitRegMem1 d1 = { .raw = *args++ };
@@ -79,8 +123,11 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             const u32 mask = *args++;
             const u32 poll_interval = *args++;
             u32* ptr = (u32*)((d2.poll_addr_lo << 2) | ((u64)poll_addr_hi << 32));
+            log("lo 0x%llx hi 0x%llx\n", d2.poll_addr_lo.Value(), poll_addr_hi);
             log("WaitRegMem: mem_space=%d\n", d1.mem_space.Value());
             log("WaitRegMem: ptr=%p\n", ptr);
+            log("WaitRegMem: func=%d\n", d1.function.Value());
+            log("WaitRegMem: ref=%d\n", reference);
 
             auto check = [&]() -> bool {
                 u32 val = (d1.mem_space == MemSpace::Memory) ? *ptr : renderer->regs[d2.reg];
@@ -98,10 +145,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
                 }
             };
 
-            while (!check()) {
+            //while (!check()) {
                 // TODO: Use poll_interval
                 std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            }
+            //}
             break;
         }
 
@@ -129,8 +176,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             default: Helpers::panic("EventWriteEop: unhandled data_sel %d\n", data_sel);
             }
 
-            // TODO: I don't think I'm supposed to always trigger the event
-            GCN::eop_ev_source.trigger(EOP_EVENT_ID);
+            if (int_sel != 0)   // None
+                GCN::eop_ev_source.trigger(EOP_EVENT_ID);
             break;
         }
 
@@ -183,7 +230,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         case PM4ItOpcode::SetShReg: {
             const u32 reg_offset = 0x2c00 + *args++;    // 2c00 is the offset for ShReg
             log("Set register 0x%x\n", reg_offset);
-            std::memcpy(&renderer->regs[reg_offset], args, (pkt->count + 2 - 1) * sizeof(u32));
+            std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));
             break;
         }
 

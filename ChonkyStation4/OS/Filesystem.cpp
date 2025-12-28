@@ -210,9 +210,11 @@ fs::path guestPathToHost(fs::path path) {
     fs::path guest_path;
 
     // Check if the path is valid
-    // TODO: I assume relative paths can exist too...?
-    if (path.begin()->generic_string() != "/")
-        Helpers::panic("Path %s is not valid\n", path.generic_string().c_str());
+    // All paths on PS4 must be absolute
+    if (path.begin()->generic_string() != "/") {
+        log("Path %s is not valid\n", path.generic_string().c_str());
+        return "";
+    }
 
     // Check if device is valid
     std::string device_str = std::next(path.begin(), 1)->generic_string();

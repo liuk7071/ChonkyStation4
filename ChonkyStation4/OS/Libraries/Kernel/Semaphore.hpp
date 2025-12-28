@@ -3,6 +3,7 @@
 #include <Common.hpp>
 #include <semaphore>
 #include <memory>
+#include <mutex>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -17,11 +18,17 @@ struct Semaphore {
     std::string name;
     s32 max_count;
     std::unique_ptr<sema> std_sema;
+    std::mutex mtx;
+
+    void signal(s32 count);
+    void wait(s32 count);
 };
 
 struct SceKernelSemaOptParam;
 using SceKernelSema = Semaphore*;
 
 s32 PS4_FUNC sceKernelCreateSema(SceKernelSema* sem, const char* name, u32 attr, s32 init_count, s32 max_count, const SceKernelSemaOptParam* opt_param);
+s32 PS4_FUNC sceKernelSignalSema(SceKernelSema sem, s32 count);
+s32 PS4_FUNC sceKernelWaitSema(SceKernelSema sem, s32 count, u32* timeout);
 
 };  // End namespace PS4::OS::Libs::Kernel

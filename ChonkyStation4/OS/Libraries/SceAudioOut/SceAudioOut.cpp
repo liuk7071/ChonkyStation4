@@ -17,6 +17,7 @@ void init(Module& module) {
     module.addSymbolExport("w3PdaSTSwGE", "sceAudioOutOutputs", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutputs);
 
     module.addSymbolStub("b+uAV89IlxE", "sceAudioOutSetVolume", "libSceAudioOut", "libSceAudioOut");
+    module.addSymbolStub("wVwPU50pS1c", "sceAudioOutSetMixLevelPadSpk", "libSceAudioOut", "libSceAudioOut");
 }
 
 SDL_AudioDeviceID dev;

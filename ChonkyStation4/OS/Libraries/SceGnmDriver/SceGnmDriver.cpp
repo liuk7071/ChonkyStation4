@@ -16,6 +16,7 @@ void init(Module& module) {
     module.addSymbolExport("Idffwf3yh8s", "sceGnmDrawInitDefaultHardwareState", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState);
     module.addSymbolExport("0H2vBYbTLHI", "sceGnmDrawInitDefaultHardwareState200", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState200);
     module.addSymbolExport("yb2cRhagD1I", "sceGnmDrawInitDefaultHardwareState350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState350);
+    module.addSymbolExport("nF6bFRUBRAU", "sceGnmDispatchInitDefaultHardwareState", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDispatchInitDefaultHardwareState);
     module.addSymbolExport("+AFvOEXrKJk", "sceGnmSetEmbeddedVsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedVsShader);
     module.addSymbolExport("X9Omw9dwv5M", "sceGnmSetEmbeddedPsShader", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetEmbeddedPsShader);
     module.addSymbolExport("GGsn7jMTxw4", "sceGnmDrawIndexAuto", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawIndexAuto);
@@ -32,10 +33,12 @@ void init(Module& module) {
     module.addSymbolExport("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSetCsShaderWithModifier);
     module.addSymbolExport("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmInsertWaitFlipDone);
     
+    module.addSymbolStub("iBt3Oe00Kvc", "sceGnmFlushGarlic", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("jg33rEKLfVs", "sceGnmIsUserPaEnabled", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("29oKvKXzEZo", "sceGnmMapComputeQueue", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("bX5IbRvECXk", "sceGnmDingDong", "libSceGnmDriver", "libSceGnmDriver");
 }
 
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg) {
@@ -83,6 +86,14 @@ s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState200(u32* buf, u32 size) {
 
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size) {
     log("sceGnmDrawInitDefaultHardwareState350(buf=%p, size=0x%x) TODO\n", buf, size);
+
+    // TODO
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmDispatchInitDefaultHardwareState(u32* buf, u32 size) {
+    log("sceGnmDispatchInitDefaultHardwareState(buf=%p, size=0x%x) TODO\n", buf, size);
 
     // TODO
     *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
@@ -235,12 +246,15 @@ s32 PS4_FUNC sceGnmUpdateVsShader(u32* buf, u32 size, const u32* vs_regs, u32 sh
 // Same as sceGnmSetPsShader350?
 s32 PS4_FUNC sceGnmSetPsShader(u32* buf, u32 size, const u32* ps_regs) {
     log("sceGnmSetPsShader(buf=%p, size=0x%x, ps_regs=%p)\n", buf, size, ps_regs);
-    log("addr_lo=0x%08x\n", ps_regs[0]);
-    log("addr_hi=0x%08x\n", ps_regs[1]);
 
     if (!ps_regs) {
-        Helpers::panic("sceGnmSetPsShader: ps_regs is nullptr (TODO)\n");
+        log("sceGnmSetPsShader: ps_regs is nullptr (TODO)\n");
+        *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+        return SCE_OK;
     }
+
+    log("addr_lo=0x%08x\n", ps_regs[0]);
+    log("addr_hi=0x%08x\n", ps_regs[1]);
 
     *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::SetShReg, 4);
     *buf++ = 0x8;

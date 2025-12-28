@@ -60,4 +60,94 @@ u32 findMemoryType(u32 type_filter, vk::MemoryPropertyFlags properties) {
     Helpers::panic("findMemoryType: failed to find suitable memory type");
 }
 
+// Returns a Vulkan format alongside the size of 1 pixel in bytes
+std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
+    switch ((DataFormat)dfmt) {
+
+    case DataFormat::Format8: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eR8Unorm, sizeof(u8) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format16_16: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Sscaled: return { vk::Format::eR16G16Sscaled, sizeof(u16) * 3 };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format8_8_8_8: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eR8G8B8A8Unorm, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format32_32: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Float: return { vk::Format::eR32G32Sfloat, sizeof(u32) * 2 };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format32_32_32: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Float: return { vk::Format::eR32G32B32Sfloat, sizeof(u32) * 3 };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format32_32_32_32: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Float: return { vk::Format::eR32G32B32A32Sfloat, sizeof(u32) * 4 };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format5_6_5: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eR5G6B5UnormPack16, sizeof(u16) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::FormatBc3: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eBc3UnormBlock, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+    }
+
+    Helpers::panic("getBufFormatAndSize: unreachable\n");
+}
+
 }   // End namespace PS4::GCN::Vulkan

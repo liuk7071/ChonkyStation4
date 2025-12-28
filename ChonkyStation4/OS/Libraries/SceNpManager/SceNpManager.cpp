@@ -15,6 +15,7 @@ void init(Module& module) {
     module.addSymbolStub("p-o74CnoNzY", "sceNpGetNpId", "libSceNpManager", "libSceNpManager", 0x8055000a /* user not signed up */);
     module.addSymbolStub("VfRSmPmj8Q8", "sceNpRegisterStateCallback", "libSceNpManager", "libSceNpManager", 1);
     module.addSymbolStub("GImICnh+boA", "sceNpRegisterPlusEventCallback", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("3Zl8BePTh9Y", "sceNpCheckCallback", "libSceNpManager", "libSceNpManager");
 }
 
 s32 PS4_FUNC sceNpGetState(SceUserService::SceUserServiceUserId uid, SceNpState* state) {

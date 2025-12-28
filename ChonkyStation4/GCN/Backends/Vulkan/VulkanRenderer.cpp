@@ -375,10 +375,27 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 
     if (!vs_ptr || !ps_ptr) return;
 
+    //std::ofstream vs_dump;
+    //vs_dump.open("vs_dump.bin", std::ios::binary);
+    //vs_dump.write((char*)vs_ptr, 16_KB);
+
     // TODO: For now fetch the shader address is hardcoded to user register 0:1.
     // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
+
+    u32* ptr = (u32*)vs_ptr;
+    while (*ptr != 0x5362724F) {    // "OrbS"
+        ptr++;
+    }
+
+    // Get the shader hash from the header
+    u64 hash;
+    ptr += 4;
+    std::memcpy(&hash, ptr, sizeof(u64));
+    log("hash: 0x%llx\n", hash);
+
+    if (hash == 0x75486d66862abd78) return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr);

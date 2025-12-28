@@ -16,7 +16,8 @@ using namespace ELFIO;
 // Unresolved symbols are stubbed to call this function
 void PS4_FUNC unresolvedSymbol(const char* sym_name) {
     printf("Linker: Called unresolved symbol %s\n", sym_name);
-    exit(0);
+    //exit(0);
+    std::_Exit(0);
 }
 
 void* generateTrampolineForUnresolvedSymbol(App& app, const std::string& sym_name) {

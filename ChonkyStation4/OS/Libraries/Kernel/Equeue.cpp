@@ -1,6 +1,12 @@
 #include "Equeue.hpp"
 #include <Logger.hpp>
 #include <thread>
+#ifdef _MSC_VER
+#include <intrin.h>
+#define RETURN_ADDRESS() _ReturnAddress()
+#else
+#define RETURN_ADDRESS() _builtin_return_address(0)
+#endif
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -126,6 +132,11 @@ s32 PS4_FUNC sceKernelAddUserEvent(SceKernelEqueue eq, s32 id) {
         .udata = 0,
     });
     return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelGetEventFilter(SceKernelEvent* ev) {
+    log("sceKernelGetEventFilter(eq=%p)\n", ev);
+    return (s32)(s16)ev->filter;
 }
 
 };  // End namespace PS4::OS::Libs::Kernel

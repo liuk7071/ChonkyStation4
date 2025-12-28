@@ -5,6 +5,10 @@
 #include <semaphore>
 #include <deque>
 #include <chrono>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 
 namespace PS4::GCN {
@@ -12,8 +16,13 @@ namespace PS4::GCN {
 std::deque<RendererCommand> commands;
 std::counting_semaphore<256> sem { 0 };
 std::mutex mtx;
+int prev_flip_idx = -1;
 
 void gcnThread() {
+#ifdef _WIN32
+    SetThreadDescription(GetCurrentThread(), L"[Emu] GCN Thread");
+#endif
+
     using clock = std::chrono::steady_clock;
     const double target_fps = 60.0; // Stubbed for now
     const clock::duration frame_duration = std::chrono::duration_cast<clock::duration>(std::chrono::duration<double>(1.0 / target_fps));
@@ -23,7 +32,7 @@ void gcnThread() {
     initVulkan();
 
     // Initialize event sources
-    eop_ev_source.init(EOP_EVENT_ID, 0);    // TODO: Properly set filter
+    eop_ev_source.init(EOP_EVENT_ID, -14);
     
     initialized = true;
 
@@ -60,7 +69,9 @@ void gcnThread() {
                 Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
             }
             port->signalFlip(cmd.flip_arg);
-            buf_label[cmd.buf_idx] = 0;
+            if (prev_flip_idx >= 0)
+                buf_label[prev_flip_idx] = 0;
+            prev_flip_idx = cmd.buf_idx;
 
             // Frame limiter
             frame_time += frame_duration;

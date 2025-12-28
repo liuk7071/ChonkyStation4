@@ -50,7 +50,6 @@ private:
     std::deque<vk::DescriptorBufferInfo> buffer_info;
 
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
-    vk::Format getVtxBufferFormat(u32 n_elements, u32 type);
 };
 
 }   // End namespace PS4::GCN::Vulkan

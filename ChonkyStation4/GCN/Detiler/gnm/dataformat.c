@@ -1,6 +1,7 @@
 #include "dataformat.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 GnmDataFormat gnmDfInitFromFmask(uint32_t numsamples, uint32_t numfrags) {
 	GnmDataFormat res = {

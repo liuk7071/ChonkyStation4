@@ -16,6 +16,7 @@ s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* ud
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState(u32* buf, u32 size);
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState200(u32* buf, u32 size);
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size);
+s32 PS4_FUNC sceGnmDispatchInitDefaultHardwareState(u32* buf, u32 size);
 s32 PS4_FUNC sceGnmSetEmbeddedVsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier);
 s32 PS4_FUNC sceGnmSetEmbeddedPsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier);
 s32 PS4_FUNC sceGnmDrawIndexAuto(u32* buf, u32 size, u32 cnt, u32 flags);

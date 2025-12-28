@@ -92,8 +92,14 @@ s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr) {
     return 0;
 }
 
+s32 PS4_FUNC kernel_pthread_create(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC* start)(void*), void* arg) {
+    log("pthread_create(tid=*%p, attr=*%p, start=%p, arg=%p)\n", tid, attr, start, arg);
+    scePthreadCreate(tid, attr, start, arg, nullptr);
+    return 0;
+}
+
 s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
-    log("pthread_create(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name);
+    log("scePthreadCreate(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name);
     // TODO: attr
     std::string name_str = name ? name : "unnamed";
     auto& thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);

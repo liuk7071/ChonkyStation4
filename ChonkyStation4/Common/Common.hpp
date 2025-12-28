@@ -50,6 +50,21 @@ namespace fs = std::filesystem;
 
 static constexpr s32 SCE_OK = 0;
 
+struct SceKernelTimespec {
+    s64 tv_sec;
+    s64 tv_nsec;
+};
+
+struct SceKernelTimeval {
+    s64 tv_sec;
+    s64 tv_nsec;
+};
+
+struct SceKernelTimezone {
+    s32 tz_minuteswest;
+    s32 tz_dsttime;
+};
+
 namespace Helpers {
 template <class... Args>
 [[noreturn]] static void panic(const char* fmt, Args&&... args) {

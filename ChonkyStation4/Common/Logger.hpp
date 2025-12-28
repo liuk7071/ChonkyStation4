@@ -53,7 +53,7 @@ public:
 #ifdef CHONKYSTATION4_USER_BUILD
 #define true false
 #else
-//#define true false
+#define true false
 //#define false true
 #endif
 
@@ -67,7 +67,7 @@ static Logger loader_app            = Logger<1>    ("[Loader ][App              
 static Logger lib_kernel            = Logger<true> ("[Lib    ][Kernel           ] ");
 static Logger lib_kernel_mutex      = Logger<false>("[Lib    ][KernelMutex      ] ");
 static Logger lib_kernel_equeue     = Logger<true> ("[Lib    ][KernelEqueue     ] ");
-static Logger lib_kernel_eflag      = Logger<true> ("[Lib    ][KernelEflag      ] ");
+static Logger lib_kernel_eflag      = Logger<false>("[Lib    ][KernelEflag      ] ");
 static Logger lib_kernel_sema       = Logger<true> ("[Lib    ][KernelSemaphore  ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut      ] ");

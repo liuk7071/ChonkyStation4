@@ -35,30 +35,18 @@ struct TLSIndex {
     u64 offset;
 };
 
-struct SceKernelTimespec {
-    s64 tv_sec;
-    s64 tv_nsec;
-};
-
-struct SceKernelTimeval {
-    s64 tv_sec;
-    s64 tv_nsec;
-};
-
-struct SceKernelTimezone {
-    s32 tz_minuteswest;
-    s32 tz_dsttime;
-};
-
 s32* PS4_FUNC kernel_error();
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
+s32 PS4_FUNC sceKernelSleep(u32 s);
 s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts);
 s32 PS4_FUNC sceKernelClockGettime(u32 clock_id, SceKernelTimespec* ts);
 s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz);
+s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz);
 u64 PS4_FUNC sceKernelGetProcessTime();
+u64 PS4_FUNC sceKernelReadTsc();
 s32 PS4_FUNC sceKernelIsNeoMode();
 void* PS4_FUNC sceKernelGetProcParam();
 s32 PS4_FUNC sceKernelGetProcessType();

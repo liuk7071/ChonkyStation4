@@ -27,7 +27,7 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         // TODO: Given that the vsharp could theoretically change between draws, add an assert (probably on each gatherVertices) to check if the stride of
         // the current vsharp is different from the one which was set here.
         binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
-        attrib = { shader_binding.dest_vgpr, n_binding++, getVtxBufferFormat(shader_binding.n_elements, 0 /* TODO: type */), 0 };
+        attrib = { shader_binding.dest_vgpr, n_binding++, getBufFormatAndSize(vsharp->dfmt, vsharp->nfmt).first, 0 };
 
         auto& vtx_binding = vtx_binding_layout.emplace_back();
         vtx_binding = shader_binding;
@@ -136,7 +136,7 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices(u32 cnt) {
         // Get pointer to the V#
         VSharp* vsharp = vtx_binding.fetch_shader_binding.vsharp_loc.asPtr();
         // Setup vertex buffer and copy data
-        const auto buf_size = vsharp->stride * cnt;
+        const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * cnt;
         vtx_binding.buf = vk::raii::Buffer(device, { .size = buf_size, .usage = vk::BufferUsageFlagBits::eVertexBuffer, .sharingMode = vk::SharingMode::eExclusive });
         auto mem_requirements = vtx_binding.buf.getMemoryRequirements();
         vtx_binding.mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
@@ -171,10 +171,10 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                 mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
                 buf.bindMemory(*mem, 0);
                 void* buf_data = mem.mapMemory(0, buf_size);
-                void* guest_buf_data = (void*)(vsharp->base);
+                void* guest_buf_data = (void*)vsharp->base;
                 std::memcpy(buf_data, guest_buf_data, buf_size);
                 mem.unmapMemory();
-
+                
                 buffer_info.push_back({
                     .buffer = *buf,
                     .offset = 0,
@@ -227,16 +227,6 @@ vk::raii::ShaderModule Pipeline::createShaderModule(const std::vector<u32>& code
     vk::raii::ShaderModule shader_module = { device, create_info };
 
     return shader_module;
-}
-
-vk::Format Pipeline::getVtxBufferFormat(u32 n_elements, u32 type) {
-    // TODO: for now type is ignored
-    switch (n_elements) {
-    case 2:     return vk::Format::eR32G32Sfloat;
-    case 3:     return vk::Format::eR32G32B32Sfloat;
-    case 4:     return vk::Format::eR32G32B32A32Sfloat;
-    default:    Helpers::panic("Vulkan: getVtxBuffeFormat unhandled n_elements=%d\n", n_elements);
-    }
 }
 
 }   // End namespace PS4::GCN::Vulkan

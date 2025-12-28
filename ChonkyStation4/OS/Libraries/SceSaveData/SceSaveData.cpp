@@ -14,6 +14,7 @@ void init(Module& module) {
     module.addSymbolStub("v7AAAMo0Lz4", "sceSaveDataSetupSaveDataMemory", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("7Bt5pBC-Aco", "sceSaveDataGetSaveDataMemory", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("h3YURzXGSVQ", "sceSaveDataSetSaveDataMemory", "libSceSaveData", "libSceSaveData");
+    module.addSymbolStub("dyIhnXq-0SM", "sceSaveDataDirNameSearch", "libSceSaveData", "libSceSaveData");
 }
 
 }   // End namespace PS4::OS::Libs::SceSysmodule
