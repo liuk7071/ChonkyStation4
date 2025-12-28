@@ -42,7 +42,7 @@ static u32 chooseSwapMinImageCount(const vk::SurfaceCapabilitiesKHR& surface_cap
 }
 
 static vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats) {
-    assert(!available_formats.empty());
+    Helpers::debugAssert(!available_formats.empty(), "chooseSwapSurfaceFormat: no available formats");
     const auto format_it = std::ranges::find_if(
         available_formats,
         [](const auto &format) { return format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; });
@@ -60,8 +60,10 @@ static vk::Extent2D chooseSwapExtent(SDL_Window* window, const vk::SurfaceCapabi
 
     int width, height;
     SDL_Vulkan_GetDrawableSize(window, &width, &height);
-    return { std::clamp<u32>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-             std::clamp<u32>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height) };
+    return {
+        std::clamp<u32>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+        std::clamp<u32>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+    };
 }
 
 void VulkanRenderer::recreateSwapChain() {
@@ -71,22 +73,23 @@ void VulkanRenderer::recreateSwapChain() {
     auto surface_capabilities = physical_device.getSurfaceCapabilitiesKHR(*surface);
     swapchain_extent = chooseSwapExtent(window, surface_capabilities);
     swapchain_surface_format = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
-    vk::SwapchainCreateInfoKHR swapchain_create_info = { .surface = *surface,
-                                                       .minImageCount = chooseSwapMinImageCount(surface_capabilities),
-                                                       .imageFormat = swapchain_surface_format.format,
-                                                       .imageColorSpace = swapchain_surface_format.colorSpace,
-                                                       .imageExtent = swapchain_extent,
-                                                       .imageArrayLayers = 1,
-                                                       .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-                                                       .imageSharingMode = vk::SharingMode::eExclusive,
-                                                       .preTransform = surface_capabilities.currentTransform,
-                                                       .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-                                                       .presentMode = chooseSwapPresentMode(physical_device.getSurfacePresentModesKHR(*surface)),
-                                                       .clipped = true };
+    vk::SwapchainCreateInfoKHR swapchain_create_info = {
+        .surface = *surface,
+        .minImageCount = chooseSwapMinImageCount(surface_capabilities),
+        .imageFormat = swapchain_surface_format.format,
+        .imageColorSpace = swapchain_surface_format.colorSpace,
+        .imageExtent = swapchain_extent,
+        .imageArrayLayers = 1,
+        .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+        .imageSharingMode = vk::SharingMode::eExclusive,
+        .preTransform = surface_capabilities.currentTransform,
+        .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+        .presentMode = chooseSwapPresentMode(physical_device.getSurfacePresentModesKHR(*surface)),
+        .clipped = true
+    };
 
     swapchain = vk::raii::SwapchainKHR(device, swapchain_create_info);
     swapchain_images = swapchain.getImages();
-    assert(swapchain_image_views.empty());
     vk::ImageViewCreateInfo image_view_create_info = { .viewType = vk::ImageViewType::e2D, .format = swapchain_surface_format.format, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
     for (auto image : swapchain_images) {
         image_view_create_info.image = image;
@@ -169,10 +172,8 @@ void VulkanRenderer::init() {
     // Check if the required layers are supported by the Vulkan implementation
     auto layer_properties = context.enumerateInstanceLayerProperties();
     for (auto const& required_layer : required_layers) {
-        if (std::ranges::none_of(layer_properties,
-                                    [required_layer](auto const& layerProperty)
-                                    { return strcmp(layerProperty.layerName, required_layer) == 0; })) {
-            throw std::runtime_error("Required layer not supported: " + std::string(required_layer));
+        if (std::ranges::none_of(layer_properties, [required_layer](auto const& layerProperty) { return strcmp(layerProperty.layerName, required_layer) == 0; })) {
+            Helpers::panic("Required layer not supported: %s", required_layer);
         }
     }
 
@@ -189,10 +190,8 @@ void VulkanRenderer::init() {
     // Check if the required extensions are supported by the Vulkan implementation
     auto extension_properties = context.enumerateInstanceExtensionProperties();
     for (auto const& required_exts : required_exts) {
-        if (std::ranges::none_of(extension_properties,
-                                    [required_exts](auto const& extensionProperty)
-                                    { return strcmp(extensionProperty.extensionName, required_exts) == 0; })) {
-            throw std::runtime_error("Required extension not supported: " + std::string(required_exts));
+        if (std::ranges::none_of(extension_properties, [required_exts](auto const& extensionProperty) { return strcmp(extensionProperty.extensionName, required_exts) == 0; })) {
+            Helpers::panic("Required extension not supported: %s", required_exts);
         }
     }
 
@@ -252,7 +251,7 @@ void VulkanRenderer::init() {
     if (dev_iter != devices.end()) {
         physical_device = *dev_iter;
     }
-    else throw std::runtime_error("Vulkan: failed to find a suitable GPU!");
+    else Helpers::panic("Vulkan: failed to find a suitable GPU!");
 
     // Get the first index into queue_family_properties which supports both graphics and present
     std::vector<vk::QueueFamilyProperties> queue_family_properties = physical_device.getQueueFamilyProperties();
@@ -263,7 +262,7 @@ void VulkanRenderer::init() {
             break;
         }
     }
-    if (queue_index == ~0) throw std::runtime_error("Could not find a queue family for graphics and presentation");
+    if (queue_index == ~0) Helpers::panic("Could not find a queue family for graphics and presentation");
 
     // Query for required features (Vulkan 1.1 and 1.3)
     vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> feature_chain = {
@@ -276,11 +275,13 @@ void VulkanRenderer::init() {
     // Create a (logical) Device
     float queue_prio = 0.0f;
     vk::DeviceQueueCreateInfo device_queue_crerate_info = { .queueFamilyIndex = queue_index, .queueCount = 1, .pQueuePriorities = &queue_prio };
-    vk::DeviceCreateInfo      device_create_info      = { .pNext                   = &feature_chain.get<vk::PhysicalDeviceFeatures2>(),
-                                                        .queueCreateInfoCount    = 1,
-                                                        .pQueueCreateInfos       = &device_queue_crerate_info,
-                                                        .enabledExtensionCount   = static_cast<u32>(required_device_exts.size()),
-                                                        .ppEnabledExtensionNames = required_device_exts.data() };
+    vk::DeviceCreateInfo device_create_info = {
+        .pNext                   = &feature_chain.get<vk::PhysicalDeviceFeatures2>(),
+         .queueCreateInfoCount    = 1,
+         .pQueueCreateInfos       = &device_queue_crerate_info,
+         .enabledExtensionCount   = static_cast<u32>(required_device_exts.size()),
+         .ppEnabledExtensionNames = required_device_exts.data()
+    };
 
     device = vk::raii::Device(physical_device, device_create_info);
     queue  = vk::raii::Queue(device, queue_index, 0);
@@ -289,24 +290,25 @@ void VulkanRenderer::init() {
     auto surface_capabilities = physical_device.getSurfaceCapabilitiesKHR(*surface);
     swapchain_extent          = chooseSwapExtent(window, surface_capabilities);
     swapchain_surface_format   = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
-    vk::SwapchainCreateInfoKHR swapchain_create_info = { .surface          = *surface,
-                                                       .minImageCount    = chooseSwapMinImageCount(surface_capabilities),
-                                                       .imageFormat      = swapchain_surface_format.format,
-                                                       .imageColorSpace  = swapchain_surface_format.colorSpace,
-                                                       .imageExtent      = swapchain_extent,
-                                                       .imageArrayLayers = 1,
-                                                       .imageUsage       = vk::ImageUsageFlagBits::eColorAttachment,
-                                                       .imageSharingMode = vk::SharingMode::eExclusive,
-                                                       .preTransform     = surface_capabilities.currentTransform,
-                                                       .compositeAlpha   = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-                                                       .presentMode      = chooseSwapPresentMode(physical_device.getSurfacePresentModesKHR(*surface)),
-                                                       .clipped          = true };
+    vk::SwapchainCreateInfoKHR swapchain_create_info = {
+        .surface          = *surface,
+        .minImageCount    = chooseSwapMinImageCount(surface_capabilities),
+        .imageFormat      = swapchain_surface_format.format,
+        .imageColorSpace  = swapchain_surface_format.colorSpace,
+        .imageExtent      = swapchain_extent,
+        .imageArrayLayers = 1,
+        .imageUsage       = vk::ImageUsageFlagBits::eColorAttachment,
+        .imageSharingMode = vk::SharingMode::eExclusive,
+        .preTransform     = surface_capabilities.currentTransform,
+        .compositeAlpha   = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+        .presentMode      = chooseSwapPresentMode(physical_device.getSurfacePresentModesKHR(*surface)),
+        .clipped          = true
+    };
 
     swapchain        = vk::raii::SwapchainKHR(device, swapchain_create_info);
     swapchain_images = swapchain.getImages();
 
     // Create views for the images in the swapchain
-    assert(swapchain_image_views.empty());
     vk::ImageViewCreateInfo image_view_create_info = { .viewType = vk::ImageViewType::e2D, .format = swapchain_surface_format.format, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
     for (auto image : swapchain_images) {
         image_view_create_info.image = image;
@@ -383,19 +385,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
-
-    u32* ptr = (u32*)vs_ptr;
-    while (*ptr != 0x5362724F) {    // "OrbS"
-        ptr++;
-    }
-
-    // Get the shader hash from the header
-    u64 hash;
-    ptr += 4;
-    std::memcpy(&hash, ptr, sizeof(u64));
-    log("hash: 0x%llx\n", hash);
-
-    if (hash == 0x75486d66862abd78) return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr);
