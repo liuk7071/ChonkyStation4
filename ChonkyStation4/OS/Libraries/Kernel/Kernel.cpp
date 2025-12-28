@@ -13,6 +13,7 @@
 #include <OS/Libraries/Kernel/Filesystem.hpp>
 #include <chrono>
 #include <thread>
+#include <mutex>
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -201,26 +202,35 @@ void init(Module& module) {
 static thread_local s32 posix_errno = 0;
 
 #ifdef _WIN32
+std::mutex allocator_mtx;
+
 void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
     if (reservation_start >= reservation_end) return nullptr;
     if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
     if (size == 0) return nullptr;
 
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    const size_t page_size = si.dwAllocationGranularity ;
+    const size_t page_size = si.dwPageSize;
     alignment = alignment < page_size ? page_size : alignment;
     size = (size + page_size - 1) & ~(page_size - 1);
 
     uptr cur_addr = reservation_start;
     while (true) {
         MEMORY_BASIC_INFORMATION mbi;
-        VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi));
+        if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
+            Helpers::panic("allocate: VirtualQuery failed\n");
         if (mbi.State == MEM_RESERVE) {
-            if (mbi.RegionSize >= size) {
+            uptr region_end = (uptr)mbi.BaseAddress + mbi.RegionSize;
+            if (cur_addr + size <= region_end) {
                 // Try to commit memory
                 void* ret = VirtualAlloc((void*)cur_addr, size, MEM_COMMIT, PAGE_READWRITE);
-                if (ret) return ret;
+                if (ret) {
+                    if ((u64)ret & (alignment - 1)) Helpers::panic("allocate: alignment error\n");
+                    return ret;
+                }
             }
 
             // Free area wasn't big enough to allocate or VirtualAlloc failed
@@ -232,6 +242,7 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
         if (cur_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
     }
 
+    
     return nullptr;
 }
 #endif
@@ -447,11 +458,11 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
     if (!in_addr) {
-        *addr = allocate(0x2'0000'0000, 0x2'0000'0000 + 500_GB, len, align);
+        *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, align);
     }
     else {
         // TODO
-        *addr = allocate(0x2'0000'0000, 0x2'0000'0000 + 500_GB, len, align);
+        *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, align);
     }
 #else
     Helpers::panic("Unsupported platform\n");
@@ -478,7 +489,7 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
 
     // TODO: prot, flags
 #ifdef _WIN32
-    *addr = allocate(0x2'0000'0000, 0x2'0000'0000 + 500_GB, len, 16_KB);
+    *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, 16_KB);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
@@ -494,7 +505,8 @@ s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
     log("sceKernelMunmap(addr=%p, len=0x%llx)\n", addr, len);
 
 #ifdef _WIN32
-    VirtualFree(addr, len, MEM_DECOMMIT);
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+    //VirtualFree(addr, len, MEM_DECOMMIT);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif

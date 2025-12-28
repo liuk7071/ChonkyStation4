@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
 
     // Try to reserve some address space as early as possible
 #ifdef _WIN32
-    void* ret = VirtualAlloc((void*)0x2'0000'0000, 1024_GB, MEM_RESERVE, PAGE_NOACCESS);
+    void* ret = VirtualAlloc((void*)0x0'8000'0000, 2048_GB, MEM_RESERVE, PAGE_NOACCESS);
     if (!ret) {
         printf("Warning: failed to reserve address space\n");
     }
