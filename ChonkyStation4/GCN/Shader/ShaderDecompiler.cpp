@@ -316,7 +316,7 @@ bool scc;
     }
 
     std::string main;
-    main.reserve(1_KB); // Avoid reallocations
+    main.reserve(8_KB); // Avoid reallocations
 
     switch (stage) {
     case ShaderStage::Vertex: {
