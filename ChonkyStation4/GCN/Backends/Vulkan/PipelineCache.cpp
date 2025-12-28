@@ -14,7 +14,6 @@ std::unordered_map<u64, Shader::ShaderData*> shaders;
 
 Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, const u8* fetch_shader_code) {
     // Compile shaders
-    // TODO: Shader cache
     GCN::FetchShader fetch_shader = FetchShader(fetch_shader_code);
     Shader::ShaderData vert_shader, pixel_shader;
 
