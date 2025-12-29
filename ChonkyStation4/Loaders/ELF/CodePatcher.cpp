@@ -105,7 +105,7 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 code->jmp(patch_code_ptr);
                 Helpers::debugAssert(code->getSize() <= instruction.length, "CodePatcher: patch is larger than the original instruction (patch is %d, instruction is %d)\n", code->getSize(), instruction.length);
 
-                const auto leftover = (std::max)(instruction.length - code->getSize(), 0ull);
+                const auto leftover = std::max(instruction.length - code->getSize(), (u64)0);
                 std::memset(code_ptr + offs + code->getSize(), 0xcd, leftover);
             }
 

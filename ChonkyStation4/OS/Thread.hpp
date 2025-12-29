@@ -2,7 +2,7 @@
 
 #include <Common.hpp>
 #include <Loaders/Module.hpp>
-#include <OS/Libraries/Kernel/kernel.hpp>
+#include <OS/Libraries/Kernel/Kernel.hpp>
 #include <pthread.h>
 #include <deque>
 #include <unordered_map>
