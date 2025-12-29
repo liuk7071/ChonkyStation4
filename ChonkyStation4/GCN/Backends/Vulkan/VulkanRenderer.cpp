@@ -25,9 +25,10 @@ const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-static VKAPI_ATTR unsigned int VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void*) {
-    if ((vk::DebugUtilsMessageSeverityFlagBitsEXT)severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError || (vk::DebugUtilsMessageSeverityFlagBitsEXT)severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning) {
-        std::cerr << "validation layer: type " << to_string((vk::DebugUtilsMessageTypeFlagsEXT)type) << " msg: " << pCallbackData->pMessage << std::endl;
+static VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*) {
+    if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError ||
+        severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning) {
+        std::cerr << "validation layer: type " << to_string(type) << " msg: " << pCallbackData->pMessage << std::endl;
     }
 
     return vk::False;

@@ -1,5 +1,5 @@
 #include "HLE.hpp"
-#include <OS/Libraries/Kernel/kernel.hpp>
+#include <OS/Libraries/Kernel/Kernel.hpp>
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
 #include <OS/Libraries/SceGnmDriver/SceGnmDriver.hpp>
 #include <OS/Libraries/SceSystemService/SceSystemService.hpp>

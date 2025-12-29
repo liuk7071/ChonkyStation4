@@ -46,7 +46,7 @@ inline std::deque<s32> stubbed_symbol_ret_vals;
 inline std::vector<std::unique_ptr<Xbyak::CodeGenerator>> stubbed_symbol_handlers;
 
 static std::string encodeID(u16 id) {
-    static constexpr char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-";
+    const char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-";
     std::string res;
     
     if (id < 64) {

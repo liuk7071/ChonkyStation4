@@ -9,7 +9,7 @@
 
 namespace PS4::OS::Libs::Kernel {
 
-using sema = std::counting_semaphore<UINT32_MAX>;
+using sema = std::counting_semaphore<INT32_MAX>;
 
 struct Semaphore {
     Semaphore(s32 init_count, s32 max_count) : max_count(max_count) {

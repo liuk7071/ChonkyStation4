@@ -147,7 +147,7 @@ s32 PS4_FUNC sceGnmDrawIndex(u32* buf, u32 size, u32 cnt, void* index_buf_ptr, u
 
     *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::DrawIndex2, size);
     *buf++ = cnt;
-    *buf++ = (u32)index_buf_ptr;
+    *buf++ = (u64)index_buf_ptr;
     *buf++ = (u64)index_buf_ptr >> 32;
     *buf++ = cnt;
     *buf++ = 0;
