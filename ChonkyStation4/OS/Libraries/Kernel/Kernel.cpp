@@ -172,6 +172,7 @@ void init(Module& module) {
     module.addSymbolExport("188x57JYp0g", "sceKernelCreateSema", "libkernel", "libkernel", (void*)&sceKernelCreateSema);
     module.addSymbolExport("4czppHBiriw", "sceKernelSignalSema", "libkernel", "libkernel", (void*)&sceKernelSignalSema);
     module.addSymbolExport("Zxa0VhQVTsk", "sceKernelWaitSema", "libkernel", "libkernel", (void*)&sceKernelWaitSema);
+    module.addSymbolExport("12wOHk8ywb0", "sceKernelPollSema", "libkernel", "libkernel", (void*)&sceKernelPollSema);
     
     module.addSymbolStub("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel");
     module.addSymbolStub("Ox9i0c7L5w0", "scePthreadRwlockRdlock", "libkernel", "libkernel");

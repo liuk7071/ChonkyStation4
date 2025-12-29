@@ -29,6 +29,7 @@ static constexpr s32 SCE_KERNEL_S_IFREG = 0100000;
 
 enum class Device {
     APP0,
+    SAVEDATA0,
     DEV,
     INVALID
 };

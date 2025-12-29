@@ -14,6 +14,7 @@ void init(Module& module) {
     module.addSymbolExport("4tPhsP6FpDI", "sceSaveDataDialogOpen", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogOpen);
     module.addSymbolExport("yEiJ-qqr6Cg", "sceSaveDataDialogGetResult", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogGetResult);
     module.addSymbolExport("KK3Bdg1RWK0", "sceSaveDataDialogUpdateStatus", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogUpdateStatus);
+    module.addSymbolExport("ERKzksauAJA", "sceSaveDataDialogGetStatus", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogGetStatus);
     module.addSymbolExport("YuH2FA7azqQ", "sceSaveDataDialogTerminate", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogTerminate);
     
 
@@ -45,6 +46,17 @@ s32 PS4_FUNC sceSaveDataDialogGetResult(SceSaveDataDialogResult* result) {
 
 s32 PS4_FUNC sceSaveDataDialogUpdateStatus() {
     log("sceSaveDataDialogUpdateStatus()\n");
+    log("status: %d\n", status);
+
+    const s32 val = status;
+    // Simulate the dialog being closed after it was opened
+    if (status == 2)
+        status = 3; // Finished
+    return val;
+}
+
+s32 PS4_FUNC sceSaveDataDialogGetStatus() {
+    log("sceSaveDataDialogGetStatus()\n");
     log("status: %d\n", status);
 
     const s32 val = status;

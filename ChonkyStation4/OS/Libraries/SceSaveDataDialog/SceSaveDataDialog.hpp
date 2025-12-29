@@ -53,6 +53,7 @@ s32 PS4_FUNC sceSaveDataDialogInitialize();
 s32 PS4_FUNC sceSaveDataDialogOpen(const SceSaveDataDialogParam* param);
 s32 PS4_FUNC sceSaveDataDialogGetResult(SceSaveDataDialogResult* result);
 s32 PS4_FUNC sceSaveDataDialogUpdateStatus();
+s32 PS4_FUNC sceSaveDataDialogGetStatus();
 s32 PS4_FUNC sceSaveDataDialogTerminate();
 
 }   // End namespace PS4::OS::Libs::SceSaveDataDialog

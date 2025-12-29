@@ -32,7 +32,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     void* ptr = (void*)(tsharp->base_address << 8);
 
     size_t img_size;
-    if (vk_fmt == vk::Format::eBc3UnormBlock) {
+    if (vk_fmt == vk::Format::eBc3UnormBlock || vk_fmt == vk::Format::eBc1RgbaUnormBlock) {
         const auto blk_width  = (width  + 3) / 4;
         const auto blk_height = (height + 3) / 4;
         img_size = blk_width * blk_height * 16;

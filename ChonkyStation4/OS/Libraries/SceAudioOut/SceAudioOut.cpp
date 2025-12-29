@@ -13,6 +13,7 @@ MAKE_LOG_FUNCTION(log, lib_sceAudioOut);
 void init(Module& module) {
     module.addSymbolExport("JfEPXVxhFqA", "sceAudioOutInit", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutInit);
     module.addSymbolExport("ekNvsT22rsY", "sceAudioOutOpen", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOpen);
+    module.addSymbolExport("GrQ9s4IrNaQ", "sceAudioOutGetPortState", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutGetPortState);
     module.addSymbolExport("QOQtbeDqsT4", "sceAudioOutOutput", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutput);
     module.addSymbolExport("w3PdaSTSwGE", "sceAudioOutOutputs", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutputs);
 
@@ -72,6 +73,21 @@ s32 PS4_FUNC sceAudioOutOpen(Libs::SceUserService::SceUserServiceUserId uid, s32
 
     SDL_PauseAudioDevice(dev, 0);
     return handle;
+}
+
+s32 PS4_FUNC sceAudioOutGetPortState(s32 handle, SceAudioOutPortState* state) {
+    log("sceAudioOutGetPortState(handle=%d, state=*%p)\n", handle, state);
+
+    auto* port = PS4::OS::find<SceAudioOutPort>(handle);
+    if (!port) {
+        Helpers::panic("sceAudioOutGetPortState: could not find port with handle %d\n", handle);
+    }
+
+    state->output = 1;  // Primary output
+    state->channel = port->n_channels;
+    state->volume = 127;    // This is supposed to be set for PADSPK only
+    state->reroute_counter = 0;
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceAudioOutOutput(s32 handle, const void* ptr) {

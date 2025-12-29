@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     if (argc >= 2)
         file = argv[1];
     else {
-        printf("Usage: ChonkyStation4 [path to elf]\n");
+        printf("Usage: ChonkyStation4 [path to elf or game]\n");
         return -1;
     }
 

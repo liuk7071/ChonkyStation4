@@ -80,7 +80,7 @@ u64 open(fs::path path, u32 flags) {
         Helpers::panic("Failed to open file %s with mode %s\n", host_path.generic_string().c_str(), mode.c_str());
     }
     open_files[new_file_id] = std::make_unique<File>(file, host_path, path, flags);
-    log("Opened file %s\n", host_path.generic_string().c_str());
+    log("Opened file %s with id %d\n", host_path.generic_string().c_str(), new_file_id);
     return new_file_id;
 }
 
@@ -255,14 +255,16 @@ std::string deviceToString(Device device) {
     if (device == Device::INVALID) Helpers::panic("deviceToString: invalid device\n");
 
     switch (device) {
-    case Device::APP0:  return "app0";
-    case Device::DEV:   return "dev";
+    case Device::APP0:          return "app0";
+    case Device::SAVEDATA0:     return "savedata0";
+    case Device::DEV:           return "dev";
     }
 }
 
 Device stringToDevice(std::string device) {
-    if (device == "app0")   return Device::APP0;
-    if (device == "dev")    return Device::DEV;
+    if      (device == "app0")          return Device::APP0;
+    else if (device == "savedata0")     return Device::SAVEDATA0;
+    else if (device == "dev")           return Device::DEV;
     else return Device::INVALID;
 }
 

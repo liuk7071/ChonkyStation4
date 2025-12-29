@@ -8,6 +8,8 @@ namespace PS4::OS::Libs::SceSaveData {
 MAKE_LOG_FUNCTION(log, lib_sceSaveData);
 
 void init(Module& module) {
+    module.addSymbolExport("32HQAQdwM2o", "sceSaveDataMount", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataMount);
+    
     module.addSymbolStub("ZkZhskCPXFw", "sceSaveDataInitialize", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("TywrFKCoLGY", "sceSaveDataInitialize3", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("0z45PIH+SNI", "sceSaveDataMount2", "libSceSaveData", "libSceSaveData", 0x809f000a /* no space */);
@@ -15,6 +17,16 @@ void init(Module& module) {
     module.addSymbolStub("7Bt5pBC-Aco", "sceSaveDataGetSaveDataMemory", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("h3YURzXGSVQ", "sceSaveDataSetSaveDataMemory", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("dyIhnXq-0SM", "sceSaveDataDirNameSearch", "libSceSaveData", "libSceSaveData");
+    module.addSymbolStub("c88Yy54Mx0w", "sceSaveDataSaveIcon", "libSceSaveData", "libSceSaveData");
+    module.addSymbolStub("BMR4F-Uek3E", "sceSaveDataUmount", "libSceSaveData", "libSceSaveData");
+}
+
+s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result) {
+    log("sceSaveDataMount(mount=*%p, mount_result=*%p)\n");
+
+    std::memset(mount_result->mount_point.data, 0, SCE_SAVE_DATA_MOUNT_POINT_DATA_MAXSIZE);
+    std::strcpy(mount_result->mount_point.data, "/savedata0");
+    return SCE_OK;
 }
 
 }   // End namespace PS4::OS::Libs::SceSysmodule

@@ -17,6 +17,7 @@ void init() {
     std::thread gcn_thread(GCN::gcnThread);
     gcn_thread.detach();
 
+    FS::mount(FS::Device::SAVEDATA0, "./savedata0");
     FS::mount(FS::Device::DEV, "./dev");    // TODO: Properly handle /dev
     FS::init();
 

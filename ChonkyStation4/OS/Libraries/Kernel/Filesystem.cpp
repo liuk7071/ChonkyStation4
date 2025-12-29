@@ -28,6 +28,13 @@ s32 PS4_FUNC sceKernelOpen(const char* path, s32 flags, u16 mode) {
 
 s64 PS4_FUNC kernel_lseek(s32 fd, s64 offset, s32 whence) {
     log("lseek(fd=%d, offset=%lld, whence=%d)\n", fd, offset, whence);
+
+    if (!FS::exists(fd)) {
+        log("File %d does not exist\n", fd);
+        *Kernel::kernel_error() = POSIX_EBADF;
+        return -1;
+    }
+
     auto lock = FS::getFileLock(fd);
     return FS::seek(fd, offset, whence);
 }

@@ -1,5 +1,6 @@
 #include "Semaphore.hpp"
 #include <Logger.hpp>
+#include <ErrorCodes.hpp>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -8,6 +9,7 @@ MAKE_LOG_FUNCTION(log, lib_kernel_sema);
 
 void Semaphore::signal(s32 count) {
     while (count--) {
+        counter++;
         std_sema->release();
     }
 }
@@ -17,7 +19,21 @@ void Semaphore::wait(s32 count) {
 
     while (count--) {
         std_sema->acquire();
+        counter--;
     }
+}
+
+bool Semaphore::poll(s32 count) {
+    auto lk = std::unique_lock<std::mutex>(mtx);
+
+    if (counter >= count) {
+        while (count--) {
+            std_sema->acquire();
+            counter--;
+        }
+        return true;
+    }
+    return false;
 }
 
 s32 PS4_FUNC sceKernelCreateSema(SceKernelSema* sem, const char* name, u32 attr, s32 init_count, s32 max_count, const SceKernelSemaOptParam* opt_param) {
@@ -43,6 +59,14 @@ s32 PS4_FUNC sceKernelWaitSema(SceKernelSema sem, s32 count, u32* timeout) {
     }
 
     sem->wait(count);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelPollSema(SceKernelSema sem, s32 count) {
+    log("sceKernelPollSema(sem=%p, count=%d)\n", sem, count);
+
+    if (!sem->poll(count))
+        return SCE_KERNEL_ERROR_EBUSY;
     return SCE_OK;
 }
 

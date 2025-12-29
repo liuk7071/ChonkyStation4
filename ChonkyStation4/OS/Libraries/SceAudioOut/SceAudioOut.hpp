@@ -37,6 +37,16 @@ struct SceAudioOutOutputParam {
     const void* ptr;
 };
 
+struct SceAudioOutPortState {
+    u16 output;
+    u8 channel;
+    u8 reserved1[1];
+    s16 volume;
+    u16 reroute_counter;
+    u64 flag;
+    u64 reserved2[2];
+};
+
 struct SceAudioOutPort : SceObj {
     AudioVirtualDevice device;
     u32 len;
@@ -48,6 +58,7 @@ struct SceAudioOutPort : SceObj {
 
 s32 PS4_FUNC sceAudioOutInit();
 s32 PS4_FUNC sceAudioOutOpen(Libs::SceUserService::SceUserServiceUserId uid, s32 type, s32 idx, u32 len, u32 freq, u32 param);
+s32 PS4_FUNC sceAudioOutGetPortState(s32 handle, SceAudioOutPortState* state);
 s32 PS4_FUNC sceAudioOutOutput(s32 handle, const void* ptr);
 s32 PS4_FUNC sceAudioOutOutputs(SceAudioOutOutputParam* param, u32 num);
 

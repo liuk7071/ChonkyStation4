@@ -249,7 +249,7 @@ s32 PS4_FUNC sceGnmSetPsShader(u32* buf, u32 size, const u32* ps_regs) {
 
     if (!ps_regs) {
         log("sceGnmSetPsShader: ps_regs is nullptr (TODO)\n");
-        *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
+        *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 32);
         return SCE_OK;
     }
 
