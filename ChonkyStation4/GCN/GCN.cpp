@@ -51,7 +51,7 @@ void gcnThread() {
 
         // Process the command
         switch (cmd.type) {
-        case CommandType::SubmitCommandBuffers: {
+        case CommandType::SubmitGraphics: {
             GCN::processCommands(cmd.dcb, cmd.dcb_size, cmd.ccb, cmd.ccb_size);
             break;
         }
@@ -97,8 +97,12 @@ void submitRendererCommand(RendererCommand cmd) {
     sem.release();
 }
 
-void submitCommandBuffers(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
-    submitRendererCommand({ CommandType::SubmitCommandBuffers, dcb, dcb_size, ccb, ccb_size });
+void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
+    submitRendererCommand({ CommandType::SubmitGraphics, dcb, dcb_size, ccb, ccb_size });
+}
+
+void submitCompute(u32* cb, size_t cb_size, u32 queue_id) {
+    // TODO
 }
 
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {

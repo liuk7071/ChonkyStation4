@@ -82,7 +82,7 @@ else()
 endif()
 
 if(WIN32)
-target_link_libraries(ChonkyStation4 PRIVATE pthreadVC3)
+    target_link_libraries(ChonkyStation4 PRIVATE pthreadVC3)
 endif()
 target_link_libraries(ChonkyStation4 PRIVATE Zydis SDL2-static xxHash::xxhash)
 

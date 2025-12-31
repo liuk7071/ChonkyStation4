@@ -10,9 +10,23 @@ namespace PS4::OS::Libs::SceGnmDriver {
 
 void init(Module& module);
 
+static constexpr s32 MAX_COMPUTE_QUEUES_PER_PIPE = 8;
+static constexpr s32 MAX_COMPUTE_PIPES           = 7;
+static constexpr s32 MAX_COMPUTE_QUEUES          = MAX_COMPUTE_QUEUES_PER_PIPE * MAX_COMPUTE_PIPES;
+
+struct ComputeQueue {
+    bool is_mapped = false;
+    void* ring_base_addr = nullptr;
+    u32 ring_size_dw = 0;
+    u32* read_ptr_addr = nullptr;
+    u32 next_offs_dw = 0;
+};
+
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg);
 s32 PS4_FUNC sceGnmSubmitDone();
 s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* udata);
+s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr);
+s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw);
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState(u32* buf, u32 size);
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState200(u32* buf, u32 size);
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size);

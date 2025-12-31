@@ -189,6 +189,7 @@ void init(Module& module) {
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
+    module.addSymbolStub("bnZxYgAFeA0", "sceKernelGetSanitizerNewReplaceExternal", "libkernel", "libkernel");
     module.addSymbolStub("bt3CTBKmGyI", "scePthreadSetaffinity", "libkernel", "libkernel");
     module.addSymbolStub("W0Hpm2X0uPE", "scePthreadSetprio", "libkernel", "libkernel");
     module.addSymbolStub("eXbUSpEaTsA", "scePthreadAttrSetinheritsched", "libkernel", "libkernel");
@@ -198,6 +199,7 @@ void init(Module& module) {
     module.addSymbolStub("rNhWz+lvOMU", "_sceKernelSetThreadDtors", "libkernel", "libkernel");  // void
     module.addSymbolStub("pB-yGZ2nQ9o", "_sceKernelSetThreadAtexitCount", "libkernel", "libkernel");  // void
     module.addSymbolStub("WhCc1w3EhSI", "_sceKernelSetThreadAtexitReport", "libkernel", "libkernel");  // void
+    module.addSymbolStub("DGMG3JshrZU", "sceKernelSetVirtualRangeName", "libkernel", "libkernel");
 }
 
 static thread_local s32 posix_errno = 0;

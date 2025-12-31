@@ -260,8 +260,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
         }
         
-        //if (pkt->count > 100) ptr++;
-        //else
+        if (pkt->count > 100) ptr++;
+        else
             ptr += pkt->count + 2;
     }
 }

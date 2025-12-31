@@ -13,6 +13,8 @@ void init(Module& module) {
     module.addSymbolExport("xbxNatawohc", "sceGnmSubmitAndFlipCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitAndFlipCommandBuffers);
     module.addSymbolExport("yvZ73uQUqrk", "sceGnmSubmitDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitDone);
     module.addSymbolExport("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmAddEqEvent);
+    module.addSymbolExport("29oKvKXzEZo", "sceGnmMapComputeQueue", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmMapComputeQueue);
+    module.addSymbolExport("bX5IbRvECXk", "sceGnmDingDong", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDingDong);
     module.addSymbolExport("Idffwf3yh8s", "sceGnmDrawInitDefaultHardwareState", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState);
     module.addSymbolExport("0H2vBYbTLHI", "sceGnmDrawInitDefaultHardwareState200", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState200);
     module.addSymbolExport("yb2cRhagD1I", "sceGnmDrawInitDefaultHardwareState350", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState350);
@@ -37,15 +39,15 @@ void init(Module& module) {
     module.addSymbolStub("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("jg33rEKLfVs", "sceGnmIsUserPaEnabled", "libSceGnmDriver", "libSceGnmDriver");
-    module.addSymbolStub("29oKvKXzEZo", "sceGnmMapComputeQueue", "libSceGnmDriver", "libSceGnmDriver");
-    module.addSymbolStub("bX5IbRvECXk", "sceGnmDingDong", "libSceGnmDriver", "libSceGnmDriver");
 }
+
+ComputeQueue compute_queues[MAX_COMPUTE_QUEUES];
 
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg) {
     log("sceGnmSubmitAndFlipCommandBuffers(cnt=%d, dcb_gpu_addrs=*%p, dcb_sizes=%p, ccb_gpu_addrs=*%p, ccb_sizes=%p, video_out_handle=%d, buf_idx=%d, flip_mode=%d, flip_arg=0x%llx)\n", cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes, video_out_handle, buf_idx, flip_mode, flip_arg);
     
     for (int i = 0; i < cnt; i++)
-        GCN::submitCommandBuffers(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
+        GCN::submitGraphics(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
 
     GCN::submitFlip(video_out_handle, buf_idx, flip_arg);
     return SCE_OK;
@@ -68,36 +70,78 @@ s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* ud
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr) {
+    log("sceGnmMapComputeQueue(pipe_id=%d, queue_id=%d, ring_base_addr=%p, ring_size_dw=0x%x, read_ptr_addr=%p)\n", pipe_id, queue_id, ring_base_addr, ring_size_dw, read_ptr_addr);
+    
+    const auto qid = queue_id * pipe_id;
+    ComputeQueue& queue = compute_queues[qid];
+    if (queue.is_mapped) {
+        Helpers::panic("Tried to map an already mapped compute queue\n");
+    }
+
+    queue = { true, ring_base_addr, ring_size_dw, read_ptr_addr };
+    *read_ptr_addr = 0;
+    log("Mapped compute queue %d\n", qid + 1);
+    return qid + 1;    // Queue id is non-zero
+}
+
+s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw) {
+    log("sceGnmDingDong(queue_id=%d, next_offs_dw=0x%x)\n", queue_id, next_offs_dw);
+
+    ComputeQueue& queue = compute_queues[queue_id - 1];
+    if (!queue.is_mapped) {
+        Helpers::panic("sceGnmDingDong on an unmapped queue\n");
+    }
+
+    // If a next offset is specified, the queue is executed up to that offset, otherwise until the end of the ring buffer.
+    const auto curr_offs = queue.next_offs_dw;
+    queue.next_offs_dw = next_offs_dw;
+
+    if (next_offs_dw && next_offs_dw < curr_offs) {
+        Helpers::panic("TODO: next_offs_dw < curr_offs");
+    }
+
+    // This is the starting offset, aka the "last next offset"
+    const u32* cmd_buf_ptr = (u32*)queue.ring_base_addr + curr_offs;                        
+    
+    // The size is "next offset - current offset", in the case where next_offs_dw is 0 the next offset is the ring buffer size
+    const size_t cmd_buf_size_dw = (next_offs_dw ? next_offs_dw : queue.ring_size_dw) - curr_offs;
+
+    // Now that we have the command buffer base and size, submit it to the graphics thread
+    GCN::submitCompute((u32*)cmd_buf_ptr, cmd_buf_size_dw, queue_id - 1);
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState(u32* buf, u32 size) {
     log("sceGnmDrawInitDefaultHardwareState(buf=%p, size=0x%x) TODO\n", buf, size);
 
     // TODO
-    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
-    return SCE_OK;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 0x100);
+    return 0x100;
 }
 
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState200(u32* buf, u32 size) {
     log("sceGnmDrawInitDefaultHardwareState200(buf=%p, size=0x%x) TODO\n", buf, size);
     
     // TODO
-    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
-    return SCE_OK;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 0x100);
+    return 0x100;
 }
 
 s32 PS4_FUNC sceGnmDrawInitDefaultHardwareState350(u32* buf, u32 size) {
     log("sceGnmDrawInitDefaultHardwareState350(buf=%p, size=0x%x) TODO\n", buf, size);
 
     // TODO
-    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
-    return SCE_OK;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 0x100);
+    return 0x100;
 }
 
 s32 PS4_FUNC sceGnmDispatchInitDefaultHardwareState(u32* buf, u32 size) {
     log("sceGnmDispatchInitDefaultHardwareState(buf=%p, size=0x%x) TODO\n", buf, size);
 
     // TODO
-    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, size);
-    return SCE_OK;
+    *buf++ = PM4_HEADER_BUILD(GCN::PM4ItOpcode::Nop, 0x100);
+    return 0x100;
 }
 
 s32 PS4_FUNC sceGnmSetEmbeddedVsShader(u32* buf, u32 size, u32 shader_id, u32 shader_modifier) {
