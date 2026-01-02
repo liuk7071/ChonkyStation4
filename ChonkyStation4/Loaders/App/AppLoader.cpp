@@ -42,6 +42,10 @@ bool getApp(const AppInfo& info, ::App& app) {
         "libSceNgs2.sprx"
     };
 
+    const std::string partial_lle_sysmodules_to_load[] = {
+        "libSceGnmDriver.sprx"
+    };
+
     const fs::path sysmodules_path = fs::path(SDL_GetPrefPath("ChonkyStation", "ChonkyStation4")) / "sysmodules";
     fs::create_directories(sysmodules_path);    // Ensure directory exists
 
@@ -53,6 +57,15 @@ bool getApp(const AppInfo& info, ::App& app) {
         }
 
         Loader::Linker::loadAndLinkLib(app, sysmodule_path);
+    }
+
+    for (auto& sysmodule : partial_lle_sysmodules_to_load) {
+        const auto sysmodule_path = sysmodules_path / sysmodule;
+        if (!fs::exists(sysmodule_path)) {
+            Helpers::panic("Required sysmodule %s does not exist\n", sysmodule.c_str());
+        }
+
+        Loader::Linker::loadAndLinkLib(app, sysmodule_path, true, app.getHLEModule());
     }
 
     // Load game modules from the "sce_module" folder

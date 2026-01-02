@@ -106,6 +106,7 @@ public:
     std::vector<ModuleInfo> exported_modules;
     std::vector<LibraryInfo> exported_libs;
     std::vector<Symbol> exported_symbols;
+    std::vector<Symbol> partial_lle_symbols;
     u64 tls_vaddr = 0;
     u64 tls_filesz = 0;
     u64 tls_memsz = 0;
@@ -144,6 +145,14 @@ public:
         return nullptr;
     }
 
+    bool isPartialLLESymbol(const std::string& name, const std::string& lib, const std::string& module) {
+        for (auto& sym : partial_lle_symbols) {
+            if ((sym.nid == name) && (sym.lib == lib) && (sym.module == module))
+                return true;
+        }
+        return false;
+    }
+
     void addSymbolExport(const std::string& nid, const std::string& name, const std::string& lib, const std::string& module, void* ptr) {
         Symbol sym;
         sym.nid = nid;
@@ -173,6 +182,16 @@ public:
         void* ptr = (void*)code->getCode();
         PS4::Loader::stubbed_symbol_handlers.push_back(std::move(code));
         addSymbolExport(nid, name, lib, module, ptr);
+    }
+
+    void addSymbolForPartialLLE(const std::string& nid, const std::string& name, const std::string& lib, const std::string& module) {
+        Symbol sym;
+        sym.nid = nid;
+        sym.name = name;
+        sym.lib = lib;
+        sym.module = module;
+        sym.ptr = nullptr;
+        partial_lle_symbols.push_back(sym);
     }
 
     std::vector<u8> dynamic_tags;

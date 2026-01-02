@@ -47,8 +47,6 @@ App loadAndLink(const fs::path& path) {
     // Build HLE module
     app.modules.push_back(PS4::OS::HLE::buildHLEModule());
 
-    // TODO: Load LLE modules
-    
     // Relocate
     doRelocations(app);
 
@@ -141,9 +139,9 @@ void doRelocations(App& app) {
     }
 }
 
-void loadAndLinkLib(App& app, const fs::path& path) {
+void loadAndLinkLib(App& app, const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
     ELFLoader loader;
-    app.modules.push_back(loader.load(path));
+    app.modules.push_back(loader.load(path, is_partial_lle_module, hle_module));
     doRelocations(app);
 }
 

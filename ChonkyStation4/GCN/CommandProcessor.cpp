@@ -55,16 +55,22 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     // TODO: What is ccb???????? (compute?)
     Helpers::debugAssert(!ccb, "processCommands: ccb != nullptr\n");
 
-    for (u32* ptr = dcb; ptr < dcb + dcb_size; ) {
-        if (*ptr == 0) {
-            ptr++;
-            continue;
-        }
+    for (u32* ptr = dcb; (u8*)ptr < (u8*)dcb + dcb_size; ) {
 
         PM4Header* pkt = (PM4Header*)ptr;
         u32* args = ptr;
         args++;
         
+        if (pkt->type == 0) {
+            Helpers::panic("PM4 type 0 packet\n");
+        }
+        else if (pkt->type == 1) {
+            Helpers::panic("PM4 type 1 packet\n");
+        }
+        else if (pkt->type == 2) {
+            Helpers::panic("PM4 type 2 packet\n");
+        }
+
         switch ((PM4ItOpcode)(u32)pkt->opcode) {
         case PM4ItOpcode::Nop: {
             u32 cmd = *args++;
@@ -255,14 +261,12 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
 
         default: {
-            //printf("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
+            log("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
             break;
         }
         }
-        
-        if (pkt->count > 100) ptr++;
-        else
-            ptr += pkt->count + 2;
+
+        ptr += pkt->count + 2;
     }
 }
 

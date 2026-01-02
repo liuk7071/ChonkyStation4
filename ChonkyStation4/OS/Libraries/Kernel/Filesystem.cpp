@@ -12,7 +12,7 @@ MAKE_LOG_FUNCTION(log, lib_kernel_filesystem);
 s32 PS4_FUNC kernel_open(const char* path, s32 flags, u16 mode) {
     log("_open(path=\"%s\", flags=%d, mode=%o)\n", path, flags, mode);
     // TODO: mode
-    const auto ret = FS::open(path, mode);
+    const auto ret = FS::open(path, flags);
     if (!ret) {
         *Kernel::kernel_error() = POSIX_ENOENT;
         return -1;

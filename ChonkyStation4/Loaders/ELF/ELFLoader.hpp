@@ -48,7 +48,7 @@ public:
         { PT_SCE_RELRO,      "PT_SCE_RELRO      " },
     };
 
-    Module load(const fs::path& path);
+    Module load(const fs::path& path, bool is_partial_lle_module = false, Module* hle_module = nullptr);
 
 private: 
     MAKE_LOG_FUNCTION(log, loader_elf);

@@ -12,7 +12,7 @@ using namespace ELFIO;
 static int tls_modid = 0;
 static void* last_load_addr = (void*)0x80'0000'0000;
 
-Module ELFLoader::load(const fs::path& path) {
+Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
     elfio elf;
     Module module;
     module.filename = path.filename().generic_string();
@@ -204,9 +204,17 @@ Module ELFLoader::load(const fs::path& path) {
         Helpers::debugAssert(lib, "Linker: could not find library for symbol %s\n", sym_name.c_str());
         Helpers::debugAssert(mod, "Linker: could not find module for symbol %s\n", sym_name.c_str());
 
+        auto export_symbol = [&]() {
+            module.addSymbolExport(tokens[0], tokens[0], lib->name, mod->name, (void*)((u64)module.base_address + sym->st_value));
+            log("* Exported symbol %s (%s)\n", tokens[0].c_str(), lib->name.c_str());
+        };
+
         // Export symbol
-        module.addSymbolExport(tokens[0], tokens[0], lib->name, mod->name, (void*)((u64)module.base_address + sym->st_value));
-        log("* Exported symbol %s (%s)\n", tokens[0].c_str(), lib->name.c_str());
+        if (!is_partial_lle_module)
+            export_symbol();
+        // If this is a partial LLE module, only export it if specified in the HLE module's partial LLE symbol list
+        else if (hle_module->isPartialLLESymbol(tokens[0], lib->name, mod->name))
+            export_symbol();
     }
 
     // Print modules

@@ -110,6 +110,7 @@ void init(Module& module) {
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
 
     module.addSymbolExport("6c3rCVE-fTU", "_open", "libkernel", "libkernel", (void*)&kernel_open);
+    module.addSymbolExport("wuCroIGjt2g", "open", "libkernel", "libkernel", (void*)&kernel_open);   // ???
     module.addSymbolExport("1G3lF1Gg1k8", "sceKernelOpen", "libkernel", "libkernel", (void*)&sceKernelOpen);
     module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libkernel", "libkernel", (void*)&kernel_lseek);
     module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libScePosix", "libkernel", (void*)&kernel_lseek);
@@ -181,6 +182,7 @@ void init(Module& module) {
     module.addSymbolExport("B+vc2AO2Zrc", "sceKernelAllocateMainDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateMainDirectMemory);
     module.addSymbolExport("rTXw65xmLIA", "sceKernelAllocateDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateDirectMemory);
     module.addSymbolExport("L-Q3LEjIbgA", "sceKernelMapDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapDirectMemory);
+    module.addSymbolExport("NcaWUxfMNIQ", "sceKernelMapNamedDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedDirectMemory);
     module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
@@ -200,6 +202,7 @@ void init(Module& module) {
     module.addSymbolStub("pB-yGZ2nQ9o", "_sceKernelSetThreadAtexitCount", "libkernel", "libkernel");  // void
     module.addSymbolStub("WhCc1w3EhSI", "_sceKernelSetThreadAtexitReport", "libkernel", "libkernel");  // void
     module.addSymbolStub("DGMG3JshrZU", "sceKernelSetVirtualRangeName", "libkernel", "libkernel");
+    module.addSymbolStub("PfccT7qURYE", "ioctl", "libkernel", "libkernel");
 }
 
 static thread_local s32 posix_errno = 0;
@@ -480,6 +483,11 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 
     log("Allocated at %p\n", *addr);
     return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelMapNamedDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align, const char* name) {
+    log("sceKernelMapNamedDirectMemory(addr=*%p, len=0x%llx, prot=%d, flags=%d, dmem_start=0x%016llx, align=0x%016llx, name=\"%s\")\n", addr, len, prot, flags, dmem_start, align, name);
+    return sceKernelMapDirectMemory(addr, len, prot, flags, dmem_start, align);
 }
 
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name) {

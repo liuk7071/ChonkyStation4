@@ -15,7 +15,7 @@ struct Params {
     void* entry;
 };
 
-void* PS4_FUNC initAndJumpToEntry(std::vector<Module>* modules) {
+void* PS4_FUNC initAndJumpToEntry(std::deque<Module>* modules) {
     PS4::init();
 
     printf("Initializing modules:\n", modules->size() - 1);
@@ -96,4 +96,12 @@ std::tuple<u8*, size_t, size_t> App::getTLSImage(u32 modid) {
     }
 
     Helpers::panic("Could not find TLS image with id %d\n", modid);    
+}
+
+Module* App::getHLEModule() {
+    for (auto& m : modules) {
+        if (m.filename == "HLE")
+            return &m;
+    }
+    Helpers::panic("App::getHLEModule: no HLE module found\n");
 }
