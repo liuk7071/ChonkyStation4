@@ -187,8 +187,11 @@ void init(Module& module) {
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
     
+    module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
+    module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
     module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
+    module.addSymbolStub("vSMAm3cxYTY", "sceKernelMprotect", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
     module.addSymbolStub("bnZxYgAFeA0", "sceKernelGetSanitizerNewReplaceExternal", "libkernel", "libkernel");
@@ -203,6 +206,16 @@ void init(Module& module) {
     module.addSymbolStub("WhCc1w3EhSI", "_sceKernelSetThreadAtexitReport", "libkernel", "libkernel");  // void
     module.addSymbolStub("DGMG3JshrZU", "sceKernelSetVirtualRangeName", "libkernel", "libkernel");
     module.addSymbolStub("PfccT7qURYE", "ioctl", "libkernel", "libkernel");
+    module.addSymbolStub("TU-d9PfIHPM", "socket", "libkernel", "libkernel");
+    module.addSymbolStub("TU-d9PfIHPM", "socket", "libScePosix", "libkernel");
+    module.addSymbolStub("fFxGkxF2bVo", "setsockopt", "libkernel", "libkernel");
+    module.addSymbolStub("fFxGkxF2bVo", "setsockopt", "libScePosix", "libkernel");
+    module.addSymbolStub("T8fER+tIGgk", "select", "libkernel", "libkernel");
+    module.addSymbolStub("T8fER+tIGgk", "select", "libScePosix", "libkernel");
+    module.addSymbolStub("fZOeZIOEmLw", "send", "libKernel", "libkernel");
+    module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
+    module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
+    module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
 }
 
 static thread_local s32 posix_errno = 0;
@@ -235,6 +248,8 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
                 void* ret = VirtualAlloc((void*)cur_addr, size, MEM_COMMIT, PAGE_READWRITE);
                 if (ret) {
                     if ((u64)ret & (alignment - 1)) Helpers::panic("allocate: alignment error\n");
+
+                    std::memset(ret, 0xcd, size);
                     return ret;
                 }
             }
@@ -353,8 +368,7 @@ s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz) {
 
 static const auto process_start_time = std::chrono::steady_clock::now();
 u64 PS4_FUNC sceKernelGetProcessTime() {
-    log("sceKernelGetProcessTime()\n");
-
+    //log("sceKernelGetProcessTime()\n");
     const auto now = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(now - process_start_time).count();
 }
@@ -466,10 +480,11 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     if (!in_addr) {
         *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, align);
     }
-    else {
+    else if ((u64)in_addr >= 0x8000'0000)
+        *addr = allocate((u64)in_addr, 0x8000'0000 + 500_GB, len, align);
+    else
         // TODO
         *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, align);
-    }
 #else
     Helpers::panic("Unsupported platform\n");
 #endif

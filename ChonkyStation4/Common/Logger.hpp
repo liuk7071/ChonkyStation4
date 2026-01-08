@@ -89,7 +89,7 @@ static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer   
 
 // Other
 static Logger filesystem            = Logger<true> ("[Other  ][Filesystem       ] ");
-static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented    ] ");
+static Logger unimplemented         = Logger<false>("[Other  ][Unimplemented    ] ");
 
 #undef true
 #undef false

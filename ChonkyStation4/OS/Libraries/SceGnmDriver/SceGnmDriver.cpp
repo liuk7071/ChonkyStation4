@@ -128,7 +128,7 @@ s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw) {
     const size_t cmd_buf_size_dw = (next_offs_dw ? next_offs_dw : queue.ring_size_dw) - curr_offs;
 
     // Now that we have the command buffer base and size, submit it to the graphics thread
-    GCN::submitCompute((u32*)cmd_buf_ptr, cmd_buf_size_dw, queue_id - 1);
+    GCN::submitCompute((u32*)cmd_buf_ptr, cmd_buf_size_dw * sizeof(u32), &queue);
     return SCE_OK;
 }
 

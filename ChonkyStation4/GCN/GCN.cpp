@@ -1,6 +1,7 @@
 #include "GCN.hpp"
 #include <GCN/CommandProcessor.hpp>
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
+#include <OS/Libraries/SceGnmDriver/SceGnmDriver.hpp>
 #include <mutex>
 #include <semaphore>
 #include <deque>
@@ -56,6 +57,11 @@ void gcnThread() {
             break;
         }
 
+        case CommandType::SubmitCompute: {
+            GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0);
+            break;
+        }
+
         case CommandType::Flip: {
             // Set buffer label
             u64* buf_label;
@@ -101,8 +107,8 @@ void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     submitRendererCommand({ CommandType::SubmitGraphics, dcb, dcb_size, ccb, ccb_size });
 }
 
-void submitCompute(u32* cb, size_t cb_size, u32 queue_id) {
-    // TODO
+void submitCompute(u32* cb, size_t cb_size, OS::Libs::SceGnmDriver::ComputeQueue* queue) {
+    submitRendererCommand({ CommandType::SubmitCompute, cb, cb_size, .queue = queue });
 }
 
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {

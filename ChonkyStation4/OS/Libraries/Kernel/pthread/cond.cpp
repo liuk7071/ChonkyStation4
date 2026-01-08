@@ -31,6 +31,8 @@ s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t
     timespec time;
     time.tv_sec  = abstime->tv_sec;
     time.tv_nsec = abstime->tv_nsec;
+    //time.tv_sec = 5;
+    //time.tv_nsec = 500;
     return pthread_cond_timedwait(cond, mutex, &time);
 }
 

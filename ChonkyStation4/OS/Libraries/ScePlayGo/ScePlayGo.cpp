@@ -10,12 +10,12 @@ MAKE_LOG_FUNCTION(log, lib_scePlayGo);
 void init(Module& module) {
     module.addSymbolExport("ts6GlZOKRrE", "scePlayGoInitialize", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoInitialize);
     module.addSymbolExport("M1Gma1ocrGE", "scePlayGoOpen", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoOpen);
-    module.addSymbolStub("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo");
     module.addSymbolExport("uWIYLFkkwqk", "scePlayGoGetLocus", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoGetLocus);
+    module.addSymbolExport("-RJWNMK3fC8", "scePlayGoGetProgress", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoGetProgress);
     module.addSymbolExport("Nn7zKwnA5q0", "scePlayGoGetToDoList", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoGetToDoList);
     
+    module.addSymbolStub("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("gUPGiOQ1tmQ", "scePlayGoSetToDoList", "libScePlayGo", "libScePlayGo");
-    module.addSymbolStub("-RJWNMK3fC8", "scePlayGoGetProgress", "libScePlayGo", "libScePlayGo");
 }
 
 ScePlayGoInitParams param;
@@ -40,6 +40,15 @@ s32 PS4_FUNC scePlayGoGetLocus(ScePlayGoHandle handle, const ScePlayGoChunkId* c
     for (int i = 0; i < n_entries; i++) {
         out_loci[i] = (ScePlayGoLocus)ScePlayGoLocusValue::LocalFast;
     }
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePlayGoGetProgress(ScePlayGoHandle handle, const ScePlayGoChunkId* chunk_ids, u32 n_entries, ScePlayGoProgress* out_progress) {
+    log("scePlayGoGetProgress(handle=0x%x, chunk_ids=*%p, n_entries=%d, out_progress=*%p)\n", handle, chunk_ids, n_entries, out_progress);
+
+    // TODO
+    out_progress->progress_size = 1_MB;
+    out_progress->total_size = 1_MB;
     return SCE_OK;
 }
 

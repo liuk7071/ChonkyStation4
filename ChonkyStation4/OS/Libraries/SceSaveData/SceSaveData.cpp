@@ -22,10 +22,29 @@ void init(Module& module) {
 }
 
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result) {
-    log("sceSaveDataMount(mount=*%p, mount_result=*%p)\n");
+    log("sceSaveDataMount(mount=*%p, mount_result=*%p) TODO\n");
 
     std::memset(mount_result->mount_point.data, 0, SCE_SAVE_DATA_MOUNT_POINT_DATA_MAXSIZE);
     std::strcpy(mount_result->mount_point.data, "/savedata0");
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, SceSaveDataDirNameSearchResult* result) {
+    log("sceSaveDataDirNameSearch(cond=*%p, result=*%p) TODO\n");
+
+    // TODO
+    result->n_hits = 0;
+    result->n_dir_names_set = 0;
+    //result->n_hits = 2;
+    //result->n_dir_names_set = 2;
+    //std::strcpy(result->dir_names[0].data, "profile");
+    //std::strcpy(result->dir_names[1].data, "savegame00");
+    //if (result->infos) {
+    //    result->infos[0].blocks = 100;
+    //    result->infos[0].free_blocks = 1000;
+    //    result->infos[1].blocks = 100;
+    //    result->infos[1].free_blocks = 1000;
+    //}
     return SCE_OK;
 }
 

@@ -51,6 +51,18 @@ union MemSemaphore2 {
     BitField<29, 3, MemSemaphore::Select> sem_sel;
 };
 
+union IndirectBuffer1 {
+    u32 raw;
+    BitField<0, 16, u32> addr_hi;
+};
+
+union IndirectBuffer2 {
+    u32 raw;
+    BitField<0, 20, u32> size;
+    BitField<20, 1, u32> chain;
+    BitField<24, 8, u32> vmid;
+};
+
 void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     // TODO: What is ccb???????? (compute?)
     Helpers::debugAssert(!ccb, "processCommands: ccb != nullptr\n");
@@ -62,6 +74,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         args++;
         
         if (pkt->type == 0) {
+            ptr++;
+            continue;
             Helpers::panic("PM4 type 0 packet\n");
         }
         else if (pkt->type == 1) {
@@ -92,8 +106,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
         case PM4ItOpcode::MemSemaphore: {
             using namespace MemSemaphore;
-            MemSemaphore1 d1 = { .raw = *args++ };
-            MemSemaphore2 d2 = { .raw = *args++ };
+            const MemSemaphore1 d1 = { .raw = *args++ };
+            const MemSemaphore2 d2 = { .raw = *args++ };
             u64* sem_ptr = (u64*)(((u64)d1.addr_lo << 3) | ((u64)d2.addr_hi << 32));
             
             log("MemSemaphore: ptr=%p\n", sem_ptr);
@@ -122,8 +136,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
         case PM4ItOpcode::WaitRegMem: {
             using namespace WaitRegMem;
-            WaitRegMem1 d1 = { .raw = *args++ };
-            WaitRegMem2 d2 = { .raw = *args++ };
+            const WaitRegMem1 d1 = { .raw = *args++ };
+            const WaitRegMem2 d2 = { .raw = *args++ };
             const u32 poll_addr_hi = *args++;
             const u32 reference = *args++;
             const u32 mask = *args++;
@@ -155,6 +169,16 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
                 // TODO: Use poll_interval
                 std::this_thread::sleep_for(std::chrono::microseconds(1000));
             }
+            break;
+        }
+
+        case PM4ItOpcode::IndirectBuffer: {
+            const u32 addr_lo = *args++;
+            const IndirectBuffer1 d1 = { .raw = *args++ };
+            const IndirectBuffer2 d2 = { .raw = *args++ };
+            const u32* ptr = (u32*)(addr_lo | ((u64)d1.addr_hi << 32));
+            log("IndirectBuffer: ptr=%p, size=0x%llx\n", ptr, d2.size.Value());
+            processCommands((u32*)ptr, d2.size, nullptr, 0);
             break;
         }
 
@@ -203,12 +227,12 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
 
         case PM4ItOpcode::DmaData: {
-            DmaData1 info = { .raw = *args++ };
-            u32 src_addr_lo = *args++;
-            u32 src_addr_hi = *args++;
-            u32 dst_addr_lo = *args++;
-            u32 dst_addr_hi = *args++;
-            u32 size = *args++ & 0x1fffff;
+            const DmaData1 info = { .raw = *args++ };
+            const u32 src_addr_lo = *args++;
+            const u32 src_addr_hi = *args++;
+            const u32 dst_addr_lo = *args++;
+            const u32 dst_addr_hi = *args++;
+            const u32 size = *args++ & 0x1fffff;
 
             if (dst_addr_lo == 0x3022c) break;
 

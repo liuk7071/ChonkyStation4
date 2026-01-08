@@ -128,15 +128,20 @@ u64 seek(u64 file_id, s64 offs, u32 mode) {
     FILE* file = getFileFromID(file_id).file;
 #ifdef _WIN32
     _fseeki64(file, offs, mode);
+    return _ftelli64(file);
 #else
     std::fseek(file, offs, mode);
-#endif
     return std::ftell(file);
+#endif
 }
 
 u64 tell(u64 file_id) {
     FILE* file = getFileFromID(file_id).file;
+#ifdef _WIN32
+    return _ftelli64(file);
+#else
     return std::ftell(file);
+#endif
 }
 
 // Returns false if path already exists

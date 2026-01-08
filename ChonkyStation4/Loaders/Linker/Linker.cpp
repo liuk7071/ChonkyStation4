@@ -5,6 +5,12 @@
 #include <OS/HLE.hpp>
 
 #include <memory>
+#ifdef _MSC_VER
+#include <intrin.h>
+#define RETURN_ADDRESS() _ReturnAddress()
+#else
+#define RETURN_ADDRESS() _builtin_return_address(0)
+#endif
 
 
 namespace PS4::Loader::Linker {
@@ -15,7 +21,7 @@ using namespace ELFIO;
 
 // Unresolved symbols are stubbed to call this function
 void PS4_FUNC unresolvedSymbol(const char* sym_name) {
-    printf("Linker: Called unresolved symbol %s\n", sym_name);
+    printf("Linker: Called unresolved symbol %s @ %p\n", sym_name, RETURN_ADDRESS());
     //exit(0);
     std::_Exit(0);
 }
@@ -82,7 +88,7 @@ void doRelocations(App& app) {
 
                 // Is this a local symbol?
                 if (bind == STB_LOCAL) {
-                    *(u64*)((u8*)base + rela->r_offset) = (u64)base + sym->st_value;
+                    *(u64*)((u8*)base + rela->r_offset) = (u64)base + sym->st_value + addend;
                     break;
                 }
 
