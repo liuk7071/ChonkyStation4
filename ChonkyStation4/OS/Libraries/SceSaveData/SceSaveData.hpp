@@ -19,7 +19,8 @@ static constexpr s32 SCE_SAVE_DATA_TITLE_MAXSIZE            = 128;
 static constexpr s32 SCE_SAVE_DATA_SUBTITLE_MAXSIZE         = 128;
 static constexpr s32 SCE_SAVE_DATA_DETAIL_MAXSIZE           = 1024;
 
-struct SceSaveDataMount;
+struct SceSaveDataFingerprint;
+
 using SceSaveDataBlocks = u64;
 using SceSaveDataMountMode = u32;
 using SceSaveDataMountStatus = u32;
@@ -53,6 +54,18 @@ struct SceSaveDataSearchInfo {
     SceSaveDataBlocks blocks;
     SceSaveDataBlocks free_blocks;
     u8 reserved[32];
+};
+
+struct SceSaveDataMount {
+    SceUserService::SceUserServiceUserId user_id;
+    int : 32;
+    const SceSaveDataTitleId* title_id;
+    const SceSaveDataDirName* dir_name;
+    const SceSaveDataFingerprint* fingerprint;
+    SceSaveDataBlocks blocks;
+    SceSaveDataMountMode mount_mode;
+    u8 reserved[32];
+    int : 32;
 };
 
 struct SceSaveDataMount2 {

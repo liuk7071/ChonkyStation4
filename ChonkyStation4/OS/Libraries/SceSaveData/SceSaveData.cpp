@@ -28,9 +28,12 @@ void init(Module& module) {
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result) {
     log("sceSaveDataMount(mount=*%p, mount_result=*%p) TODO\n", mount, mount_result);
 
-    std::memset(mount_result->mount_point.data, 0, SCE_SAVE_DATA_MOUNT_POINT_DATA_MAXSIZE);
-    std::strcpy(mount_result->mount_point.data, "/savedata0");
-    return SCE_OK;
+    SceSaveDataMount2 mount2;
+    mount2.user_id      = mount->user_id;
+    mount2.dir_name     = mount->dir_name;
+    mount2.blocks       = mount->blocks;
+    mount2.mount_mode   = mount->mount_mode;
+    return sceSaveDataMount2(&mount2, mount_result);
 }
 
 s32 PS4_FUNC sceSaveDataMount2(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result) {
