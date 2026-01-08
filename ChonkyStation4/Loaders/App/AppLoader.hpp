@@ -8,6 +8,7 @@ namespace PS4::Loader::App {
 
 struct AppInfo {
     std::string title;
+    std::string title_id;
     std::string version;
 
     fs::path content_path;

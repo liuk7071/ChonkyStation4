@@ -21,13 +21,14 @@ bool prepareApp(const fs::path& app_content_path, AppInfo& info) {
 
     // Parse param.sfo
     auto sfo = Loader::SFO::parse(info.param_sfo_path);
-    // Verify some fields exist to ensure SFO is valid
+    // Verify at least these fields exist to ensure SFO is valid
     if (!sfo.strings.contains("TITLE") || !sfo.strings.contains("APP_VER") || !sfo.strings.contains("CONTENT_ID")) {
         return false;
     }
 
-    info.title   = std::string(reinterpret_cast<const char*>(sfo.strings["TITLE"].c_str()));
-    info.version = std::string(reinterpret_cast<const char*>(sfo.strings["APP_VER"].c_str()));
+    info.title    = std::string(reinterpret_cast<const char*>(sfo.strings["TITLE"].c_str()));
+    info.title_id = std::string(reinterpret_cast<const char*>(sfo.strings["TITLE_ID"].c_str()));
+    info.version  = std::string(reinterpret_cast<const char*>(sfo.strings["APP_VER"].c_str()));
     return true;
 }
 
@@ -35,7 +36,10 @@ bool getApp(const AppInfo& info, ::App& app) {
     fs::path tmp_path = info.executable_path;
     tmp_path.replace_extension(".elf"); // For now we expect decrypted executables
     app = std::move(Loader::Linker::loadAndLink(tmp_path));
+
+    // TODO: Just have an AppInfo inside App?
     app.name = info.title;
+    app.title_id = info.title_id;
     
     const std::string sysmodules_to_load[] = {
         "libSceLibcInternal.sprx",

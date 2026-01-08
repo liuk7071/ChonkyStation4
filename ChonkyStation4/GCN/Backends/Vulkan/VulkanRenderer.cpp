@@ -378,8 +378,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 
     if (!vs_ptr || !ps_ptr) return;
 
-    
-    // Hack to skip embedded shader with no fetch shader
+    // Temporary hack to skip embedded shaders with no fetch shader
     u32* ptr = (u32*)vs_ptr;
     while (*ptr != 0x5362724F) {    // "OrbS"
         ptr++;
@@ -388,7 +387,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     u64 hash;
     ptr += 4;
     std::memcpy(&hash, ptr, sizeof(u64));
-    if (hash == 0x75486d66862abd78) return;
+    if (   hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
+        || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
+       ) return;
     
 
     //std::ofstream vs_dump;

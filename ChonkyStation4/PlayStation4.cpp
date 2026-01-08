@@ -4,6 +4,7 @@
 #include <Loaders/Linker/Linker.hpp>
 #include <OS/Thread.hpp>
 #include <OS/Filesystem.hpp>
+#include <OS/UserManagement.hpp>
 #include <GCN/GCN.hpp>
 #include <thread>
 
@@ -17,7 +18,6 @@ void init() {
     std::thread gcn_thread(GCN::gcnThread);
     gcn_thread.detach();
 
-    FS::mount(FS::Device::SAVEDATA0, "./savedata0");
     FS::mount(FS::Device::DEV, "./dev");    // TODO: Properly handle /dev
     FS::init();
 
@@ -27,6 +27,15 @@ void init() {
 
 void loadAndRun(const fs::path& path) {
     try {
+        OS::User::init();
+
+        // For now we only support one user with id 1.
+        if (!OS::User::exists(1))
+            OS::User::createNew("ChonkyStation4");
+        
+        if (!OS::User::login(1))
+            Helpers::panic("Failed to login");
+
         // The threading system needs to be initialized before we run the app.
         // Everything else will be initialized in the init() function, which is called by g_app.run() from the app's main thread (NOT the host's)
         OS::Thread::init();

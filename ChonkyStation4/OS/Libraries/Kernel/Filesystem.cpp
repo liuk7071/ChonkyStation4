@@ -80,13 +80,15 @@ s64 PS4_FUNC sceKernelPread(s32 fd, u8* buf, u64 size, s64 offset) {
 s64 PS4_FUNC kernel_write(s32 fd, u8* buf, u64 size) {
     //log("_write(fd=%d, buf=%p, size=%d)\n", fd, buf, size);
 
-    if (fd != 0 && fd != 1 && fd != 2) {
-        Helpers::panic("_write: fd is not stdin or stdout or stderr (TODO)\n");
+    if (fd == 0 || fd == 1 || fd == 2) {
+        // Redirect stout/stdin/stderr
+        for (char* ptr = (char*)buf; ptr < (char*)buf + size; ptr++)
+            std::putc(*ptr, stdout);
+        return size;
     }
 
-    for (char* ptr = (char*)buf; ptr < (char*)buf + size; ptr++)
-        std::putc(*ptr, stdout);
-    return size;
+    auto lock = FS::getFileLock(fd);
+    return FS::write(fd, buf, size);
 }
 
 s64 PS4_FUNC sceKernelWrite(s32 fd, u8* buf, u64 size) {

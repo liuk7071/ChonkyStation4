@@ -10,6 +10,8 @@ namespace PS4::OS::Libs::SceSaveData {
 
 void init(Module& module);
 
+static constexpr s32 SCE_SAVE_DATA_ERROR_MEMORY_NOT_READY   = 0x809f0012;
+
 static constexpr s32 SCE_SAVE_DATA_MOUNT_POINT_DATA_MAXSIZE = 16;
 static constexpr s32 SCE_SAVE_DATA_TITLE_ID_DATA_SIZE       = 10;
 static constexpr s32 SCE_SAVE_DATA_DIRNAME_DATA_MAXSIZE     = 32;
@@ -17,8 +19,9 @@ static constexpr s32 SCE_SAVE_DATA_TITLE_MAXSIZE            = 128;
 static constexpr s32 SCE_SAVE_DATA_SUBTITLE_MAXSIZE         = 128;
 static constexpr s32 SCE_SAVE_DATA_DETAIL_MAXSIZE           = 1024;
 
-struct SceSaveDataMount2;
+struct SceSaveDataMount;
 using SceSaveDataBlocks = u64;
+using SceSaveDataMountMode = u32;
 using SceSaveDataMountStatus = u32;
 using SceSaveDataSortKey = u32;
 using SceSaveDataSortOrder = u32;
@@ -52,6 +55,16 @@ struct SceSaveDataSearchInfo {
     u8 reserved[32];
 };
 
+struct SceSaveDataMount2 {
+    SceUserService::SceUserServiceUserId user_id;
+    int : 32;
+    const SceSaveDataDirName* dir_name;
+    SceSaveDataBlocks blocks;
+    SceSaveDataMountMode mount_mode;
+    u8 reserved[32];
+    int : 32;
+};
+
 struct SceSaveDataMountResult {
     SceSaveDataMountPoint mount_point;
     SceSaveDataBlocks required_blocks;
@@ -83,7 +96,11 @@ struct SceSaveDataDirNameSearchResult {
     s32 : 32;
 };
 
-s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result);
+s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result);
+s32 PS4_FUNC sceSaveDataMount2(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result);
+s32 PS4_FUNC sceSaveDataSetupSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, const size_t memory_size, SceSaveDataParam* param);
+s32 PS4_FUNC sceSaveDataGetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);
+s32 PS4_FUNC sceSaveDataSetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);
 s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, SceSaveDataDirNameSearchResult* result);
 
 }   // End namespace PS4::OS::Libs::SceSaveData

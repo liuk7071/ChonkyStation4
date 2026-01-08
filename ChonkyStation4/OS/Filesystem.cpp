@@ -50,10 +50,6 @@ u64 open(fs::path path, u32 flags) {
         Helpers::panic("Filesystem: append (TODO)\n");
     }
 
-    if (trunc) {
-        Helpers::panic("Filesystem: trunc (TODO)\n");
-    }
-    
     if (excl) {
         Helpers::panic("Filesystem: excl (TODO)\n");
     }
@@ -72,6 +68,13 @@ u64 open(fs::path path, u32 flags) {
             std::ofstream temp = std::ofstream(host_path);
             temp.close();
         }
+    }
+
+    if (trunc) {
+        // Discard existing content. We just recreate the file
+        fs::remove(host_path);
+        std::ofstream temp = std::ofstream(host_path);
+        temp.close();
     }
 
     const u64 new_file_id = OS::requestHandle();

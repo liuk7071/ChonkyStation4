@@ -41,7 +41,8 @@ target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/GCN/Detiler/decompress.c" "ChonkyStation4/GCN/Detiler/error.c" "ChonkyStation4/GCN/Detiler/surface.c" "ChonkyStation4/GCN/Detiler/surfgen.c" "ChonkyStation4/GCN/Detiler/tilemodes.c"
 "ChonkyStation4/GCN/Detiler/tiler.c" "ChonkyStation4/GCN/Detiler/gnm/dataformat.c" "ChonkyStation4/GCN/Detiler/gnm/platform_generic.c" "ChonkyStation4/GCN/Detiler/gnm/texture.c"
  "ChonkyStation4/GCN/Backends/Vulkan/TextureCache.cpp" "ChonkyStation4/GCN/Backends/Vulkan/TextureCache.hpp" "ChonkyStation4/OS/Libraries/Kernel/Eflag.cpp" "ChonkyStation4/OS/Libraries/Kernel/Eflag.hpp"
- "ChonkyStation4/OS/Libraries/Kernel/Semaphore.cpp" "ChonkyStation4/OS/Libraries/Kernel/Semaphore.hpp" "ChonkyStation4/OS/Libraries/ScePlayGo/ScePlayGo.cpp" "ChonkyStation4/OS/Libraries/ScePlayGo/ScePlayGo.hpp")
+ "ChonkyStation4/OS/Libraries/Kernel/Semaphore.cpp" "ChonkyStation4/OS/Libraries/Kernel/Semaphore.hpp" "ChonkyStation4/OS/Libraries/ScePlayGo/ScePlayGo.cpp" "ChonkyStation4/OS/Libraries/ScePlayGo/ScePlayGo.hpp"
+ "ChonkyStation4/OS/UserManagement.cpp" "ChonkyStation4/OS/UserManagement.hpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)
