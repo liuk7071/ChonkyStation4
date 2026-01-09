@@ -96,6 +96,7 @@ std::string getType(int n_lanes, u32 nfmt) {
     default: {
         switch ((NumberFormat)nfmt) {
         case NumberFormat::Unorm: return std::format("vec{}", n_lanes);
+        case NumberFormat::Snorm: return std::format("vec{}", n_lanes);
         case NumberFormat::Sscaled: return std::format("vec{}", n_lanes);
         case NumberFormat::Float: return std::format("vec{}", n_lanes);
         default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
@@ -114,7 +115,7 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                        break;
     case OperandField::LiteralConst: {
         if constexpr (!is_int)
-            src = std::format("f2u({}f)", reinterpret_cast<const float&>(op.code));
+            src = std::format("f2u({:#g}f)", reinterpret_cast<const float&>(op.code));
         else
             src = std::format("{}", op.code);
         break;
@@ -547,6 +548,7 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::V_MADAK_F32:
         case Shader::Opcode::V_FMA_F32: {
             main += setDST(instr.dst[0], std::format("fma({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
             break;
@@ -711,9 +713,9 @@ bool vcc;
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            main += "// TODO\n";
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //main += "// TODO\n";
         }
         }
     }

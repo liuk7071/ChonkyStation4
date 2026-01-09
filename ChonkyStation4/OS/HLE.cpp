@@ -54,6 +54,7 @@ Module buildHLEModule() {
     // libSceScreenShot
     module.addSymbolStub("2xxUtuC-RzE", "sceScreenShotEnable", "libSceScreenShot", "libSceScreenShot");
     module.addSymbolStub("73WQ4Jj0nJI", "sceScreenShotSetOverlayImageWithOrigin", "libSceScreenShot", "libSceScreenShot");
+    module.addSymbolStub("G7KlmIYFIZc", "sceScreenShotSetParam", "libSceScreenShot", "libSceScreenShot");
     
     // libSceMsgDialog
     module.addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");

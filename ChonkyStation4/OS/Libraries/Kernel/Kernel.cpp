@@ -389,7 +389,7 @@ u64 PS4_FUNC sceKernelGetProcessTime() {
 u64 PS4_FUNC sceKernelReadTsc() {
     log("sceKernelReadTsc()\n");
     // Stubbed to just be the same as sceKernelGetProcessTime
-    return sceKernelGetProcessTime();
+    return __rdtsc();
 }
 
 s32 PS4_FUNC sceKernelIsNeoMode() {
@@ -413,34 +413,36 @@ void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]) {
     log("_sceKernelRtldSetApplicationHeapAPI()\n");
 }
 
+static u64 tsc_freq = 0;
 u64 PS4_FUNC sceKernelGetTscFrequency() {
     log("sceKernelGetTscFrequency()\n");
 
-    u64 final_freq = 0;
 
 #ifdef _WIN32
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
+    if (!tsc_freq) {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
 
-    LARGE_INTEGER start;
-    LARGE_INTEGER now;
-    u64 first = __rdtsc();
-    QueryPerformanceCounter(&start);
-    for (;;) {
-        u64 i = __rdtsc();
-        QueryPerformanceCounter(&now);
-        if (now.QuadPart - start.QuadPart >= freq.QuadPart) {
-            final_freq = i - first;
-            printf_s("Measured frequency: %lld\n", final_freq);
-            break;
+        LARGE_INTEGER start;
+        LARGE_INTEGER now;
+        u64 first = __rdtsc();
+        QueryPerformanceCounter(&start);
+        for (;;) {
+            u64 i = __rdtsc();
+            QueryPerformanceCounter(&now);
+            if (now.QuadPart - start.QuadPart >= freq.QuadPart) {
+                tsc_freq = i - first;
+                printf_s("Measured frequency: %lld\n", tsc_freq);
+                break;
+            }
         }
     }
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
 
-    log("freq: %lld\n", final_freq);
-    return final_freq;
+    log("freq: %lld\n", tsc_freq);
+    return tsc_freq;
 }
 
 s32 PS4_FUNC kernel_getpid() {

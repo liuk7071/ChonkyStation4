@@ -16,6 +16,7 @@ void init(Module& module) {
     
     module.addSymbolStub("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("gUPGiOQ1tmQ", "scePlayGoSetToDoList", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("4AAcTU9R3XM", "scePlayGoSetInstallSpeed", "libScePlayGo", "libScePlayGo");
 }
 
 ScePlayGoInitParams param;
