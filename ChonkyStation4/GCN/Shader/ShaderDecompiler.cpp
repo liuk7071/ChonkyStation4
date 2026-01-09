@@ -257,7 +257,8 @@ bool vcc;
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4:
-        case Shader::Opcode::S_BUFFER_LOAD_DWORDX8: {
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX8:
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX16: {
             auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0) -> Buffer& {
                 // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
@@ -384,6 +385,12 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::S_OR_B64: {
+            main += setDST<true>(instr.dst[0], std::format("{} | {}", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1])));
+            main += std::format("scc = {} != 0;\n", getSRC<true>(instr.dst[0]));
+            break;
+        }
+
         case Shader::Opcode::S_ANDN2_B64: {
             main += setDST<true>(instr.dst[0], std::format("{} & ~{}", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1])));
             main += std::format("scc = {} != 0;\n", getSRC<true>(instr.dst[0]));
@@ -427,8 +434,38 @@ bool vcc;
             main += std::format("scc = {} != {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
             break;
         }
+
+        case Shader::Opcode::V_CMP_LT_F32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} < {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_EQ_F32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} == {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
         
+        case Shader::Opcode::V_CMP_LE_F32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} <= {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+        
+        case Shader::Opcode::V_CMP_GT_F32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} > {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_CMP_GE_F32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} >= {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_NEQ_F32: {
             // TODO: This can set other registers too I think?
             main += std::format("vcc = {} != {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
             break;
@@ -436,6 +473,16 @@ bool vcc;
 
         case Shader::Opcode::S_CBRANCH_SCC0: {
             main += "// TODO: S_CBRANCH_SCC0\n";
+            break;
+        }
+        
+        case Shader::Opcode::S_CBRANCH_VCCZ: {
+            main += "// TODO: S_CBRANCH_VCCZ\n";
+            break;
+        }
+
+        case Shader::Opcode::V_CNDMASK_B32: {
+            main += "// TODO: V_CNDMASK_B32\n";
             break;
         }
 
@@ -591,6 +638,32 @@ bool vcc;
             main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 7, ssbo_name, offset + " + 7");
             break;
         }
+        
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX16: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX4: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  1, ssbo_name, offset + " +  1");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  2, ssbo_name, offset + " +  2");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  3, ssbo_name, offset + " +  3");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  4, ssbo_name, offset + " +  4");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  5, ssbo_name, offset + " +  5");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  6, ssbo_name, offset + " +  6");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  7, ssbo_name, offset + " +  7");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  8, ssbo_name, offset + " +  8");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  9, ssbo_name, offset + " +  9");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 10, ssbo_name, offset + " + 10");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 11, ssbo_name, offset + " + 11");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 12, ssbo_name, offset + " + 12");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 13, ssbo_name, offset + " + 13");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 14, ssbo_name, offset + " + 14");
+            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 15, ssbo_name, offset + " + 15");
+            break;
+        }
 
         case Shader::Opcode::IMAGE_SAMPLE: {
             const auto buffer_mapping = buf_mapping_idx++;
@@ -638,9 +711,9 @@ bool vcc;
         }
 
         default: {
-            printf("Shader so far:\n%s\n", main.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            //main += "// TODO\n";
+            //printf("Shader so far:\n%s\n", main.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            main += "// TODO\n";
         }
         }
     }

@@ -150,6 +150,9 @@ Module buildHLEModule() {
     // libSceAjm
     module.addSymbolStub("dl+4eHSzUu4", "sceAjmInitialize", "libSceAjm", "libSceAjm");
     module.addSymbolStub("Q3dyFuwGn64", "sceAjmModuleRegister", "libSceAjm", "libSceAjm");
+    
+    // ulobjmgr (TODO: What is this?)
+    module.addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
 
     return module;
 }

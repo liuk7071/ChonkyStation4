@@ -359,6 +359,8 @@ void VulkanRenderer::init() {
     };
 
     cmd_bufs[0].beginRendering(render_info);
+    cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
+    cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
 
     log("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
@@ -366,6 +368,7 @@ void VulkanRenderer::init() {
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
 std::vector<Pipeline*> curr_frame_pipelines;
+Pipeline* last_draw_pipeline = nullptr;
 // Keep track of index buffers needed for this frame and clear after flipping
 std::vector<vk::raii::Buffer> idx_bufs;
 std::vector<vk::raii::DeviceMemory> idx_buf_mems;
@@ -387,7 +390,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     u64 hash;
     ptr += 4;
     std::memcpy(&hash, ptr, sizeof(u64));
+    //printf("0x%llx\n", hash);
     if (   hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
+        || hash == 0xd4f680821d9336a4   // Super Meat Boy
         || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
        ) return;
     
@@ -439,13 +444,14 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     }
 
     // Draw
-    cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
+
+    if (&pipeline != last_draw_pipeline) {
+        cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
+        last_draw_pipeline = &pipeline;
+    }
 
     if (descriptor_writes.size())
         cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
-
-    cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
-    cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
 
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[0].bindVertexBuffers(i, *(*vtx_bindings)[i].buf, {0});
@@ -576,6 +582,7 @@ void VulkanRenderer::flip() {
     for (auto& pipeline : curr_frame_pipelines)
         pipeline->clearBuffers();
     curr_frame_pipelines.clear();
+    last_draw_pipeline = nullptr;
     idx_bufs.clear();
     idx_buf_mems.clear();
 
@@ -605,6 +612,8 @@ void VulkanRenderer::flip() {
     };
 
     cmd_bufs[0].beginRendering(render_info);
+    cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
+    cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
 }
 
 }   // End namespace PS4::GCN::Vulkan

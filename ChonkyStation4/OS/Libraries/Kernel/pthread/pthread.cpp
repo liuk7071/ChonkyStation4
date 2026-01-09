@@ -130,4 +130,12 @@ s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
     return SCE_OK;
 }
 
+void PS4_FUNC kernel_pthread_exit(void* status) {
+    log("pthread_exit(status=%p)\n", status);
+    while (1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+    pthread_exit(status);
+}
+
 };  // End namespace PS4::OS::Libs::Kernel

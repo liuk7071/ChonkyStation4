@@ -44,6 +44,7 @@ s32 PS4_FUNC sceKernelSleep(u32 s);
 s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts);
 s32 PS4_FUNC sceKernelClockGettime(u32 clock_id, SceKernelTimespec* ts);
 s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz);
+s32 PS4_FUNC sceKernelGettimeofday(SceKernelTimeval* tv);
 s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz);
 u64 PS4_FUNC sceKernelGetProcessTime();
 u64 PS4_FUNC sceKernelReadTsc();

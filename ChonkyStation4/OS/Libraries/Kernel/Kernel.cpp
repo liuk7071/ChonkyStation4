@@ -7,6 +7,7 @@
 #include <OS/Libraries/Kernel/pthread/pthread.hpp>
 #include <OS/Libraries/Kernel/pthread/mutex.hpp>
 #include <OS/Libraries/Kernel/pthread/cond.hpp>
+#include <OS/Libraries/Kernel/pthread/rwlock.hpp>
 #include <OS/Libraries/Kernel/Equeue.hpp>
 #include <OS/Libraries/Kernel/Eflag.hpp>
 #include <OS/Libraries/Kernel/Semaphore.hpp>
@@ -78,6 +79,7 @@ void init(Module& module) {
     module.addSymbolExport("WKAXJ4XBPQ4", "scePthreadCondWait", "libkernel", "libkernel", (void*)&kernel_pthread_cond_wait);
     module.addSymbolExport("27bAgiJmOh0", "pthread_cond_timedwait", "libkernel", "libkernel", (void*)&kernel_pthread_cond_timedwait);
     module.addSymbolExport("27bAgiJmOh0", "pthread_cond_timedwait", "libScePosix", "libkernel", (void*)&kernel_pthread_cond_timedwait);
+    module.addSymbolExport("BmMjYxmew1w", "scePthreadCondTimedwait", "libkernel", "libkernel", (void*)&scePthreadCondTimedwait);
     module.addSymbolExport("2MOy+rUfuhQ", "pthread_cond_signal", "libkernel", "libkernel", (void*)&kernel_pthread_cond_signal);
     module.addSymbolExport("kDh-NfxgMtE", "scePthreadCondSignal", "libkernel", "libkernel", (void*)&kernel_pthread_cond_signal);
     module.addSymbolExport("mkx2fVhNMsg", "pthread_cond_broadcast", "libkernel", "libkernel", (void*)&kernel_pthread_cond_broadcast);
@@ -103,6 +105,7 @@ void init(Module& module) {
     module.addSymbolExport("3PtV6p3QNX4", "scePthreadEqual", "libkernel", "libkernel", (void*)&kernel_pthread_equal);
     module.addSymbolExport("B5GmVDKwpn0", "pthread_yield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
     module.addSymbolExport("T72hz6ffq08", "scePthreadYield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
+    module.addSymbolExport("3kg7rT0NQIs", "scePthreadExit", "libkernel", "libkernel", (void*)&kernel_pthread_exit);
     
     module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
@@ -149,6 +152,7 @@ void init(Module& module) {
     module.addSymbolExport("QBi7HCK03hw", "sceKernelClockGettime", "libkernel", "libkernel", (void*)&sceKernelClockGettime);
     module.addSymbolExport("n88vx3C5nW8", "gettimeofday", "libkernel", "libkernel", (void*)&kernel_gettimeofday);
     module.addSymbolExport("n88vx3C5nW8", "gettimeofday", "libScePosix", "libkernel", (void*)&kernel_gettimeofday);
+    module.addSymbolExport("ejekcaNQNq0", "sceKernelGettimeofday", "libkernel", "libkernel", (void*)&sceKernelGettimeofday);
     module.addSymbolExport("kOcnerypnQA", "sceKernelGettimezone", "libkernel", "libkernel", (void*)&sceKernelGettimezone);
     module.addSymbolExport("4J2sUJmuHZQ", "sceKernelGetProcessTime", "libkernel", "libkernel", (void*)&sceKernelGetProcessTime);
     module.addSymbolExport("-2IRUCO--PM", "sceKernelReadTsc", "libkernel", "libkernel", (void*)&sceKernelReadTsc);
@@ -175,9 +179,10 @@ void init(Module& module) {
     module.addSymbolExport("Zxa0VhQVTsk", "sceKernelWaitSema", "libkernel", "libkernel", (void*)&sceKernelWaitSema);
     module.addSymbolExport("12wOHk8ywb0", "sceKernelPollSema", "libkernel", "libkernel", (void*)&sceKernelPollSema);
     
-    module.addSymbolStub("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel");
-    module.addSymbolStub("Ox9i0c7L5w0", "scePthreadRwlockRdlock", "libkernel", "libkernel");
-    module.addSymbolStub("+L98PIbGttk", "scePthreadRwlockUnlock", "libkernel", "libkernel");
+    module.addSymbolExport("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel", (void*)&scePthreadRwlockInit);
+    module.addSymbolExport("Ox9i0c7L5w0", "scePthreadRwlockRdlock", "libkernel", "libkernel", (void*)&kernel_pthread_rwlock_rdlock);
+    module.addSymbolExport("mqdNorrB+gI", "scePthreadRwlockWrlock", "libkernel", "libkernel", (void*)&kernel_pthread_rwlock_wrlock);
+    module.addSymbolExport("+L98PIbGttk", "scePthreadRwlockUnlock", "libkernel", "libkernel", (void*)&kernel_pthread_rwlock_unlock);
     
     module.addSymbolExport("B+vc2AO2Zrc", "sceKernelAllocateMainDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateMainDirectMemory);
     module.addSymbolExport("rTXw65xmLIA", "sceKernelAllocateDirectMemory", "libkernel", "libkernel", (void*)&sceKernelAllocateDirectMemory);
@@ -189,6 +194,7 @@ void init(Module& module) {
     
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
+    module.addSymbolStub("8mql9OcQnd4", "sceKernelDeleteEventFlag", "libkernel", "libkernel");
     module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("vSMAm3cxYTY", "sceKernelMprotect", "libkernel", "libkernel"); // TODO: Probably important
@@ -357,6 +363,13 @@ s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz) {
         tz->tz_minuteswest = 0;
     }
     return 0;
+}
+
+s32 PS4_FUNC sceKernelGettimeofday(SceKernelTimeval* tv) {
+    log("sceKernelGettimeofday(tv=*%p)\n", tv);
+
+    kernel_gettimeofday(tv, nullptr);
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz) {
