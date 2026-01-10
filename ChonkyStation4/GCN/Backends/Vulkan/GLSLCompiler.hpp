@@ -141,8 +141,12 @@ std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
         EShMsgDefault           // report default error/warning messages
     );
 
-    if (shader.getInfoLog()[0] != '\0')
-        printf("Shader error: %s\n", shader.getInfoLog()); // get the log for parsing the shader
+    if (shader.getInfoLog()[0] != '\0') {
+        printf("%s\n\nShader error: %s\n", source.c_str(), shader.getInfoLog()); // get the log for parsing the shader
+        std::vector<u32> empty;
+        empty.clear();
+        return empty;
+    }
 
     glslang::TProgram program;
     program.addShader(&shader);

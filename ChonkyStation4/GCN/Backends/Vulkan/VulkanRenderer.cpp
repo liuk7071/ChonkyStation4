@@ -19,7 +19,7 @@ namespace PS4::GCN::Vulkan {
 
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
-constexpr bool enable_validation_layers = false;
+constexpr bool enable_validation_layers = true;
 
 const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"

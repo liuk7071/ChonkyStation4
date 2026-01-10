@@ -82,7 +82,9 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             Helpers::panic("PM4 type 1 packet\n");
         }
         else if (pkt->type == 2) {
-            Helpers::panic("PM4 type 2 packet\n");
+            printf("Encountered type 2 packet\n");
+            ptr++;
+            continue;
         }
 
         switch ((PM4ItOpcode)(u32)pkt->opcode) {

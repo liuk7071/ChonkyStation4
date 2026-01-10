@@ -41,6 +41,7 @@ FetchShader::FetchShader(const u8* data) {
     // Here we map SGPRs to V# pointers
     std::unordered_map<u32, VSharpLocation> vsharps;
 
+    u32 curr_idx = 0;
     while (!code_slice.atEnd()) {
         const auto instr = decoder.decodeInstruction(code_slice);
 
@@ -55,6 +56,7 @@ FetchShader::FetchShader(const u8* data) {
         if (instr.inst_class == Shader::InstClass::VectorMemBufFmt) {
             auto& binding = bindings.emplace_back();
             binding.vsharp_loc = vsharps[instr.src[2].code * 4];
+            binding.idx = curr_idx++;
             binding.dest_vgpr = instr.src[1].code;
             binding.n_elements = instr.control.mubuf.count;
             binding.soffs = instr.src[3].code;  // TODO: This is wrong, but I'm just ignoring soffs for now

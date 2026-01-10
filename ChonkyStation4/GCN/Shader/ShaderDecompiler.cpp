@@ -88,17 +88,19 @@ std::string getType(int n_lanes, u32 nfmt) {
     switch (n_lanes) {
     case 1: {
         switch ((NumberFormat)nfmt) {
-        case NumberFormat::Float: return "float";
+        case NumberFormat::Float:   return "float";
+        case NumberFormat::Uscaled: return "float";
         default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
         }
         break;
     }
     default: {
         switch ((NumberFormat)nfmt) {
-        case NumberFormat::Unorm: return std::format("vec{}", n_lanes);
-        case NumberFormat::Snorm: return std::format("vec{}", n_lanes);
+        case NumberFormat::Unorm:   return std::format("vec{}", n_lanes);
+        case NumberFormat::Snorm:   return std::format("vec{}", n_lanes);
+        case NumberFormat::Uscaled: return std::format("vec{}", n_lanes);
         case NumberFormat::Sscaled: return std::format("vec{}", n_lanes);
-        case NumberFormat::Float: return std::format("vec{}", n_lanes);
+        case NumberFormat::Float:   return std::format("vec{}", n_lanes);
         default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
         }
         break;
@@ -327,8 +329,8 @@ bool vcc;
         // Write vertex inputs from fetch shader
         for (auto& binding : fetch_shader->bindings) {
             VSharp* vsharp = binding.vsharp_loc.asPtr();
-            std::string attr = std::format("vs_attr{}", binding.dest_vgpr);
-            addInAttr(attr, getType(binding.n_elements, vsharp->nfmt), binding.dest_vgpr);
+            std::string attr = std::format("vs_attr{}", binding.idx);
+            addInAttr(attr, getType(binding.n_elements, vsharp->nfmt), binding.idx);
 
             // In main(), move the input data to the VGPRs.
             // Handle swizzling
@@ -513,7 +515,7 @@ bool vcc;
         }
 
         case Shader::Opcode::V_MOV_B32: {
-            main += setDST(instr.dst[0], getSRC(instr.src[0]));
+            main += setDST<true>(instr.dst[0], getSRC<true>(instr.src[0]));
             break;
         }
 
@@ -625,7 +627,7 @@ bool vcc;
 
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX8: {
             const auto buffer_mapping = buf_mapping_idx++;
-            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX4: no buffer_mapping");  // Unreachable if everything works as intended
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX8: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
@@ -643,7 +645,7 @@ bool vcc;
         
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX16: {
             const auto buffer_mapping = buf_mapping_idx++;
-            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX4: no buffer_mapping");  // Unreachable if everything works as intended
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX16: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
@@ -693,10 +695,14 @@ bool vcc;
                 data = std::format("vec4(unpackHalf2x16({}), unpackHalf2x16({}))", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
 
             // Color targets
-            if (tgt >= 0 && tgt <= 8) {
+            if (tgt >= 0 && tgt < 8) {
                 const std::string attr = std::format("col{}", tgt);
                 addOutAttr(attr, "vec4", tgt);
                 main += std::format("{} = {};\n", attr, data);
+            }
+            // Output to Z (TODO)
+            else if (tgt == 8) {
+                main += "// TODO: Output to Z\n";
             }
             // Output pos0
             else if (tgt == 12) {
@@ -713,9 +719,9 @@ bool vcc;
         }
 
         default: {
-            printf("Shader so far:\n%s\n", main.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            //main += "// TODO\n";
+            //printf("Shader so far:\n%s\n", main.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            main += "// TODO\n";
         }
         }
     }

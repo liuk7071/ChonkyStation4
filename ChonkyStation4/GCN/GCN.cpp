@@ -58,7 +58,7 @@ void gcnThread() {
         }
 
         case CommandType::SubmitCompute: {
-            GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0);
+            //GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0);
             break;
         }
 

@@ -27,11 +27,11 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         // TODO: Given that the vsharp could theoretically change between draws, add an assert (probably on each gatherVertices) to check if the stride of
         // the current vsharp is different from the one which was set here.
         binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
-        attrib = { shader_binding.dest_vgpr, n_binding++, getBufFormatAndSize(vsharp->dfmt, vsharp->nfmt).first, 0 };
+        attrib = { shader_binding.idx, n_binding++, getBufFormatAndSize(vsharp->dfmt, vsharp->nfmt).first, 0 };
 
         auto& vtx_binding = vtx_binding_layout.emplace_back();
         vtx_binding = shader_binding;
-        log("Created attribute binding for location %d\n", shader_binding.dest_vgpr);
+        log("Created attribute binding for location %d\n", shader_binding.idx);
     }
 
     // Setup graphics pipeline
@@ -195,6 +195,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                 TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
                 vk::DescriptorImageInfo* image_info;
                 Vulkan::getVulkanImageInfoForTSharp(tsharp, &image_info);
+                if (image_info == nullptr) break;
 
                 descriptor_writes.push_back(vk::WriteDescriptorSet{
                     .dstSet = nullptr,  // Not used for push descriptors
