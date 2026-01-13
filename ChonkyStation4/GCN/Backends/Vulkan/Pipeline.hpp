@@ -5,6 +5,7 @@
 #include <GCN/Shader/ShaderDecompiler.hpp>
 #include <GCN/FetchShader.hpp>
 #include <deque>
+#include "vk_mem_alloc.h"
 
 
 class VSharp;
@@ -20,8 +21,8 @@ public:
 
     struct VertexBinding {
         FetchShaderVertexBinding fetch_shader_binding;
-        vk::raii::Buffer buf = nullptr;
-        vk::raii::DeviceMemory mem = nullptr;
+        vk::Buffer buf = nullptr;
+        VmaAllocation alloc;
     };
 
     vk::raii::Pipeline& getVkPipeline() {
@@ -31,7 +32,7 @@ public:
         return pipeline_layout;
     }
 
-    std::vector<VertexBinding>* gatherVertices(u32 cnt);
+    std::vector<VertexBinding>* gatherVertices();
     std::vector<vk::WriteDescriptorSet> uploadBuffersAndTextures();
     void clearBuffers();
 
@@ -45,8 +46,8 @@ private:
     // The VertexBinding struct is basically FetchShaderVertexBinding with Vulkan buffers added on top.
     // The Vulkan buffers will be populated every time gatherVertices is called and added to this vector.
     std::deque<std::vector<VertexBinding>> vtx_bindings;
-    std::vector<vk::raii::Buffer> bufs;
-    std::vector<vk::raii::DeviceMemory> bufs_mem;
+    std::vector<vk::Buffer> bufs;
+    std::vector<VmaAllocation> buf_allocs;
     std::deque<vk::DescriptorBufferInfo> buffer_info;
 
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);

@@ -11,6 +11,8 @@
 #include <GCN/Shader/ShaderDecompiler.hpp>
 #include <SDL_vulkan.h>
 #include <OS/Libraries/ScePad/ScePad.hpp>
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 
 
 extern App g_app;
@@ -19,7 +21,7 @@ namespace PS4::GCN::Vulkan {
 
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
-constexpr bool enable_validation_layers = true;
+constexpr bool enable_validation_layers = false;
 
 const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
@@ -142,6 +144,66 @@ void VulkanRenderer::advanceSwapchain() {
     }
 }
 
+void VulkanRenderer::createDepthBuffer() {
+    vk::ImageCreateInfo depth_image_info = {
+        .imageType = vk::ImageType::e2D,
+        .format = vk::Format::eD32Sfloat,
+        .extent = {
+            swapchain_extent.width,
+            swapchain_extent.height,
+            1
+        },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = vk::SampleCountFlagBits::e1,
+        .tiling = vk::ImageTiling::eOptimal,
+        .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        .sharingMode = vk::SharingMode::eExclusive,
+        .initialLayout = vk::ImageLayout::eUndefined
+    };
+
+    VmaAllocationCreateInfo depth_alloc_info = {};
+    depth_alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+
+    VkImage raw_image;
+    vmaCreateImage(allocator, &*depth_image_info, &depth_alloc_info, &raw_image, &depth_image_alloc, nullptr);
+    depth_image = vk::raii::Image(device, raw_image);
+    vk::ImageViewCreateInfo depth_view_info = {
+        .image = *depth_image,
+        .viewType = vk::ImageViewType::e2D,
+        .format = vk::Format::eD32Sfloat,
+        .subresourceRange = {
+            .aspectMask = vk::ImageAspectFlagBits::eDepth,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+    depth_image_view = vk::raii::ImageView(device, depth_view_info);
+
+    vk::ImageMemoryBarrier2 barrier = {
+        .srcStageMask = vk::PipelineStageFlagBits2::eTopOfPipe,
+        .dstStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests,
+        .dstAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+        .oldLayout = vk::ImageLayout::eUndefined,
+        .newLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+        .image = *depth_image,
+        .subresourceRange = {
+            .aspectMask = vk::ImageAspectFlagBits::eDepth,
+            .levelCount = 1,
+            .layerCount = 1
+        }
+    };
+
+    vk::DependencyInfo dep_info = {
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier
+    };
+
+    cmd_bufs[0].pipelineBarrier2(dep_info);
+}
+
 void VulkanRenderer::init() {
 
     // ---- Create the SDL window ----
@@ -165,9 +227,17 @@ void VulkanRenderer::init() {
     };
 
     // Get the required layers
+    vk::ValidationFeaturesEXT validation_features;
+    std::array validation_enabled = {
+        vk::ValidationFeatureEnableEXT::eGpuAssisted,
+        vk::ValidationFeatureEnableEXT::eSynchronizationValidation,
+        vk::ValidationFeatureEnableEXT::eBestPractices
+    };
+    
     std::vector<char const*> required_layers;
     if (enable_validation_layers) {
         required_layers.assign(validation_layers.begin(), validation_layers.end());
+        validation_features.setEnabledValidationFeatures(validation_enabled);
     }
 
     // Check if the required layers are supported by the Vulkan implementation
@@ -184,6 +254,7 @@ void VulkanRenderer::init() {
     SDL_Vulkan_GetInstanceExtensions(window, &n_exts, nullptr);
     required_exts.resize(n_exts);
     SDL_Vulkan_GetInstanceExtensions(window, &n_exts, required_exts.data());
+    required_exts.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     
     if (enable_validation_layers)
         required_exts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -197,6 +268,7 @@ void VulkanRenderer::init() {
     }
 
     vk::InstanceCreateInfo create_info = {
+        .pNext                   = enable_validation_layers ? &validation_features : nullptr,
         .pApplicationInfo        = &app_info,
         .enabledLayerCount       = static_cast<u32>(required_layers.size()),
         .ppEnabledLayerNames     = required_layers.data(),
@@ -335,6 +407,53 @@ void VulkanRenderer::init() {
     advanceSwapchain();
     cmd_bufs[0].begin({});
 
+    // Get host memory import alignment
+    VkPhysicalDeviceExternalMemoryHostPropertiesEXT host_props = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT
+    };
+    VkPhysicalDeviceProperties2 props2 = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+        .pNext = &host_props
+    };
+    vkGetPhysicalDeviceProperties2(*physical_device, &props2);
+    host_memory_import_align = host_props.minImportedHostPointerAlignment;
+
+    // Setup VulkanMemoryAllocator
+    const VmaVulkanFunctions functions = {
+        .vkGetInstanceProcAddr = &vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr = &vkGetDeviceProcAddr,
+    };
+
+    const VmaAllocatorCreateInfo allocator_info = {
+        .flags = 0,
+        .physicalDevice = *physical_device,
+        .device = *device,
+        .pVulkanFunctions = &functions,
+        .instance = *instance,
+        .vulkanApiVersion = VK_API_VERSION_1_3,
+    };
+    vmaCreateAllocator(&allocator_info, &allocator);
+
+    VkBufferCreateInfo dummy_info {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = 4096,   // Doesn't matter
+        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    };
+    VkBuffer dummy;
+    vkCreateBuffer(*device, &dummy_info, nullptr, &dummy);
+    VkMemoryRequirements mem_reqs;
+    vkGetBufferMemoryRequirements(*device, dummy, &mem_reqs);
+    u32 vtx_mem_type_bits = mem_reqs.memoryTypeBits;
+    vkDestroyBuffer(*device, dummy, nullptr);
+
+    const VmaPoolCreateInfo vma_pool_info = {
+        .blockSize = 2_GB,
+        .minBlockCount = 1,
+        .maxBlockCount = 1,
+        .memoryTypeIndex = findMemoryType(vtx_mem_type_bits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
+    };
+    vmaCreatePool(allocator, &vma_pool_info, &vma_pool);
+
     // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
     transitionImageLayoutForSwapchain(
         current_swapchain_image_idx,
@@ -346,16 +465,34 @@ void VulkanRenderer::init() {
         vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
     );
 
+    // Create a depth buffer
+    createDepthBuffer();
+
     vk::RenderingAttachmentInfo attachment_info = {
         .imageView = *swapchain_image_views[current_swapchain_image_idx],
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .storeOp = vk::AttachmentStoreOp::eStore
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .clearValue = vk::ClearValue {
+            vk::ClearColorValue { std::array<float,4>{0,0,0,1} }
+        }
     };
+    vk::RenderingAttachmentInfo depth_attachment_info = {
+        .imageView = *depth_image_view,
+        .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eDontCare,
+        .clearValue = vk::ClearValue {
+            vk::ClearDepthStencilValue { 1.0f, 0 }
+        }
+    };
+
     vk::RenderingInfo render_info = {
         .renderArea = {.offset = { 0, 0 }, .extent = swapchain_extent },
         .layerCount = 1,
         .colorAttachmentCount = 1,
-        .pColorAttachments = &attachment_info
+        .pColorAttachments = &attachment_info,
+        .pDepthAttachment = &depth_attachment_info
     };
 
     cmd_bufs[0].beginRendering(render_info);
@@ -370,8 +507,8 @@ void VulkanRenderer::init() {
 std::vector<Pipeline*> curr_frame_pipelines;
 Pipeline* last_draw_pipeline = nullptr;
 // Keep track of index buffers needed for this frame and clear after flipping
-std::vector<vk::raii::Buffer> idx_bufs;
-std::vector<vk::raii::DeviceMemory> idx_buf_mems;
+std::vector<vk::Buffer> idx_bufs;
+std::vector<VmaAllocation> idx_buf_allocs;
 
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
@@ -410,40 +547,32 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr);
     curr_frame_pipelines.push_back(&pipeline);
 
-    // Gather vertex data
-    auto* vtx_bindings = pipeline.gatherVertices(cnt);
-
-    // Upload buffers and get descriptor writes
-    auto descriptor_writes = pipeline.uploadBuffersAndTextures();
-
     // Create index buffer (if needed)
-    vk::raii::Buffer* vk_idx_buf_ptr = nullptr;
+    vk::Buffer* vk_idx_buf_ptr = nullptr;
     if (idx_buf_ptr) {
         vk::DeviceSize idx_buf_size = cnt * sizeof(u16); // TODO: index type is stubbed
 
         auto& idx_buf = idx_bufs.emplace_back(nullptr);
-        auto& idx_buf_mem = idx_buf_mems.emplace_back(nullptr);
+        auto& idx_buf_alloc = idx_buf_allocs.emplace_back(nullptr);
         vk_idx_buf_ptr = &idx_buf;
 
-        vk::raii::Buffer buf = vk::raii::Buffer(device, { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
-        auto mem_requirements = buf.getMemoryRequirements();
-        vk::raii::DeviceMemory buf_mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
-        buf.bindMemory(*buf_mem, 0);
-        void* data = buf_mem.mapMemory(0, idx_buf_size);
-        std::memcpy(data, idx_buf_ptr, idx_buf_size);
-        buf_mem.unmapMemory();
-
-        idx_buf = vk::raii::Buffer(device, { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, .sharingMode = vk::SharingMode::eExclusive });
-        mem_requirements = buf.getMemoryRequirements();
-        idx_buf_mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) });
-        idx_buf.bindMemory(*idx_buf_mem, 0);
-
-        vk::raii::CommandBuffer tmp_cmd = beginCommands();
-        tmp_cmd.copyBuffer(*buf, *idx_buf, vk::BufferCopy(0, 0, idx_buf_size));
-        endCommands(tmp_cmd);
+        const vk::BufferCreateInfo buf_create_info = { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eIndexBuffer, .sharingMode = vk::SharingMode::eExclusive };
+        VmaAllocationCreateInfo alloc_create_info = {};
+        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        VkBuffer raw_buf;
+        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &idx_buf_alloc, nullptr);
+        idx_buf = vk::Buffer(raw_buf);
+        vmaCopyMemoryToAllocation(allocator, idx_buf_ptr, idx_buf_alloc, 0, idx_buf_size);
     }
 
-    // Draw
+    // Gather vertex data
+    auto* vtx_bindings = pipeline.gatherVertices();
+
+    // Upload buffers and get descriptor writes
+    auto descriptor_writes = pipeline.uploadBuffersAndTextures();
+
+    // ---- Draw ----
 
     if (&pipeline != last_draw_pipeline) {
         cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
@@ -454,10 +583,10 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
 
     for (int i = 0; i < vtx_bindings->size(); i++)
-        cmd_bufs[0].bindVertexBuffers(i, *(*vtx_bindings)[i].buf, {0});
+        cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, 0ull);
     
     if (idx_buf_ptr) {
-        cmd_bufs[0].bindIndexBuffer(**vk_idx_buf_ptr, 0, vk::IndexType::eUint16);
+        cmd_bufs[0].bindIndexBuffer(*vk_idx_buf_ptr, 0, vk::IndexType::eUint16);
         cmd_bufs[0].drawIndexed(cnt, 1, 0, 0, 0);
     }
     else {
@@ -583,8 +712,10 @@ void VulkanRenderer::flip() {
         pipeline->clearBuffers();
     curr_frame_pipelines.clear();
     last_draw_pipeline = nullptr;
+    for (int i = 0; i < idx_bufs.size(); i++)
+        vmaDestroyBuffer(allocator, idx_bufs[i], idx_buf_allocs[i]);
     idx_bufs.clear();
-    idx_buf_mems.clear();
+    idx_buf_allocs.clear();
 
     cmd_bufs[0].reset();
     advanceSwapchain();
@@ -599,16 +730,32 @@ void VulkanRenderer::flip() {
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
         vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
     );
+
     vk::RenderingAttachmentInfo attachment_info = {
         .imageView = *swapchain_image_views[current_swapchain_image_idx],
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .storeOp = vk::AttachmentStoreOp::eStore
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .clearValue = vk::ClearValue {
+            vk::ClearColorValue { std::array<float,4>{0,0,0,1} }
+        }
     };
+    vk::RenderingAttachmentInfo depth_attachment_info = {
+        .imageView = *depth_image_view,
+        .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eDontCare,
+        .clearValue = vk::ClearValue {
+            vk::ClearDepthStencilValue { 1.0f, 0 }
+        }
+    };
+
     vk::RenderingInfo render_info = {
         .renderArea = {.offset = { 0, 0 }, .extent = swapchain_extent },
         .layerCount = 1,
         .colorAttachmentCount = 1,
-        .pColorAttachments = &attachment_info
+        .pColorAttachments = &attachment_info,
+        .pDepthAttachment = &depth_attachment_info
     };
 
     cmd_bufs[0].beginRendering(render_info);

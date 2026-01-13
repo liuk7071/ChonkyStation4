@@ -156,6 +156,7 @@ void init(Module& module) {
     module.addSymbolExport("kOcnerypnQA", "sceKernelGettimezone", "libkernel", "libkernel", (void*)&sceKernelGettimezone);
     module.addSymbolExport("4J2sUJmuHZQ", "sceKernelGetProcessTime", "libkernel", "libkernel", (void*)&sceKernelGetProcessTime);
     module.addSymbolExport("-2IRUCO--PM", "sceKernelReadTsc", "libkernel", "libkernel", (void*)&sceKernelReadTsc);
+    module.addSymbolExport("6XG4B33N09g", "sched_yield", "libkernel", "libkernel", (void*)&kernel_sched_yield);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
@@ -385,6 +386,10 @@ u64 PS4_FUNC sceKernelGetProcessTime() {
     //log("sceKernelGetProcessTime()\n");
     const auto now = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(now - process_start_time).count();
+}
+
+void PS4_FUNC kernel_sched_yield() {
+    //std::this_thread::yield();
 }
 
 u64 PS4_FUNC sceKernelReadTsc() {

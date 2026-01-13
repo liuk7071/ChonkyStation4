@@ -167,10 +167,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
                 }
             };
 
-            while (!check()) {
+            //while (!check()) {
                 // TODO: Use poll_interval
                 std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            }
+            //}
             break;
         }
 
@@ -243,6 +243,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             switch (info.dst_sel) {
             case DmaData::DmaDataDst::Memory:
             case DmaData::DmaDataDst::MemoryUsingL2:    dst = (void*)(dst_addr_lo | ((u64)dst_addr_hi << 32));  break;
+            case DmaData::DmaDataDst::Gds:              log("TODO: GDS TRANSFER\n"); dst = 0;                   break;
             default:
                 Helpers::panic("DmaData: unhandled dst_sel %d\n", info.dst_sel.Value());
             }
@@ -250,12 +251,14 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             switch (info.src_sel) {
             case DmaData::DmaDataSrc::Memory:
             case DmaData::DmaDataSrc::MemoryUsingL2:    src = (void*)(src_addr_lo | ((u64)src_addr_hi << 32));  break;
+            case DmaData::DmaDataSrc::Data:             log("TODO: DATA SRC TRANSFER\n"); src = 0;              break;
             default:
                 Helpers::panic("DmaData: unhandled src_sel %d\n", info.src_sel.Value());
             }
 
             log("DmaData: dst=%p, src=%p, size=%d\n", dst, src, size);
-            std::memcpy(dst, src, size);
+            if (dst && src)
+                std::memcpy(dst, src, size);
             break;
         }
 
@@ -271,7 +274,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         case PM4ItOpcode::DrawIndexAuto: {
             const u32 cnt = *args++;
             //const u32 draw_initiator = *args++;
-            renderer->draw(cnt);
+            //renderer->draw(cnt);
             break;
         }
         
@@ -287,7 +290,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
 
         default: {
-            log("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
+            //log("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
             break;
         }
         }

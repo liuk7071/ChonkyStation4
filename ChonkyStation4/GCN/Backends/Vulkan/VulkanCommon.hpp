@@ -3,6 +3,7 @@
 #include <Common.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <GCN/DataFormats.hpp>
+#include "vk_mem_alloc.h"
 
 
 namespace PS4::GCN::Vulkan {
@@ -13,6 +14,9 @@ inline vk::raii::Queue                      queue = nullptr;
 inline vk::raii::CommandPool                cmd_pool = nullptr;
 inline vk::SurfaceFormatKHR                 swapchain_surface_format;
 inline vk::Extent2D                         swapchain_extent;
+inline VmaAllocator                         allocator;
+inline VmaPool                              vma_pool;
+inline u64                                  host_memory_import_align = 0;
 
 vk::raii::CommandBuffer beginCommands();
 void endCommands(vk::raii::CommandBuffer& cmd_buffer);

@@ -47,7 +47,14 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
 
     vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eNone, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
-    
+    vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = vk::CompareOp::eLessOrEqual,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+    };
+
     //vk::PipelineColorBlendAttachmentState color_blend_attachment = { .blendEnable = vk::False, .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
     vk::PipelineColorBlendAttachmentState color_blend_attachment = {
         .blendEnable = VK_TRUE,
@@ -111,19 +118,22 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     gpci.pViewportState = &viewport_state;
     gpci.pRasterizationState = &rasterizer;
     gpci.pMultisampleState = &multisampling;
+    gpci.pDepthStencilState = &depth_stencil;
     gpci.pColorBlendState = &color_blending;
     gpci.pDynamicState = &dynamic_state;
     gpci.layout = *pipeline_layout;
     gpci.renderPass = VK_NULL_HANDLE;
+
     vk::PipelineRenderingCreateInfo rendering_info = {};
     rendering_info.colorAttachmentCount = 1;
     rendering_info.pColorAttachmentFormats = &swapchain_surface_format.format;
+    rendering_info.depthAttachmentFormat = vk::Format::eD32Sfloat;
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipeline_create_info_chain(gpci, rendering_info);
     graphics_pipeline = vk::raii::Pipeline(device, nullptr, pipeline_create_info_chain.get());
 }
 
-std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices(u32 cnt) {
+std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
     // Create a new vertex binding array and initialize it with the fetch shader bindings
     auto& new_vtx_bindings = vtx_bindings.emplace_back();
     for (auto& vtx_binding_layout_element : vtx_binding_layout) {
@@ -136,15 +146,16 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices(u32 cnt) {
         // Get pointer to the V#
         VSharp* vsharp = vtx_binding.fetch_shader_binding.vsharp_loc.asPtr();
         // Setup vertex buffer and copy data
-        const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * cnt;
-        vtx_binding.buf = vk::raii::Buffer(device, { .size = buf_size, .usage = vk::BufferUsageFlagBits::eVertexBuffer, .sharingMode = vk::SharingMode::eExclusive });
-        auto mem_requirements = vtx_binding.buf.getMemoryRequirements();
-        vtx_binding.mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
-        vtx_binding.buf.bindMemory(*vtx_binding.mem, 0);
-        void* vtx_buf_data = vtx_binding.mem.mapMemory(0, buf_size);
+        const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
+        const vk::BufferCreateInfo buf_create_info = { .size = buf_size, .usage = vk::BufferUsageFlagBits::eVertexBuffer, .sharingMode = vk::SharingMode::eExclusive };
+        VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };
+        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        VkBuffer buf;
+        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &buf, &vtx_binding.alloc, nullptr);
+        vtx_binding.buf = vk::Buffer(buf);
         void* guest_vtx_buf_data = (void*)(vsharp->base + vtx_binding.fetch_shader_binding.voffs);
-        std::memcpy(vtx_buf_data, guest_vtx_buf_data, buf_size);
-        vtx_binding.mem.unmapMemory();
+        vmaCopyMemoryToAllocation(allocator, guest_vtx_buf_data, vtx_binding.alloc, 0, buf_size);
     }
 
     return &new_vtx_bindings;
@@ -163,20 +174,21 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
 
                 // Upload as SSBO
                 auto& buf = bufs.emplace_back(nullptr);
-                auto& mem = bufs_mem.emplace_back(nullptr);
+                auto& alloc = buf_allocs.emplace_back(nullptr);
 
-                const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
-                buf = vk::raii::Buffer(device, { .size = buf_size, .usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst, .sharingMode = vk::SharingMode::eExclusive });
-                auto mem_requirements = buf.getMemoryRequirements();
-                mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
-                buf.bindMemory(*mem, 0);
-                void* buf_data = mem.mapMemory(0, buf_size);
+                const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * (vsharp->num_records + 16);
+                const vk::BufferCreateInfo buf_create_info = { .size = buf_size, .usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst, .sharingMode = vk::SharingMode::eExclusive };
+                VmaAllocationCreateInfo alloc_create_info = {};
+                alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+                alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                VkBuffer raw_buf;
+                vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
+                buf = vk::Buffer(raw_buf);
                 void* guest_buf_data = (void*)vsharp->base;
-                std::memcpy(buf_data, guest_buf_data, buf_size);
-                mem.unmapMemory();
-                
+                if ((u64)guest_buf_data < 0x10000) return;
+                vmaCopyMemoryToAllocation(allocator, guest_buf_data, alloc, 0, buf_size);
                 buffer_info.push_back({
-                    .buffer = *buf,
+                    .buffer = buf,
                     .offset = 0,
                     .range = buf_size,
                 });
@@ -195,7 +207,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                 TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
                 vk::DescriptorImageInfo* image_info;
                 Vulkan::getVulkanImageInfoForTSharp(tsharp, &image_info);
-                if (image_info == nullptr) break;
+                //if (image_info == nullptr) break;
 
                 descriptor_writes.push_back(vk::WriteDescriptorSet{
                     .dstSet = nullptr,  // Not used for push descriptors
@@ -217,9 +229,17 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
 }
 
 void Pipeline::clearBuffers() {
+    for (auto& bindings : vtx_bindings) {
+        for (auto& binding : bindings)
+            vmaDestroyBuffer(allocator, binding.buf, binding.alloc);
+    }
     vtx_bindings.clear();
+
+    Helpers::debugAssert(bufs.size() == buf_allocs.size(), "clearBuffers: bufs size != allocs size");
+    for (int i = 0; i < bufs.size(); i++)
+        vmaDestroyBuffer(allocator, bufs[i], buf_allocs[i]);
     bufs.clear();
-    bufs_mem.clear();
+    buf_allocs.clear();
     buffer_info.clear();
 }
 

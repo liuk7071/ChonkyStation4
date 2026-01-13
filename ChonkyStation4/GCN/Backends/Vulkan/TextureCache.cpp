@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include "TextureCache.hpp"
 #include <Logger.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
@@ -40,7 +41,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     } else img_size = pitch * height * pixel_size;
     
     // Hash the texture
-    u64 hash = XXH3_64bits(ptr, img_size);
+    //u64 hash = XXH3_64bits(ptr, img_size);
+    u64 hash = XXH3_64bits(ptr, pitch * 16);
+    hash ^= XXH3_64bits((u8*)ptr + img_size / 2, pitch * 16);
+    hash ^= XXH3_64bits((u8*)ptr + img_size - pitch * 32, pitch * 16);
     // Check if we already have the texture in our cache
     if (cache.contains(hash)) {
         // We already have the texture, return its info
@@ -53,8 +57,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     // Without this, a new texture would get uploaded every frame.
     if (addr_hash_map.contains(ptr)) {
         const auto old_hash = addr_hash_map[ptr];
-        delete cache[old_hash];
-        cache.erase(old_hash);
+        //delete cache[old_hash];
+        //cache.erase(old_hash);
     }
     addr_hash_map[ptr] = hash;
 
@@ -94,7 +98,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
-        .tiling = vk::ImageTiling::eLinear,
+        .tiling = vk::ImageTiling::eOptimal,
         .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
         .sharingMode = vk::SharingMode::eExclusive
     };
@@ -107,15 +111,40 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
 
     // Copy buffer to image
     vk::raii::CommandBuffer tmp_cmd = beginCommands();
-    vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = pitch, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
+    const auto buffer_row_length = pitch > width ? pitch : 0;
+    if (pitch < width) printf("pitch < width\n");
+    vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = buffer_row_length, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
     tmp_cmd.copyBufferToImage(*tex_buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
     endCommands(tmp_cmd);
 
     transitionImageLayout(img, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
     // Create image view
+    vk::ComponentSwizzle swizzle_map[] = {
+        vk::ComponentSwizzle::eZero,    // 0 - DSEL_0
+        vk::ComponentSwizzle::eOne,     // 1 - DSEL_1
+        vk::ComponentSwizzle::eR,       // 2 - invalid
+        vk::ComponentSwizzle::eG,       // 3 - invalid
+        vk::ComponentSwizzle::eR,       // 4 - DSEL_R
+        vk::ComponentSwizzle::eG,       // 5 - DSEL_G
+        vk::ComponentSwizzle::eB,       // 6 - DSEL_B
+        vk::ComponentSwizzle::eA,       // 7 - DSEL_A
+    };
     auto& img_view = entry->view;
-    vk::ImageViewCreateInfo view_info = { .image = *img, .viewType = vk::ImageViewType::e2D, .format = vk_fmt, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+    vk::ImageViewCreateInfo view_info = {
+        .image = *img,
+        .viewType = vk::ImageViewType::e2D,
+        .format = vk_fmt,
+        .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 },
+
+        // TODO: You can in theory change the T# swizzling without changing the texture itself. This breaks because we only hash the texture.
+        .components = {
+            swizzle_map[tsharp->dst_sel_x],
+            swizzle_map[tsharp->dst_sel_y],
+            swizzle_map[tsharp->dst_sel_z],
+            swizzle_map[tsharp->dst_sel_w],
+        }
+    };
     img_view = vk::raii::ImageView(device, view_info);
 
     // Create image sampler
@@ -131,8 +160,9 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
         .mipLodBias = 0.0f,
         .anisotropyEnable = vk::False,
         .maxAnisotropy = 1.0f,
-        .compareEnable = vk::False,
-        .compareOp = vk::CompareOp::eAlways,
+        .compareEnable = vk::True,
+        .compareOp = vk::CompareOp::eLessOrEqual,
+        .borderColor = vk::BorderColor::eFloatTransparentBlack
     };
     sampler = vk::raii::Sampler(device, sampler_info);
 

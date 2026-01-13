@@ -94,6 +94,7 @@ target_compile_definitions(ChonkyStation4 PUBLIC
     VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
     VULKAN_HPP_NO_STRUCT_CONSTRUCTORS=1
 )
-target_link_libraries(ChonkyStation4 PRIVATE Vulkan::Vulkan glslang SPIRV)
+add_subdirectory(Dependencies/VulkanMemoryAllocator)
+target_link_libraries(ChonkyStation4 PRIVATE Vulkan::Vulkan glslang SPIRV GPUOpen::VulkanMemoryAllocator)
 
 set_target_properties(ChonkyStation4 PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)

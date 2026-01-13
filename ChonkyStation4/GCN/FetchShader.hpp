@@ -20,7 +20,7 @@ struct VSharpLocation {
 
 struct FetchShaderVertexBinding {
     VSharpLocation vsharp_loc;
-    u32 idx = 0;    // An incrementing index
+    u32 idx = 0;        // An incrementing index
     u32 dest_vgpr = 0;
     u32 n_elements = 0; // Elements per attrib (i.e. 4 for xyzw)
     u32 soffs = 0;

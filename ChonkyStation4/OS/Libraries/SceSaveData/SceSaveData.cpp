@@ -17,17 +17,17 @@ void init(Module& module) {
     module.addSymbolExport("v7AAAMo0Lz4", "sceSaveDataSetupSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataSetupSaveDataMemory);
     module.addSymbolExport("7Bt5pBC-Aco", "sceSaveDataGetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataGetSaveDataMemory);
     module.addSymbolExport("h3YURzXGSVQ", "sceSaveDataSetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataSetSaveDataMemory);
+    module.addSymbolExport("dyIhnXq-0SM", "sceSaveDataDirNameSearch", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataDirNameSearch);
     
     module.addSymbolStub("ZkZhskCPXFw", "sceSaveDataInitialize", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("TywrFKCoLGY", "sceSaveDataInitialize3", "libSceSaveData", "libSceSaveData");
-    module.addSymbolStub("dyIhnXq-0SM", "sceSaveDataDirNameSearch", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("c88Yy54Mx0w", "sceSaveDataSaveIcon", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("85zul--eGXs", "sceSaveDataSetParam", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("BMR4F-Uek3E", "sceSaveDataUmount", "libSceSaveData", "libSceSaveData");
 }
 
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result) {
-    log("sceSaveDataMount(mount=*%p, mount_result=*%p) TODO\n", mount, mount_result);
+    log("sceSaveDataMount(mount=*%p, mount_result=*%p)\n", mount, mount_result);
 
     SceSaveDataMount2 mount2;
     mount2.user_id      = mount->user_id;
@@ -119,19 +119,37 @@ s32 PS4_FUNC sceSaveDataSetSaveDataMemory(const SceUserService::SceUserServiceUs
 s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, SceSaveDataDirNameSearchResult* result) {
     log("sceSaveDataDirNameSearch(cond=*%p, result=*%p) TODO\n", cond, result);
 
-    // TODO
-    result->n_hits = 0;
-    result->n_dir_names_set = 0;
-    //result->n_hits = 2;
-    //result->n_dir_names_set = 2;
-    //std::strcpy(result->dir_names[0].data, "profile");
-    //std::strcpy(result->dir_names[1].data, "savegame00");
-    //if (result->infos) {
-    //    result->infos[0].blocks = 100;
-    //    result->infos[0].free_blocks = 1000;
-    //    result->infos[1].blocks = 100;
-    //    result->infos[1].free_blocks = 1000;
-    //}
+    const auto dir_name = cond->dir_name ? std::string(cond->dir_name->data) : "";
+    log("dir_name=\"%s\"\n", dir_name.c_str());
+
+    // If a dir_name is specified, check if this directory exists.
+    // TODO: Wildcards
+    if (!dir_name.empty()) {
+        // Get the user's savedata directory
+        const auto user_save_dir = User::getUser(cond->user_id)->getHomeDir() / "savedata";
+        // Get the game's savedata directory
+        const auto game_dir = user_save_dir / g_app.title_id;
+
+        // Check if the specified directory exists
+        if (fs::exists(game_dir / dir_name)) {
+            result->n_hits = 1;
+            if (result->n_dir_names > 0) {
+                result->n_dir_names_set = 1;
+                std::strcpy(result->dir_names[0].data, dir_name.c_str());
+            }
+            if (result->infos) {
+                // TODO
+                result->infos[0].blocks = 100;
+                result->infos[0].free_blocks = 1000;
+            }
+        }
+        else {
+            result->n_hits = 0;
+            result->n_dir_names_set = 0;
+        }
+    }
+    else Helpers::panic("TODO: sceSaveDataDirNameSearch with empty dir_name");
+
     return SCE_OK;
 }
 

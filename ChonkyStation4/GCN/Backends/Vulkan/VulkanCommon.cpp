@@ -74,12 +74,43 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         break;
     }
 
+    case DataFormat::Format16: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm:   return { vk::Format::eR16Unorm, sizeof(u16) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format32: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Float:   return { vk::Format::eR32Sfloat, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
     case DataFormat::Format16_16: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Unorm:   return { vk::Format::eR16G16Unorm, sizeof(u16) * 2 };
         case NumberFormat::Snorm:   return { vk::Format::eR16G16Snorm, sizeof(u16) * 2 };
         case NumberFormat::Sscaled: return { vk::Format::eR16G16Sscaled, sizeof(u16) * 2 };
         case NumberFormat::Float:   return { vk::Format::eR16G16Sfloat, sizeof(u16) * 2 };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format2_10_10_10: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Snorm:   return { vk::Format::eA2B10G10R10SnormPack32, sizeof(u32) };    // TODO: Verify this
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }
@@ -102,6 +133,16 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Float: return { vk::Format::eR32G32Sfloat, sizeof(u32) * 2 };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format16_16_16_16: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Float: return { vk::Format::eR16G16B16A16Sfloat, sizeof(u16) * 4 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }

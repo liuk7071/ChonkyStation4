@@ -125,6 +125,8 @@ static const TBuiltInResource DefaultTBuiltInResource = {
     }
 };
 
+#define SHADER_DEBUG
+
 std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
     glslang::InitializeProcess();
 
@@ -138,7 +140,7 @@ std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
         &DefaultTBuiltInResource,  // default TBuiltInResource from ResourceLimits.h
         100,                    // default version
         false,                  // not forward compatible
-        EShMsgDefault           // report default error/warning messages
+        (EShMessages)(EShMsgDefault | EShMsgDebugInfo)
     );
 
     if (shader.getInfoLog()[0] != '\0') {
@@ -158,7 +160,17 @@ std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
     glslang::TIntermediate* intermediate = program.getIntermediate(stage);
 
     std::vector<u32> spirv;                         // the vector for the output
-    glslang::GlslangToSpv(*intermediate, spirv);    // convert the glslang intermediate into SPIR-V bytes
+    
+#ifdef SHADER_DEBUG
+    glslang::SpvOptions options;
+    shader.setDebugInfo(true);
+    options.generateDebugInfo = true;
+    options.stripDebugInfo = false;
+    options.disableOptimizer = true;
+    glslang::GlslangToSpv(*intermediate, spirv, &options);
+#else
+    glslang::GlslangToSpv(*intermediate, spirv);
+#endif
 
     return spirv; // Usually the result is optimized with RVO so don't worry about copying
 }

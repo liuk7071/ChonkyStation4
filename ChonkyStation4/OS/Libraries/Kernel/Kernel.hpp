@@ -47,6 +47,7 @@ s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz);
 s32 PS4_FUNC sceKernelGettimeofday(SceKernelTimeval* tv);
 s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz);
 u64 PS4_FUNC sceKernelGetProcessTime();
+void PS4_FUNC kernel_sched_yield();
 u64 PS4_FUNC sceKernelReadTsc();
 s32 PS4_FUNC sceKernelIsNeoMode();
 void* PS4_FUNC sceKernelGetProcParam();

@@ -3,6 +3,7 @@
 #include <Common.hpp>
 #include <GCN/Backends/Renderer.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include "vk_mem_alloc.h"
 
 
 namespace PS4::GCN::Vulkan {
@@ -27,6 +28,9 @@ private:
     vk::raii::SwapchainKHR           swapchain          = nullptr;
     std::vector<vk::Image>           swapchain_images;
     std::vector<vk::raii::ImageView> swapchain_image_views;
+    vk::raii::Image                  depth_image = nullptr;
+    vk::raii::ImageView              depth_image_view = nullptr;
+    VmaAllocation                    depth_image_alloc = nullptr;
 
     std::vector<vk::raii::CommandBuffer> cmd_bufs;
 
@@ -42,12 +46,15 @@ private:
 	    VK_KHR_SPIRV_1_4_EXTENSION_NAME,
 	    VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
         VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
-        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+        //VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+        //VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME
     };
 
     bool framebuffer_resized = false;
 
     void recreateSwapChain();
+    void createDepthBuffer();
     void transitionImageLayoutForSwapchain(
         u32                     img_idx,
         vk::ImageLayout         old_layout,
