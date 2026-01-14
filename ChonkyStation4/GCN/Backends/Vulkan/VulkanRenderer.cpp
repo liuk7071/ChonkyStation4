@@ -544,7 +544,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
 
     // Get pipeline
-    auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr);
+    auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
     curr_frame_pipelines.push_back(&pipeline);
 
     // Create index buffer (if needed)

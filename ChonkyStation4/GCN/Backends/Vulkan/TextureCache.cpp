@@ -41,10 +41,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     } else img_size = pitch * height * pixel_size;
     
     // Hash the texture
-    //u64 hash = XXH3_64bits(ptr, img_size);
-    u64 hash = XXH3_64bits(ptr, pitch * 16);
-    hash ^= XXH3_64bits((u8*)ptr + img_size / 2, pitch * 16);
-    hash ^= XXH3_64bits((u8*)ptr + img_size - pitch * 32, pitch * 16);
+    u64 hash = XXH3_64bits(ptr, img_size);
+    //u64 hash = XXH3_64bits(ptr, pitch * 16);
+    //hash ^= XXH3_64bits((u8*)ptr + img_size / 2, pitch * 16);
+    //hash ^= XXH3_64bits((u8*)ptr + img_size - pitch * 32, pitch * 16);
     // Check if we already have the texture in our cache
     if (cache.contains(hash)) {
         // We already have the texture, return its info

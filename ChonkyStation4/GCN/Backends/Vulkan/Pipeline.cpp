@@ -13,7 +13,7 @@ namespace PS4::GCN::Vulkan {
 
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
-Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shader, FetchShader fetch_shader) : vert_shader(vert_shader), pixel_shader(pixel_shader), fetch_shader(fetch_shader) {
+Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg) : vert_shader(vert_shader), pixel_shader(pixel_shader), fetch_shader(fetch_shader), cfg(cfg) {
     // Iterate over fetch shader bindings and convert them to vulkan binding/attribute descriptions, and create the vertex buffers
     std::vector<vk::VertexInputBindingDescription> bindings;
     std::vector<vk::VertexInputAttributeDescription> attribs;
@@ -42,9 +42,27 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     vk::PipelineShaderStageCreateInfo shader_stages[] = { vert_stage_info, frag_stage_info };
 
     vk::PipelineVertexInputStateCreateInfo   vertex_input_info = { .vertexBindingDescriptionCount = (u32)bindings.size(), .pVertexBindingDescriptions = bindings.data(), .vertexAttributeDescriptionCount = (u32)attribs.size(), .pVertexAttributeDescriptions = attribs.data() };
-    vk::PipelineInputAssemblyStateCreateInfo input_assembly = { .topology = vk::PrimitiveTopology::eTriangleList };
-    vk::PipelineViewportStateCreateInfo      viewport_state = { .viewportCount = 1, .scissorCount = 1 };
+    
+    auto topology = [](u32 prim_type) {
+        switch ((PrimitiveType)prim_type) {
+        case PrimitiveType::PointList:          return vk::PrimitiveTopology::ePointList;
+        case PrimitiveType::LineList:           return vk::PrimitiveTopology::eLineList;
+        case PrimitiveType::LineStrip:          return vk::PrimitiveTopology::eLineStrip;
+        case PrimitiveType::TriangleList:       return vk::PrimitiveTopology::eTriangleList;
+        case PrimitiveType::TriangleFan:        return vk::PrimitiveTopology::eTriangleFan;
+        case PrimitiveType::TriangleStrip:      return vk::PrimitiveTopology::eTriangleStrip;
+        case PrimitiveType::AdjLineList:        return vk::PrimitiveTopology::eLineListWithAdjacency;
+        case PrimitiveType::AdjLineStrip:       return vk::PrimitiveTopology::eLineStripWithAdjacency;
+        case PrimitiveType::AdjTriangleList:    return vk::PrimitiveTopology::eTriangleListWithAdjacency;
+        case PrimitiveType::AdjTriangleStrip:   return vk::PrimitiveTopology::eTriangleStripWithAdjacency;
+        case PrimitiveType::QuadList:           return vk::PrimitiveTopology::eTriangleList;    // TODO
+        default:    Helpers::panic("Unimplemented primitive type %d\n", prim_type);
+        }
+    };
+    
+    vk::PipelineInputAssemblyStateCreateInfo input_assembly = { .topology = topology(cfg.prim_type) };
 
+    vk::PipelineViewportStateCreateInfo      viewport_state = { .viewportCount = 1, .scissorCount = 1 };
     vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eNone, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
@@ -55,17 +73,60 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         .stencilTestEnable = VK_FALSE,
     };
 
-    //vk::PipelineColorBlendAttachmentState color_blend_attachment = { .blendEnable = vk::False, .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
-    vk::PipelineColorBlendAttachmentState color_blend_attachment = {
-        .blendEnable = VK_TRUE,
-        
-        .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
-        .dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
-        .colorBlendOp = vk::BlendOp::eAdd,
+    auto blend_factor = [](u32 factor) -> vk::BlendFactor {
+        switch ((BlendFactor)factor) {
+        case BlendFactor::Zero:                     return vk::BlendFactor::eZero;
+        case BlendFactor::One:                      return vk::BlendFactor::eOne;
+        case BlendFactor::SrcColor:                 return vk::BlendFactor::eSrcColor;
+        case BlendFactor::OneMinusSrcColor:         return vk::BlendFactor::eOneMinusSrcColor;
+        case BlendFactor::SrcAlpha:                 return vk::BlendFactor::eSrcAlpha;
+        case BlendFactor::OneMinusSrcAlpha:         return vk::BlendFactor::eOneMinusSrcAlpha;
+        case BlendFactor::DstAlpha:                 return vk::BlendFactor::eDstAlpha;
+        case BlendFactor::OneMinusDstAlpha:         return vk::BlendFactor::eOneMinusDstAlpha;
+        case BlendFactor::DstColor:                 return vk::BlendFactor::eDstColor;
+        case BlendFactor::OneMinusDstColor:         return vk::BlendFactor::eOneMinusDstColor;
+        case BlendFactor::SrcAlphaSaturate:         return vk::BlendFactor::eSrcAlphaSaturate;
+        //case BlendFactor::ConstantColor:            return vk::BlendFactor::eConstantColor;
+        //case BlendFactor::OneMinusConstantColor:    return vk::BlendFactor::eOneMinusConstantColor;
+        case BlendFactor::Src1Color:                return vk::BlendFactor::eSrc1Color;
+        case BlendFactor::InvSrc1Color:             return vk::BlendFactor::eOneMinusSrc1Color;
+        case BlendFactor::Src1Alpha:                return vk::BlendFactor::eSrc1Alpha;
+        case BlendFactor::InvSrc1Alpha:             return vk::BlendFactor::eOneMinusSrc1Alpha;
+        //case BlendFactor::ConstantAlpha:            return vk::BlendFactor::eConstantAlpha;
+        //case BlendFactor::OneMinusConstantAlpha:    return vk::BlendFactor::eOneMinusConstantAlpha;
+        default:    Helpers::panic("Unimplemented blend factor %d\n", factor);
+        }
+    };
 
-        .srcAlphaBlendFactor = vk::BlendFactor::eOne,
-        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
-        .alphaBlendOp = vk::BlendOp::eAdd,
+    auto blend_op = [](u32 func) -> vk::BlendOp {
+        switch ((BlendFunc)func) {
+        case BlendFunc::Add:                return vk::BlendOp::eAdd;
+        case BlendFunc::Subtract:           return vk::BlendOp::eSubtract;
+        case BlendFunc::Min:                return vk::BlendOp::eMin;
+        case BlendFunc::Max:                return vk::BlendOp::eMax;
+        case BlendFunc::ReverseSubtract:    return vk::BlendOp::eReverseSubtract;
+        default:    Helpers::panic("Unknown blend func %d\n", func);
+        }
+    };
+
+    auto color_src_blend = blend_factor(cfg.blend_control[0].src_blend);
+    auto color_dst_blend = blend_factor(cfg.blend_control[0].dst_blend);
+    auto alpha_src_blend = cfg.blend_control[0].separate_alpha_blend ? blend_factor(cfg.blend_control[0].src_blend) : color_src_blend;
+    auto alpha_dst_blend = cfg.blend_control[0].separate_alpha_blend ? blend_factor(cfg.blend_control[0].dst_blend) : color_dst_blend;
+    
+    auto color_op = blend_op(cfg.blend_control[0].color_func);
+    auto alpha_op = cfg.blend_control[0].separate_alpha_blend ? blend_op(cfg.blend_control[0].alpha_func) : color_op;
+
+    vk::PipelineColorBlendAttachmentState color_blend_attachment = {
+        .blendEnable = cfg.blend_control[0].enable,
+        
+        .srcColorBlendFactor = color_src_blend,
+        .dstColorBlendFactor = color_dst_blend,
+        .colorBlendOp = color_op,
+
+        .srcAlphaBlendFactor = alpha_src_blend,
+        .dstAlphaBlendFactor = alpha_dst_blend,
+        .alphaBlendOp = alpha_op,
 
         .colorWriteMask =
             vk::ColorComponentFlagBits::eR |

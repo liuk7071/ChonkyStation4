@@ -160,6 +160,8 @@ std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
     if constexpr (!is_int) {
         if (op.output_modifier.multiplier != 0.0f)
             src = std::format("({} * {:#g}f)", src, op.output_modifier.multiplier);
+        if (op.output_modifier.clamp)
+            src = "clamp(" + src + ", 0.0f, 1.0f)";
         src = "f2u(" + src + ")";
     }
 
