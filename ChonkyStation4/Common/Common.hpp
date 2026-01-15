@@ -125,6 +125,16 @@ static inline bool inRangeSized(T num, T start, T size) {
     else return false;
 }
 
+template <typename T>
+static inline T alignDown(T value, size_t align) {
+    return value & ~(align - 1);
+}
+
+template <typename T>
+static inline T alignUp(T value, size_t align) {
+    return (value + align - 1) & ~(align - 1);
+}
+
 static std::string readString(u8* ptr) {
     std::string str;
     while (*ptr)

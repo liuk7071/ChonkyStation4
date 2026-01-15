@@ -55,6 +55,7 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         case PrimitiveType::AdjLineStrip:       return vk::PrimitiveTopology::eLineStripWithAdjacency;
         case PrimitiveType::AdjTriangleList:    return vk::PrimitiveTopology::eTriangleListWithAdjacency;
         case PrimitiveType::AdjTriangleStrip:   return vk::PrimitiveTopology::eTriangleStripWithAdjacency;
+        case PrimitiveType::RectList:           return vk::PrimitiveTopology::eTriangleList;    // TODO
         case PrimitiveType::QuadList:           return vk::PrimitiveTopology::eTriangleList;    // TODO
         default:    Helpers::panic("Unimplemented primitive type %d\n", prim_type);
         }

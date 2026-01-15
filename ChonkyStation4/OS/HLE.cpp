@@ -12,6 +12,7 @@
 #include <OS/Libraries/ScePad/ScePad.hpp>
 #include <OS/Libraries/SceAudioOut/SceAudioOut.hpp>
 #include <OS/Libraries/ScePlayGo/ScePlayGo.hpp>
+#include <OS/Libraries/SceRtc/SceRtc.hpp>
 
 
 // Stub until we implement audio input
@@ -24,6 +25,12 @@ static s32 sce_net_errno = 35;
 
 s32* PS4_FUNC sceNetErrnoLoc() {
     return &sce_net_errno;
+}
+
+s32 PS4_FUNC sceNetCtlGetState(s32* state) {
+    //printf("sceNetCtlGetState()\n");
+    *state = 0; // Disconnected
+    return SCE_OK;
 }
 
 namespace PS4::OS::HLE {
@@ -46,6 +53,7 @@ Module buildHLEModule() {
     PS4::OS::Libs::ScePad::init(module);
     PS4::OS::Libs::SceAudioOut::init(module);
     PS4::OS::Libs::ScePlayGo::init(module);
+    PS4::OS::Libs::SceRtc::init(module);
 
     // libSceAppContent
     module.addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
@@ -111,6 +119,7 @@ Module buildHLEModule() {
     // libSceNetCtl
     module.addSymbolStub("gky0+oaNM4k", "sceNetCtlInit", "libSceNetCtl", "libSceNetCtl");
     module.addSymbolStub("obuxdTiwkF8", "sceNetCtlGetInfo", "libSceNetCtl", "libSceNetCtl");
+    module.addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
 
     // libSceSsl
     module.addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);

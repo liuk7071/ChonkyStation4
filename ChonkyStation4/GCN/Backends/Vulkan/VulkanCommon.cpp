@@ -31,15 +31,22 @@ void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout old_lay
         barrier.srcAccessMask = {};
         barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
 
-        source_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+        source_stage      = vk::PipelineStageFlagBits::eTopOfPipe;
         destination_stage = vk::PipelineStageFlagBits::eTransfer;
     }
     else if (old_layout == vk::ImageLayout::eTransferDstOptimal && new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
         barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
         barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
-        source_stage = vk::PipelineStageFlagBits::eTransfer;
+        source_stage      = vk::PipelineStageFlagBits::eTransfer;
         destination_stage = vk::PipelineStageFlagBits::eAllGraphics;
+    }
+    else if (old_layout == vk::ImageLayout::eShaderReadOnlyOptimal && new_layout == vk::ImageLayout::eTransferDstOptimal) {
+        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+        source_stage      = vk::PipelineStageFlagBits::eAllGraphics;
+        destination_stage = vk::PipelineStageFlagBits::eTransfer;
     }
     else {
         Helpers::panic("Unsupported layout transition\n");

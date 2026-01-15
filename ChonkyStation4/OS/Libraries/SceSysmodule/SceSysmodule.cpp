@@ -5,7 +5,7 @@
 
 namespace PS4::OS::Libs::SceSysmodule {
 
-MAKE_LOG_FUNCTION(log, lib_sceUserService);
+MAKE_LOG_FUNCTION(log, lib_sceSysmodule);
 
 void init(Module& module) {
     module.addSymbolStub("g8cM39EUZ6o", "sceSysmoduleLoadModule", "libSceSysmodule", "libSceSysmodule");

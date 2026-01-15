@@ -27,6 +27,53 @@ void addFunc(std::string name, std::string body) {
     shader += "}\n";
 }
 
+static bool has_cubemap_scoord_func = false;
+void addCubemapSCoordFunc() {
+    if (has_cubemap_scoord_func) return;
+    has_cubemap_scoord_func = true;
+
+    shader += R"(
+float scoord(float x, float y, float z) {
+    const float abs_x = abs(x);
+    const float abs_y = abs(y);
+    const float abs_z = abs(z);
+
+    if (abs_z >= abs_x && abs_z >= abs_y) {
+        if (z < 0.0f)   return -x;
+        else            return x;
+    }
+    else if (abs_y >= abs_x)
+        return x;
+    else {
+        if (x < 0.0f)   return z;
+        else            return -z;
+    }
+}
+)";
+}
+
+static bool has_cubemap_tcoord_func = false;
+void addCubemapTCoordFunc() {
+    if (has_cubemap_tcoord_func) return;
+    has_cubemap_tcoord_func = true;
+
+    shader += R"(
+float tcoord(float x, float y, float z) {
+    const float abs_x = abs(x);
+    const float abs_y = abs(y);
+    const float abs_z = abs(z);
+
+    if (abs_z >= abs_x && abs_z >= abs_y)
+        return -y;
+    else if (abs_y >= abs_x) {
+        if (y < 0.0f)  return -z;
+        else        return z;
+    }
+    else return -y;
+}
+)";
+}
+
 void addInAttr(std::string name, std::string type, int location) {
     if (in_attrs.contains(location)) {
         // Extra check to be safe, this shouldn't ever happen
@@ -203,7 +250,7 @@ template VSharp* DescriptorLocation::asPtr<VSharp>();
 template TSharp* DescriptorLocation::asPtr<TSharp>();
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
-    //std::ofstream out;
+    std::ofstream out;
     ////if (stage == ShaderStage::Fragment) {
     //    out.open("shader.bin", std::ios::binary);
     //    out.write((char*)data, 1_KB);
@@ -220,6 +267,8 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     in_attrs.clear();
     out_attrs.clear();
     in_buffers.clear();
+    has_cubemap_scoord_func = false;
+    has_cubemap_tcoord_func = false;
 
     shader += R"(
 #version 430 core
@@ -553,6 +602,12 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::V_CMP_EQ_U32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} == {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_CNDMASK_B32: {
             main += "// TODO: V_CNDMASK_B32\n";
             break;
@@ -710,6 +765,18 @@ bool vcc;
         case Shader::Opcode::V_MAD_LEGACY_F32:
         case Shader::Opcode::V_MAD_F32: {
             main += setDST(instr.dst[0], std::format("{} * {} + {}", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+
+        case Shader::Opcode::V_CUBESC_F32: {
+            addCubemapSCoordFunc();
+            main += setDST(instr.dst[0], std::format("scoord({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+
+        case Shader::Opcode::V_CUBETC_F32: {
+            addCubemapTCoordFunc();
+            main += setDST(instr.dst[0], std::format("tcoord({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
             break;
         }
 

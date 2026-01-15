@@ -15,6 +15,7 @@ void init(Module& module) {
     module.addSymbolExport("yEiJ-qqr6Cg", "sceSaveDataDialogGetResult", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogGetResult);
     module.addSymbolExport("KK3Bdg1RWK0", "sceSaveDataDialogUpdateStatus", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogUpdateStatus);
     module.addSymbolExport("ERKzksauAJA", "sceSaveDataDialogGetStatus", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogGetStatus);
+    module.addSymbolExport("fH46Lag88XY", "sceSaveDataDialogClose", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogClose);
     module.addSymbolExport("YuH2FA7azqQ", "sceSaveDataDialogTerminate", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogTerminate);
     
 
@@ -64,6 +65,13 @@ s32 PS4_FUNC sceSaveDataDialogGetStatus() {
     if (status == 2)
         status = 3; // Finished
     return val;
+}
+
+s32 PS4_FUNC sceSaveDataDialogClose(const SceSaveDataDialogCloseParam* param) {
+    log("sceSaveDataDialogClose(param=*%p)\n", param);
+
+    status = 3; // Finished
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceSaveDataDialogTerminate() {
