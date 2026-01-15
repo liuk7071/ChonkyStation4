@@ -268,7 +268,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     if (tracked_textures.contains(ptr)) {
         auto* tex = tracked_textures[ptr];
         if (tex->dirty) {
-            printf("reuploading\n");
             // If the texture was modified, reupload it, reset dirty flag and protect again
             reupload_tex(tex, false);
             tex->dirty = false;

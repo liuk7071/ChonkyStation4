@@ -514,9 +514,7 @@ Pipeline* last_draw_pipeline = nullptr;
 std::vector<vk::Buffer> idx_bufs;
 std::vector<VmaAllocation> idx_buf_allocs;
 
-static int i = 0;
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
-    if (i++ > 500) return;
     const auto* vs_ptr = getVSPtr();
     const auto* ps_ptr = getPSPtr();
     log("Vertex Shader address : %p\n", vs_ptr);
@@ -603,7 +601,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 static bool fullscreen = false;
 
 void VulkanRenderer::flip() {
-    i = 0;
     cmd_bufs[0].endRendering();
     // After rendering, transition the swapchain image to PRESENT_SRC
     transitionImageLayoutForSwapchain(
