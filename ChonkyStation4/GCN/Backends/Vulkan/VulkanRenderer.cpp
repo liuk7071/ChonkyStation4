@@ -6,6 +6,7 @@
 #include <Loaders/App.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/PipelineCache.hpp>
+#include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/Backends/Vulkan/TextureCache.hpp>
 #include <GCN/VSharp.hpp>
 #include <GCN/TSharp.hpp>
@@ -435,28 +436,30 @@ void VulkanRenderer::init() {
     };
     vmaCreateAllocator(&allocator_info, &allocator);
 
-    VkBufferCreateInfo dummy_info {
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size = 4096,   // Doesn't matter
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    const vk::BufferCreateInfo buf_create_info = {
+        .size  = 4096,   // Doesn't matter, we just want the memory type bits
+        .usage =   vk::BufferUsageFlagBits::eIndexBuffer   | vk::BufferUsageFlagBits::eVertexBuffer
+                 | vk::BufferUsageFlagBits::eTransferSrc   | vk::BufferUsageFlagBits::eTransferDst
+                 | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer,
+        .sharingMode = vk::SharingMode::eExclusive
     };
-    VkBuffer dummy;
-    vkCreateBuffer(*device, &dummy_info, nullptr, &dummy);
-    VkMemoryRequirements mem_reqs;
-    vkGetBufferMemoryRequirements(*device, dummy, &mem_reqs);
-    u32 vtx_mem_type_bits = mem_reqs.memoryTypeBits;
-    vkDestroyBuffer(*device, dummy, nullptr);
+    vk::raii::Buffer dummy_buf = vk::raii::Buffer(device, buf_create_info);
+    u32 mem_type_bits = dummy_buf.getMemoryRequirements().memoryTypeBits;
 
+    // Create a memory pool. VMA will create allocations in block as specified below and manage memory by itself,
+    // without having to allocate new Vulkan DeviceMemory every time.
+    // This pool is used by the buffer cache (vertex buffers, index buffers, SSBOs)
     const VmaPoolCreateInfo vma_pool_info = {
-        .blockSize = 2_GB,
+        .flags = VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT,
+        .blockSize = 512_MB,
         .minBlockCount = 1,
-        .maxBlockCount = 1,
-        .memoryTypeIndex = findMemoryType(vtx_mem_type_bits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
+        .maxBlockCount = 20,
+        .memoryTypeIndex = findMemoryType(mem_type_bits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
     };
     vmaCreatePool(allocator, &vma_pool_info, &vma_pool);
 
-    // Initialize texture cache
-    initTextureCache();
+    // Initialize the buffer cache
+    Cache::init();
 
     // Transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
     transitionImageLayoutForSwapchain(
@@ -510,9 +513,6 @@ void VulkanRenderer::init() {
 // Keep track of the pipelines we used this frame to cleanup state after flipping
 std::vector<Pipeline*> curr_frame_pipelines;
 Pipeline* last_draw_pipeline = nullptr;
-// Keep track of index buffers needed for this frame and clear after flipping
-std::vector<vk::Buffer> idx_bufs;
-std::vector<VmaAllocation> idx_buf_allocs;
 
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
@@ -533,6 +533,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     std::memcpy(&hash, ptr, sizeof(u64));
     //printf("0x%llx\n", hash);
     if (   hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
+        || hash == 0xf871bb9d4e8878f8   // Tomb Raider: Definitive Edition
         || hash == 0xd4f680821d9336a4   // Super Meat Boy
         || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
        ) return;
@@ -552,22 +553,13 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     curr_frame_pipelines.push_back(&pipeline);
 
     // Create index buffer (if needed)
-    vk::Buffer* vk_idx_buf_ptr = nullptr;
+    vk::Buffer vk_idx_buf = nullptr;
+    size_t idx_buf_offs = 0;
     if (idx_buf_ptr) {
         vk::DeviceSize idx_buf_size = cnt * sizeof(u16); // TODO: index type is stubbed
-
-        auto& idx_buf = idx_bufs.emplace_back(nullptr);
-        auto& idx_buf_alloc = idx_buf_allocs.emplace_back(nullptr);
-        vk_idx_buf_ptr = &idx_buf;
-
-        const vk::BufferCreateInfo buf_create_info = { .size = idx_buf_size, .usage = vk::BufferUsageFlagBits::eIndexBuffer, .sharingMode = vk::SharingMode::eExclusive };
-        VmaAllocationCreateInfo alloc_create_info = {};
-        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-        VkBuffer raw_buf;
-        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &idx_buf_alloc, nullptr);
-        idx_buf = vk::Buffer(raw_buf);
-        vmaCopyMemoryToAllocation(allocator, idx_buf_ptr, idx_buf_alloc, 0, idx_buf_size);
+        auto [idx_buf, offs, was_dirty] = Cache::getBuffer((void*)idx_buf_ptr, idx_buf_size);
+        vk_idx_buf = idx_buf;
+        idx_buf_offs = offs;
     }
 
     // Gather vertex data
@@ -587,10 +579,10 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
 
     for (int i = 0; i < vtx_bindings->size(); i++)
-        cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, 0ull);
+        cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
     
     if (idx_buf_ptr) {
-        cmd_bufs[0].bindIndexBuffer(*vk_idx_buf_ptr, 0, vk::IndexType::eUint16);
+        cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, vk::IndexType::eUint16);
         cmd_bufs[0].drawIndexed(cnt, 1, 0, 0, 0);
     }
     else {
@@ -716,10 +708,7 @@ void VulkanRenderer::flip() {
         pipeline->clearBuffers();
     curr_frame_pipelines.clear();
     last_draw_pipeline = nullptr;
-    for (int i = 0; i < idx_bufs.size(); i++)
-        vmaDestroyBuffer(allocator, idx_bufs[i], idx_buf_allocs[i]);
-    idx_bufs.clear();
-    idx_buf_allocs.clear();
+    Cache::clear();
 
     cmd_bufs[0].reset();
     advanceSwapchain();
@@ -755,7 +744,7 @@ void VulkanRenderer::flip() {
     };
 
     vk::RenderingInfo render_info = {
-        .renderArea = {.offset = { 0, 0 }, .extent = swapchain_extent },
+        .renderArea = { .offset = { 0, 0 }, .extent = swapchain_extent },
         .layerCount = 1,
         .colorAttachmentCount = 1,
         .pColorAttachments = &attachment_info,

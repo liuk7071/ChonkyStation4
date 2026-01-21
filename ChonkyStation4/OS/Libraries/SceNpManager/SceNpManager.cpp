@@ -8,7 +8,7 @@ namespace PS4::OS::Libs::SceNpManager {
 MAKE_LOG_FUNCTION(log, lib_sceNpManager);
 
 void init(Module& module) {
-    module.addSymbolStub("eQH7nWPcAgc", "sceNpGetState", "libSceNpManager", "libSceNpManager");
+    module.addSymbolExport("eQH7nWPcAgc", "sceNpGetState", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetState);
     
     module.addSymbolStub("Ec63y59l9tw", "sceNpSetNpTitleId", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("A2CQ3kgSopQ", "sceNpSetContentRestriction", "libSceNpManager", "libSceNpManager");

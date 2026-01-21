@@ -1,6 +1,7 @@
 #include "Pipeline.hpp"
 #include <Logger.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
+#include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/Backends/Vulkan/TextureCache.hpp>
 #include <GCN/VSharp.hpp>
 #include <GCN/TSharp.hpp>
@@ -67,7 +68,7 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eNone, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
-        .depthTestEnable = VK_TRUE,
+        .depthTestEnable = VK_FALSE,
         .depthWriteEnable = VK_TRUE,
         .depthCompareOp = vk::CompareOp::eLessOrEqual,
         .depthBoundsTestEnable = VK_FALSE,
@@ -198,6 +199,7 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
 std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
     // Create a new vertex binding array and initialize it with the fetch shader bindings
     auto& new_vtx_bindings = vtx_bindings.emplace_back();
+    new_vtx_bindings.reserve(32);
     for (auto& vtx_binding_layout_element : vtx_binding_layout) {
         auto& binding = new_vtx_bindings.emplace_back();
         binding.fetch_shader_binding = vtx_binding_layout_element;
@@ -209,15 +211,10 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
         VSharp* vsharp = vtx_binding.fetch_shader_binding.vsharp_loc.asPtr();
         // Setup vertex buffer and copy data
         const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
-        const vk::BufferCreateInfo buf_create_info = { .size = buf_size, .usage = vk::BufferUsageFlagBits::eVertexBuffer, .sharingMode = vk::SharingMode::eExclusive };
-        VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };
-        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-        VkBuffer buf;
-        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &buf, &vtx_binding.alloc, nullptr);
-        vtx_binding.buf = vk::Buffer(buf);
         void* guest_vtx_buf_data = (void*)(vsharp->base + vtx_binding.fetch_shader_binding.voffs);
-        vmaCopyMemoryToAllocation(allocator, guest_vtx_buf_data, vtx_binding.alloc, 0, buf_size);
+        auto [buf, offs, was_dirty] = Cache::getBuffer(guest_vtx_buf_data, buf_size);
+        vtx_binding.buf = buf;
+        vtx_binding.offs_in_buf = offs;
     }
 
     return &new_vtx_bindings;
@@ -226,6 +223,7 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
 std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
     // Create and upload buffers required by each shader
     std::vector<vk::WriteDescriptorSet> descriptor_writes;
+    descriptor_writes.reserve(32);
     
     auto create_buffers = [&](Shader::ShaderData data) {
         for (auto& buf_info : data.buffers) {
@@ -235,23 +233,14 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                 VSharp* vsharp = buf_info.desc_info.asPtr<VSharp>();
 
                 // Upload as SSBO
-                auto& buf = bufs.emplace_back(nullptr);
-                auto& alloc = buf_allocs.emplace_back(nullptr);
-
                 const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * (vsharp->num_records + 16);
-                const vk::BufferCreateInfo buf_create_info = { .size = buf_size, .usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst, .sharingMode = vk::SharingMode::eExclusive };
-                VmaAllocationCreateInfo alloc_create_info = {};
-                alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-                alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-                VkBuffer raw_buf;
-                vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
-                buf = vk::Buffer(raw_buf);
                 void* guest_buf_data = (void*)vsharp->base;
                 if ((u64)guest_buf_data < 0x10000) return;
-                vmaCopyMemoryToAllocation(allocator, guest_buf_data, alloc, 0, buf_size);
+                auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);
+
                 buffer_info.push_back({
-                    .buffer = buf,
-                    .offset = 0,
+                    .buffer = cached_buf,
+                    .offset = offs,
                     .range = buf_size,
                 });
                 descriptor_writes.push_back(vk::WriteDescriptorSet{
@@ -291,24 +280,13 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
 }
 
 void Pipeline::clearBuffers() {
-    for (auto& bindings : vtx_bindings) {
-        for (auto& binding : bindings)
-            vmaDestroyBuffer(allocator, binding.buf, binding.alloc);
-    }
     vtx_bindings.clear();
-
-    Helpers::debugAssert(bufs.size() == buf_allocs.size(), "clearBuffers: bufs size != allocs size");
-    for (int i = 0; i < bufs.size(); i++)
-        vmaDestroyBuffer(allocator, bufs[i], buf_allocs[i]);
-    bufs.clear();
-    buf_allocs.clear();
     buffer_info.clear();
 }
 
 vk::raii::ShaderModule Pipeline::createShaderModule(const std::vector<u32>& code) {
     vk::ShaderModuleCreateInfo create_info = { .codeSize = code.size() * sizeof(u32), .pCode = code.data() };
     vk::raii::ShaderModule shader_module = { device, create_info };
-
     return shader_module;
 }
 

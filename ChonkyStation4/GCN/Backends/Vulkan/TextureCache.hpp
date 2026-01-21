@@ -9,7 +9,6 @@ struct TSharp;
 
 namespace PS4::GCN::Vulkan {
 
-void initTextureCache();
 void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_info);
 
 } // End namespace PS4::GCN::Vulkan

@@ -2,11 +2,13 @@
 #include "TextureCache.hpp"
 #include <Logger.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
+#include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/TSharp.hpp>
 #include <GCN/Detiler/gpuaddr.h>
 #include <GCN/Detiler/gnm/texture.h>
 #include <xxhash.h>
 #include <unordered_map>
+#include <mutex>
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -16,116 +18,30 @@ namespace PS4::GCN::Vulkan {
 
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
-struct TextureCacheEntry {
-    vk::raii::Image image = nullptr;
-    vk::raii::DeviceMemory mem = nullptr;
-    vk::raii::ImageView view = nullptr;
-    vk::raii::Sampler sampler = nullptr;
-    vk::DescriptorImageInfo image_info;
-};
-
-std::unordered_map<u64, TextureCacheEntry*> cache;
-std::unordered_map<void*, u64> addr_hash_map;
-
 #ifdef _WIN32
 size_t page_size = 0;
 #endif
 
+std::mutex cache_mtx;
+
 struct TrackedTexture {
-    TSharp tsharp;
-    void* base  = nullptr;
-    size_t size = 0;
-    u32 width = 0;
-    u32 height = 0;
-    bool dirty  = false;
-    bool false_positive = false;    // Set when something accesses the same memory page as the texture, but not the texture itself
+    TSharp  tsharp;
+    void*   base        = nullptr;
+    size_t  size        = 0;
+    u32     width       = 0;
+    u32     height      = 0;
+    u64     page        = 0;
+    u64     page_end    = 0;
+    bool    dirty       = false;
     vk::raii::Image image       = nullptr;
     vk::raii::DeviceMemory mem  = nullptr;
     vk::raii::ImageView view    = nullptr;
     vk::raii::Sampler sampler   = nullptr;
     vk::DescriptorImageInfo image_info;
-
-    void protect() {
-#ifdef _WIN32
-        const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
-        const auto aligned_end   = Helpers::alignUp<size_t>((u64)base + size, page_size);
-
-        DWORD old_protect;
-        if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READONLY, &old_protect))
-            Helpers::panic("TrackedTexture::protect: VirtualProtect failed");
-#else
-        Helpers::panic("Unsupported platform\n");
-#endif
-    }
-
-    void unprotect() {
-#ifdef _WIN32
-        const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
-        const auto aligned_end = Helpers::alignUp<size_t>((u64)base + size, page_size);
-
-        DWORD old_protect;
-        if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READWRITE, &old_protect))
-            Helpers::panic("TrackedTexture::unprotect: VirtualProtect failed");
-#else
-        Helpers::panic("Unsupported platform\n");
-#endif
-    }
 };
 
 std::unordered_map<void*, TrackedTexture*> tracked_textures;
-
-#ifdef _WIN32
-
-LONG CALLBACK exceptionHandler(EXCEPTION_POINTERS* info) {
-    const auto* record = info->ExceptionRecord;
-    if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
-        return EXCEPTION_CONTINUE_SEARCH;
-
-    const bool is_write = record->ExceptionInformation[0] == 1;
-    if (!is_write) return EXCEPTION_CONTINUE_SEARCH;
-
-    // Check all tracked textures to see if this address is inside any of them.
-    // TODO: Come up with a better solution than this loop
-    void* addr = (void*)record->ExceptionInformation[1];
-    for (auto& tex : tracked_textures) {
-        // Align to page size.
-        const auto aligned_start = Helpers::alignDown<u64>((u64)tex.second->base, page_size);
-        const auto aligned_end   = Helpers::alignUp<size_t>((u64)tex.second->base + tex.second->size, page_size);
-
-        // This leads to many unnecessary texture reuploads, but I don't know any better way.
-        if (Helpers::inRangeSized<u64>((u64)addr, aligned_start, aligned_end - aligned_start)) {
-            tex.second->dirty = true;
-            
-            // TODO: To avoid unnecessary reuploads, we don't reupload the texture if the access was inside the same page as the texture but not within the texture itself.
-            // This is a problem, because if after this point the game does edit the texture, we won't catch it.
-            // This problem happens in We Are Doomed.
-            if (!Helpers::inRangeSized<u64>((u64)addr, (u64)tex.second->base, tex.second->size))
-                tex.second->false_positive = true;
-
-            // Restore write access and continue execution
-            tex.second->unprotect();
-            return EXCEPTION_CONTINUE_EXECUTION;
-        }
-    }
-
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
-#endif
-
-void initTextureCache() {
-    // Setup exception handler
-#ifdef _WIN32
-    if (!AddVectoredExceptionHandler(1, exceptionHandler))
-        Helpers::panic("initTextureCache: failed to register exception handler");
-
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    page_size = si.dwPageSize;
-#else
-    Helpers::panic("Unsupported platform\n");
-#endif
-}
+std::vector<TrackedTexture*> currently_tracking;
 
 void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_info) {
     const u32 width = tsharp->width + 1;
@@ -143,14 +59,14 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
 
     } else img_size = pitch * height * pixel_size;
     
-    auto reupload_tex = [&](TrackedTexture* tex, bool is_first_upload) {
-        if (tex->false_positive) {
-            tex->false_positive = false;
-            
-            if (tex->width == width && tex->height == height && tex->tsharp.data_format == tsharp->data_format && tex->tsharp.num_format == tsharp->num_format)
-                return;
-        }
+    const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
+    const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
+    const size_t aligned_size = aligned_end - aligned_base;
+    const u64    size_in_pages = aligned_size >> Cache::page_bits;
+    const u64    page = aligned_base >> Cache::page_bits;
+    const u64    page_end = page + size_in_pages;
 
+    auto reupload_tex = [&](TrackedTexture* tex, bool is_first_upload) {
         auto& img = tex->image;
         device.waitIdle();
 
@@ -160,6 +76,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
             tex->tsharp = *tsharp;
             tex->width = width;
             tex->height = height;
+            tex->page = page;
+            tex->page_end = page_end;
             auto& mem = tex->mem;
             vk::ImageCreateInfo img_info = {
                 .imageType = vk::ImageType::e2D,
@@ -192,21 +110,32 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
         GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
 
         // Upload to a buffer
-        vk::raii::Buffer tex_buf = vk::raii::Buffer(device, { .size = img_size, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive });
-        auto mem_requirements = tex_buf.getMemoryRequirements();
-        vk::raii::DeviceMemory tex_mem = vk::raii::DeviceMemory(device, { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) });
-        tex_buf.bindMemory(*tex_mem, 0);
-        void* data = tex_mem.mapMemory(0, img_size);
-        std::memcpy(data, detiled_buf.get(), img_size);
-        tex_mem.unmapMemory();
+        const vk::BufferCreateInfo buf_create_info = {
+            .size = img_size,
+            .usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eVertexBuffer
+                     | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst
+                     | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer,
+            .sharingMode = vk::SharingMode::eExclusive
+        };
+        VmaAllocationCreateInfo alloc_create_info = {};
+        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        VkBuffer raw_buf;
+        VmaAllocation alloc;
+        VmaAllocationInfo info;
+        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, &info);
+        std::memcpy(info.pMappedData, detiled_buf.get(), img_size);
 
         // Copy buffer to image
         vk::raii::CommandBuffer tmp_cmd = beginCommands();
         const auto buffer_row_length = pitch > width ? pitch : 0;
         if (pitch < width) printf("pitch < width\n");
         vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = buffer_row_length, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
-        tmp_cmd.copyBufferToImage(*tex_buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
+        tmp_cmd.copyBufferToImage(raw_buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
         endCommands(tmp_cmd);
+
+        // Free buffer
+        vmaDestroyBuffer(allocator, raw_buf, alloc);
 
         transitionImageLayout(img, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -228,7 +157,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
             .format = vk_fmt,
             .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 },
 
-            // TODO: You can in theory change the T# swizzling without changing the texture itself. This breaks because we only hash the texture.
+            // TODO: You can in theory change the T# swizzling without changing the texture itself.
             .components = {
                 swizzle_map[tsharp->dst_sel_x],
                 swizzle_map[tsharp->dst_sel_y],
@@ -264,14 +193,34 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
         };
     };
 
+    auto invalidate = [&](uptr addr) {
+        for (auto it = currently_tracking.begin(); it != currently_tracking.end(); ) {
+            auto& tracked_tex = *it;
+            if (Helpers::inRangeSized<uptr>(addr, (uptr)tracked_tex->base, tracked_tex->size)) {
+                tracked_tex->dirty = true;
+                it = currently_tracking.erase(it);
+            }
+            else it++;
+        }
+    };
+
+    auto lk = std::unique_lock<std::mutex>(cache_mtx);
+
     // Check if we are already tracking this texture
     if (tracked_textures.contains(ptr)) {
         auto* tex = tracked_textures[ptr];
+
+        // If the texture was modified, reupload it
         if (tex->dirty) {
-            // If the texture was modified, reupload it, reset dirty flag and protect again
-            reupload_tex(tex, false);
+            // If the page this texture was in was just dirtied, dirty all textures that are part of this page.
             tex->dirty = false;
-            tex->protect();
+            reupload_tex(tex, false);
+            for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
+                if (!Cache::resetDirty((void*)curr_page, Cache::page_size)) {
+                    Cache::track((void*)curr_page, Cache::page_size, invalidate);
+                }
+            }
+            currently_tracking.push_back(tex);
         }
 
         *out_info = &tex->image_info;
@@ -296,6 +245,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     tex->size = img_size;
     tex->width = width;
     tex->height = height;
+    tex->page = page;
+    tex->page_end = page_end;
     auto& img = tex->image;
     auto& mem = tex->mem;
     vk::ImageCreateInfo img_info = {
@@ -315,12 +266,14 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     mem = vk::raii::DeviceMemory(device, alloc_info);
     img.bindMemory(*mem, 0);
 
+    for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
+        Cache::track((void*)curr_page, Cache::page_size, invalidate);
+    }
+
     reupload_tex(tex, true);
     tracked_textures[ptr] = tex;
+    currently_tracking.push_back(tex);
     *out_info = &tex->image_info;
-
-    // Protect texture to handle write exceptions
-    tex->protect();
 }
 
 } // End namespace PS4::GCN::Vulkan

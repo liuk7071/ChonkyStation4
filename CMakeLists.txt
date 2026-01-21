@@ -44,7 +44,7 @@ target_sources(ChonkyStation4 PRIVATE
  "ChonkyStation4/OS/Libraries/Kernel/Semaphore.cpp" "ChonkyStation4/OS/Libraries/Kernel/Semaphore.hpp" "ChonkyStation4/OS/Libraries/ScePlayGo/ScePlayGo.cpp" "ChonkyStation4/OS/Libraries/ScePlayGo/ScePlayGo.hpp"
  "ChonkyStation4/OS/UserManagement.cpp" "ChonkyStation4/OS/UserManagement.hpp"
  "ChonkyStation4/OS/Libraries/Kernel/pthread/rwlock.cpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/rwlock.hpp"
- "ChonkyStation4/OS/Libraries/SceRtc/SceRtc.cpp" "ChonkyStation4/OS/Libraries/SceRtc/SceRtc.hpp")
+ "ChonkyStation4/OS/Libraries/SceRtc/SceRtc.cpp" "ChonkyStation4/OS/Libraries/SceRtc/SceRtc.hpp" "ChonkyStation4/GCN/Backends/Vulkan/BufferCache.cpp" "ChonkyStation4/GCN/Backends/Vulkan/BufferCache.hpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)

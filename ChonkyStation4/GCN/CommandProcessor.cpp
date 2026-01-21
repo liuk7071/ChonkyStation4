@@ -290,7 +290,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
         }
 
         case PM4ItOpcode::SetUconfigReg: {
-            const u32 reg_offset = 0xc000 + *args++;    // 0xc000 is the offset for ShReg
+            const u32 reg_offset = 0xc000 + *args++;    // 0xc000 is the offset for UconfigReg
             log("Set Uconfig register 0x%x\n", reg_offset);
             if (reg_offset < 0xd000)
                 std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));

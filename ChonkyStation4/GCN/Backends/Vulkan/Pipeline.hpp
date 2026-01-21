@@ -96,6 +96,7 @@ public:
     struct VertexBinding {
         FetchShaderVertexBinding fetch_shader_binding;
         vk::Buffer buf = nullptr;
+        size_t offs_in_buf = 0;
         VmaAllocation alloc;
     };
 
@@ -120,8 +121,6 @@ private:
     // The VertexBinding struct is basically FetchShaderVertexBinding with Vulkan buffers added on top.
     // The Vulkan buffers will be populated every time gatherVertices is called and added to this vector.
     std::deque<std::vector<VertexBinding>> vtx_bindings;
-    std::vector<vk::Buffer> bufs;
-    std::vector<VmaAllocation> buf_allocs;
     std::deque<vk::DescriptorBufferInfo> buffer_info;
 
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);

@@ -41,6 +41,8 @@ void clearState() {
     pad_state.left_stick.y = 0x80;
     pad_state.right_stick.x = 0x80;
     pad_state.right_stick.y = 0x80;
+    pad_state.analog_buttons.l2 = 0;
+    pad_state.analog_buttons.r2 = 0;
 }
 
 void pressButton(ScePadButtonDataOffset button) {
@@ -104,6 +106,7 @@ void pollPads() {
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y))               pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_TRIANGLE);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER))    pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_L1);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))   pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_R1);
+        if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_TOUCHPAD))        pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_TOUCH_PAD);
         float left_x  = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX)  / 32767.0f;
         float left_y  = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY)  / 32767.0f;
         float right_x = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX) / 32767.0f;
@@ -112,6 +115,8 @@ void pollPads() {
         setStickYWithDeadzone(pad_state.left_stick,  left_y);
         setStickXWithDeadzone(pad_state.right_stick, right_x);
         setStickYWithDeadzone(pad_state.right_stick, right_y);
+        pad_state.analog_buttons.l2 = ((float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT)  / 32767.0f) * 255;
+        pad_state.analog_buttons.r2 = ((float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) / 32767.0f) * 255;
     }
 
     pad_state.timestamp = SDL_GetTicks64();

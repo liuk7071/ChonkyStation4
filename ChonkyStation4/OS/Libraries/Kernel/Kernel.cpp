@@ -249,6 +249,7 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
         MEMORY_BASIC_INFORMATION mbi;
         if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
             Helpers::panic("allocate: VirtualQuery failed\n");
+
         if (mbi.State == MEM_RESERVE) {
             uptr region_end = (uptr)mbi.BaseAddress + mbi.RegionSize;
             if (cur_addr + size <= region_end) {
