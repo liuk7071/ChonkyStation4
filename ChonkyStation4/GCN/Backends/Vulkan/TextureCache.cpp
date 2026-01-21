@@ -59,18 +59,22 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
 
     } else img_size = pitch * height * pixel_size;
     
-    const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
-    const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
-    const size_t aligned_size = aligned_end - aligned_base;
-    const u64    size_in_pages = aligned_size >> Cache::page_bits;
-    const u64    page = aligned_base >> Cache::page_bits;
-    const u64    page_end = page + size_in_pages;
+    const uptr   aligned_base   = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
+    const uptr   aligned_end    = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
+    const size_t aligned_size   = aligned_end - aligned_base;
+    const u64    size_in_pages  = aligned_size >> Cache::page_bits;
+    const u64    page           = aligned_base >> Cache::page_bits;
+    const u64    page_end       = page + size_in_pages;
 
     auto reupload_tex = [&](TrackedTexture* tex, bool is_first_upload) {
         auto& img = tex->image;
         device.waitIdle();
 
         // Check if we need to recreate the image
+        // TODO: We should check this regardless of if the image was dirty or not (aka, outside this lambda)
+        // and probably keep a copy of the image for every T# it is accessed with
+        // We can't use one single image because if it's accessed with two different T#s/formats within the same frame, we would delete the first one before the GPU can use it...
+
         // TODO: Just hash the T#?
         if (tex->width != width || tex->height != height || tex->tsharp.data_format != tsharp->data_format || tex->tsharp.num_format != tsharp->num_format) {
             tex->tsharp = *tsharp;

@@ -79,6 +79,7 @@ union BlendControl {
 struct PipelineConfig {
     u32 prim_type = 0;
     BlendControl blend_control[8];
+    bool enable_depth_clamp = false;
 
     u64 vertex_hash = 0;
     u64 pixel_hash = 0;

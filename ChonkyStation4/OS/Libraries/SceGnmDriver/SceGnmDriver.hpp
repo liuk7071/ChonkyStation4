@@ -23,6 +23,7 @@ struct ComputeQueue {
 };
 
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg);
+s32 PS4_FUNC sceGnmSubmitCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes);
 s32 PS4_FUNC sceGnmSubmitDone();
 s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* udata);
 s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr);

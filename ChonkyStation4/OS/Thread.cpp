@@ -72,7 +72,9 @@ Thread& createThread(const std::string& name, ThreadStartFunc entry, void* args)
 }
 
 void joinThread(Thread& thread, void** ret) {
-    Helpers::debugAssert(pthread_join(thread.getPThread(), ret) == 0, "pthread_join failed");
+    if (!thread.exited)
+        Helpers::debugAssert(pthread_join(thread.getPThread(), nullptr) == 0, "pthread_join failed");
+    if (ret) *ret = thread.ret_val;
 }
 
 void joinThread(Thread& thread) {
@@ -100,6 +102,7 @@ void* threadStart(Thread* thread) {
     void* ret = thread->entry(thread->args);
     // Set exited flag
     thread->exited = true;
+    thread->ret_val = ret;
     return ret;
 }
 

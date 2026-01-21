@@ -76,6 +76,9 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
         cfg.blend_control[i].raw = regs[Reg::mmCB_BLEND0_CONTROL + i];
     }
 
+    // Depth clamp
+    cfg.enable_depth_clamp = (regs[Reg::mmDB_RENDER_OVERRIDE] >> 16) != 1;   // DISABLE_VIEWPORT_CLAMP
+
     // Calculate final pipeline hash
     const u64 pipeline_hash = XXH3_64bits(&cfg, sizeof(PipelineConfig));
     if (pipelines.contains(pipeline_hash))

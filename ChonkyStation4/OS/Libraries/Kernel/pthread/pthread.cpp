@@ -11,6 +11,8 @@ PS4::OS::Thread::Thread& findThread(void* tid) {
     pthread_t* pthread = (pthread_t*)tid;
     PS4::OS::Thread::Thread* curr_thread = nullptr;
     for (auto& thread : PS4::OS::Thread::threads) {
+        if (thread.exited) continue;
+
         if (pthread->p == thread.getPThread().p) {
             if (curr_thread == nullptr)
                 curr_thread = &thread;
@@ -132,10 +134,15 @@ s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
 
 void PS4_FUNC kernel_pthread_exit(void* status) {
     log("pthread_exit(status=%p)\n", status);
-    while (1) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    }
-    pthread_exit(status);
+    
+    auto thread = findThread(kernel_pthread_self());
+    thread.exited = true;
+    thread.ret_val = status;
+#ifdef _WIN32
+    TerminateThread(GetCurrentThread(), 0);
+#else
+    Helpers::panic("Unsupported platform");
+#endif
 }
 
 };  // End namespace PS4::OS::Libs::Kernel

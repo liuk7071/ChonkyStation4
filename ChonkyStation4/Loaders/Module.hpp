@@ -101,10 +101,10 @@ public:
     };
 
     PS4::Loader::InitFunc init_func = nullptr;
-    std::vector<ModuleInfo> required_modules;
-    std::vector<LibraryInfo> required_libs;
-    std::vector<ModuleInfo> exported_modules;
-    std::vector<LibraryInfo> exported_libs;
+    std::deque<ModuleInfo>  required_modules;
+    std::deque<LibraryInfo> required_libs;
+    std::deque<ModuleInfo>  exported_modules;
+    std::deque<LibraryInfo> exported_libs;
     std::vector<Symbol> exported_symbols;
     std::vector<Symbol> partial_lle_symbols;
     u64 tls_vaddr = 0;

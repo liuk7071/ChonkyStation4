@@ -80,6 +80,7 @@ struct SceVideoOutPort : SceObj {
 };
 
 s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param);
+s32 PS4_FUNC sceVideoOutClose(s32 handle);
 s32 PS4_FUNC sceVideoOutGetBufferLabelAddress(s32 handle, void** label_addr);
 s32 PS4_FUNC sceVideoOutSetFlipRate(s32 handle, s32 rate);
 s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata);

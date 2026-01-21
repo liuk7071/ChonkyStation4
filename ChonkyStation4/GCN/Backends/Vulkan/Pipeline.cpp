@@ -63,9 +63,15 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     };
     
     vk::PipelineInputAssemblyStateCreateInfo input_assembly = { .topology = topology(cfg.prim_type) };
-
     vk::PipelineViewportStateCreateInfo      viewport_state = { .viewportCount = 1, .scissorCount = 1 };
-    vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eNone, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
+    vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = cfg.enable_depth_clamp,
+        .rasterizerDiscardEnable = vk::False,
+        .polygonMode = vk::PolygonMode::eFill,
+        .cullMode = vk::CullModeFlagBits::eNone,
+        .frontFace = vk::FrontFace::eClockwise,
+        .depthBiasEnable = vk::False,
+        .depthBiasSlopeFactor = 1.0f,
+        .lineWidth = 1.0f };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
         .depthTestEnable = VK_FALSE,

@@ -13,18 +13,13 @@
 #include <OS/Libraries/SceAudioOut/SceAudioOut.hpp>
 #include <OS/Libraries/ScePlayGo/ScePlayGo.hpp>
 #include <OS/Libraries/SceRtc/SceRtc.hpp>
+#include <OS/Libraries/SceNet/SceNet.hpp>
 
 
 // Stub until we implement audio input
 s32 PS4_FUNC sceAudioInInput(s32 handle, void* ptr) {
     while (true) std::this_thread::sleep_for(std::chrono::milliseconds(100));
     return 0;
-}
-
-static s32 sce_net_errno = 35;
-
-s32* PS4_FUNC sceNetErrnoLoc() {
-    return &sce_net_errno;
 }
 
 s32 PS4_FUNC sceNetCtlGetState(s32* state) {
@@ -54,6 +49,7 @@ Module buildHLEModule() {
     PS4::OS::Libs::SceAudioOut::init(module);
     PS4::OS::Libs::ScePlayGo::init(module);
     PS4::OS::Libs::SceRtc::init(module);
+    PS4::OS::Libs::SceNet::init(module);
 
     // libSceAppContent
     module.addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
@@ -100,32 +96,33 @@ Module buildHLEModule() {
     // libSceNpProfileDialog
     module.addSymbolStub("Lg+NCE6pTwQ", "sceNpProfileDialogInitialize", "libSceNpProfileDialog", "libSceNpProfileDialog", 0);
     
-    // libSceNet
-    module.addSymbolStub("Nlev7Lg8k3A", "sceNetInit", "libSceNet", "libSceNet", 0);
-    module.addSymbolStub("dgJBaeJnGpo", "sceNetPoolCreate", "libSceNet", "libSceNet", 1);
-    module.addSymbolStub("C4UgDHHPvdw", "sceNetResolverCreate", "libSceNet", "libSceNet", 1);
-    module.addSymbolStub("Nd91WaWmG2w", "sceNetResolverStartNtoa", "libSceNet", "libSceNet");
-    module.addSymbolStub("kJlYH5uMAWI", "sceNetResolverDestroy", "libSceNet", "libSceNet");
-    module.addSymbolStub("K7RlrTkI-mw", "sceNetPoolDestroy", "libSceNet", "libSceNet");
-    module.addSymbolStub("OXXX4mUk3uk", "sceNetConnect", "libSceNet", "libSceNet", 0x80410100u | 35u);
-    module.addSymbolExport("HQOwnfMGipQ", "sceNetErrnoLoc", "libSceNet", "libSceNet", (void*)&sceNetErrnoLoc);
-    
     // libSceNpAuth
     module.addSymbolStub("N+mr7GjTvr8", "sceNpAuthCreateAsyncRequest", "libSceNpAuth", "libSceNpAuth", 1);
     module.addSymbolStub("KxGkOrQJTqY", "sceNpAuthGetAuthorizationCode", "libSceNpAuth", "libSceNpAuth");   // TODO: At least store a dummy value in auth_code ptr
     module.addSymbolStub("gjSyfzSsDcE", "sceNpAuthPollAsync", "libSceNpAuth", "libSceNpAuth");              // TODO: At least store a dummy value in result ptr
     module.addSymbolStub("H8wG9Bk-nPc", "sceNpAuthDeleteRequest", "libSceNpAuth", "libSceNpAuth");
     
+    // libSceNpSignaling
+    module.addSymbolStub("3KOuC4RmZZU", "sceNpSignalingInitialize", "libSceNpSignaling", "libSceNpSignaling");
+    
     // libSceNetCtl
+    module.addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
     module.addSymbolStub("gky0+oaNM4k", "sceNetCtlInit", "libSceNetCtl", "libSceNetCtl");
     module.addSymbolStub("obuxdTiwkF8", "sceNetCtlGetInfo", "libSceNetCtl", "libSceNetCtl");
-    module.addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
+    module.addSymbolStub("UJ+Z7Q+4ck0", "sceNetCtlRegisterCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
+    module.addSymbolStub("Rqm2OnZMCz0", "sceNetCtlUnregisterCallback", "libSceNetCtl", "libSceNetCtl");
+    module.addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
+    module.addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
 
     // libSceSsl
     module.addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
+    module.addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl", 1);
     
     // libSceHttp
     module.addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
+    module.addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
+    module.addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
+    module.addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
     
     // libSceNpWebApi
     module.addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
@@ -160,6 +157,11 @@ Module buildHLEModule() {
     // libSceAjm
     module.addSymbolStub("dl+4eHSzUu4", "sceAjmInitialize", "libSceAjm", "libSceAjm");
     module.addSymbolStub("Q3dyFuwGn64", "sceAjmModuleRegister", "libSceAjm", "libSceAjm");
+    module.addSymbolStub("AxoDrINp4J8", "sceAjmInstanceCreate", "libSceAjm", "libSceAjm");
+    module.addSymbolStub("dmDybN--Fn8", "sceAjmBatchJobControlBufferRa", "libSceAjm", "libSceAjm");
+    module.addSymbolStub("7jdAXK+2fMo", "sceAjmBatchJobRunSplitBufferRa", "libSceAjm", "libSceAjm");
+    module.addSymbolStub("fFFkk0xfGWs", "sceAjmBatchStartBuffer", "libSceAjm", "libSceAjm");
+    module.addSymbolStub("-qLsfDAywIY", "sceAjmBatchWait", "libSceAjm", "libSceAjm");
     
     // libSceAvPlayer
     module.addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");

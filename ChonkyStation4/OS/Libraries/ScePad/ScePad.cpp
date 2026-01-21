@@ -12,13 +12,13 @@ void init(Module& module) {
     module.addSymbolExport("hv1luiJrqQM", "scePadInit", "libScePad", "libScePad", (void*)&scePadInit);
     module.addSymbolExport("xk0AcarP3V4", "scePadOpen", "libScePad", "libScePad", (void*)&scePadOpen);
     module.addSymbolExport("YndgXqQVV7c", "scePadReadState", "libScePad", "libScePad", (void*)&scePadReadState);
+    module.addSymbolExport("q1cHNfGycLI", "scePadRead", "libScePad", "libScePad", (void*)&scePadRead);
     module.addSymbolExport("gjP9-KQzoUk", "scePadGetControllerInformation", "libScePad", "libScePad", (void*)&scePadGetControllerInformation);
     
     module.addSymbolStub("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad");
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
     module.addSymbolStub("clVvL4ZDntw", "scePadSetMotionSensorState", "libScePad", "libScePad");
-    module.addSymbolStub("q1cHNfGycLI", "scePadRead", "libScePad", "libScePad");    // TODO: Important
     module.addSymbolStub("yFVnOdGxvZY", "scePadSetVibration", "libScePad", "libScePad");
     module.addSymbolStub("RR4novUEENY", "scePadSetLightBar", "libScePad", "libScePad");
 }
@@ -117,6 +117,8 @@ void pollPads() {
         setStickYWithDeadzone(pad_state.right_stick, right_y);
         pad_state.analog_buttons.l2 = ((float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT)  / 32767.0f) * 255;
         pad_state.analog_buttons.r2 = ((float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) / 32767.0f) * 255;
+        if (pad_state.analog_buttons.l2 > 220) pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_L2);
+        if (pad_state.analog_buttons.r2 > 220) pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_R2);
     }
 
     pad_state.timestamp = SDL_GetTicks64();
@@ -157,6 +159,15 @@ s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data) {
 
     *data = pad_state;
     return SCE_OK;
+}
+
+s32 PS4_FUNC scePadRead(s32 handle, ScePadData* data, s32 num) {
+    log("scePadRead(handle=%d, data=*%p, num=%d)\n", handle, data, num);
+    //if (handle != 1) return SCE_PAD_ERROR_INVALID_HANDLE;
+
+    // TODO: We just return the current state
+    *data = pad_state;
+    return 1;
 }
 
 s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info) {

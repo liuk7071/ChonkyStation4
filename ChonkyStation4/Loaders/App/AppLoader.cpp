@@ -44,7 +44,8 @@ bool getApp(const AppInfo& info, ::App& app) {
     const std::string sysmodules_to_load[] = {
         "libSceLibcInternal.sprx",
         "libSceNgs2.sprx",
-        "libSceUlt.sprx"
+        "libSceUlt.sprx",
+        "libScePngDec.sprx"
     };
 
     const std::string partial_lle_sysmodules_to_load[] = {

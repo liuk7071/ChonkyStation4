@@ -26,6 +26,6 @@ s32 PS4_FUNC kernel_pthread_detach(void* tid);
 s32 PS4_FUNC kernel_pthread_equal(void* tid1, void* tid2);
 s32 PS4_FUNC kernel_pthread_yield();
 s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret);
-void  PS4_FUNC kernel_pthread_exit(void* status);
+void PS4_FUNC kernel_pthread_exit(void* status);
 
 };  // End namespace PS4::OS::Libs::Kernel

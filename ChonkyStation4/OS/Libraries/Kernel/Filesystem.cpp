@@ -26,6 +26,30 @@ s32 PS4_FUNC sceKernelOpen(const char* path, s32 flags, u16 mode) {
     return res;
 }
 
+s32 PS4_FUNC kernel_mkdir(const char* path, u16 mode) {
+    log("mkdir(path=\"%s\", mode=%o)\n", path, mode);
+
+    // Parent directory must exist
+    if (!fs::exists(fs::path(path).parent_path())) {
+        *Kernel::kernel_error() = POSIX_ENOENT;
+        return -1;
+    }
+
+    // Error if directory already existed
+    if (!FS::mkdir(path)) {
+        *Kernel::kernel_error() = POSIX_EEXIST;
+        return -1;
+    }
+
+    return 0;
+}
+
+s32 PS4_FUNC sceKernelMkdir(const char* path, u16 mode) {
+    const auto res = kernel_mkdir(path, mode);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
+}
+
 s64 PS4_FUNC kernel_lseek(s32 fd, s64 offset, s32 whence) {
     log("lseek(fd=%d, offset=%lld, whence=%d)\n", fd, offset, whence);
 

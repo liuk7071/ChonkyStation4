@@ -51,7 +51,7 @@ s32 PS4_FUNC sceAudioOutOpen(Libs::SceUserService::SceUserServiceUserId uid, s32
     port->format = param & 0xff;
 
     const auto handle = port->handle;
-    printf("Opened audio port %d: device=%s, len=%d, freq=%d, format=%d\n", handle, audioVirtualDeviceToStr(port->device).c_str(), port->len, port->freq, port->format);
+    log("Opened audio port %d: device=%s, len=%d, freq=%d, format=%d\n", handle, audioVirtualDeviceToStr(port->device).c_str(), port->len, port->freq, port->format);
 
     // Init SDL audio
     // I stubbed it to only work for the first opened port for now...

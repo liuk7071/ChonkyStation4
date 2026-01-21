@@ -64,8 +64,10 @@ union IndirectBuffer2 {
 };
 
 void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
-    // TODO: What is ccb???????? (compute?)
-    Helpers::debugAssert(!ccb, "processCommands: ccb != nullptr\n");
+    if (ccb) {
+        // TODO: What is ccb?
+        printf("TODO: ccb\n");
+    }
 
     for (u32* ptr = dcb; (u8*)ptr < (u8*)dcb + dcb_size; ) {
 

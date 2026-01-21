@@ -10,6 +10,7 @@ MAKE_LOG_FUNCTION(log, lib_sceVideoOut);
 
 void init(Module& module) {
     module.addSymbolExport("Up36PTk687E", "sceVideoOutOpen", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutOpen);
+    module.addSymbolExport("uquVH4-Du78", "sceVideoOutClose", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutClose);
     module.addSymbolExport("OcQybQejHEY", "sceVideoOutGetBufferLabelAddress", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetBufferLabelAddress);
     module.addSymbolExport("CBiu4mCE1DA", "sceVideoOutSetFlipRate", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSetFlipRate);
     module.addSymbolExport("HXzjK9yI30k", "sceVideoOutAddFlipEvent", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutAddFlipEvent);
@@ -62,6 +63,14 @@ s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) 
     port->resolution_status.flags = 0; // ?
 
     return port->handle;
+}
+
+s32 PS4_FUNC sceVideoOutClose(s32 handle) {
+    log("sceVideoOutClose(handle=%d)\n", handle);
+
+    if (!PS4::OS::erase(handle))
+        Helpers::panic("sceVideoOutClose: handle %d does not exist\n", handle);
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceVideoOutGetBufferLabelAddress(s32 handle, void** label_addr) {
@@ -123,14 +132,8 @@ s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVide
 }
 
 s32 PS4_FUNC sceVideoOutSubmitFlip(s32 handle, s32 buf_idx, s32 flip_mode, s64 flip_arg) {
-    log("sceVideoOutSubmitFlip(handle=%d, buf_idx=%d, flip_mode=%d, flip_arg=0x%016llx) TODO\n", handle, buf_idx, flip_mode, flip_arg);
-
-    auto port = PS4::OS::find<SceVideoOutPort>(handle);
-    if (!port) {
-        Helpers::panic("sceVideoOutSubmitFlip: handle %d does not exist\n", handle);
-    }
-
-    port->signalFlip(flip_arg);
+    log("sceVideoOutSubmitFlip(handle=%d, buf_idx=%d, flip_mode=%d, flip_arg=0x%016llx)\n", handle, buf_idx, flip_mode, flip_arg);
+    GCN::submitFlip(handle, buf_idx, flip_arg);
     return SCE_OK;
 }
 

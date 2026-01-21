@@ -18,6 +18,8 @@ void init(Module& module) {
     module.addSymbolExport("fH46Lag88XY", "sceSaveDataDialogClose", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogClose);
     module.addSymbolExport("YuH2FA7azqQ", "sceSaveDataDialogTerminate", "libSceSaveDataDialog", "libSceSaveDataDialog", (void*)&sceSaveDataDialogTerminate);
     
+    module.addSymbolStub("hay1CfTmLyA", "sceSaveDataDialogProgressBarSetValue", "libSceSaveDataDialog", "libSceSaveDataDialog");
+    module.addSymbolStub("V-uEeFKARJU", "sceSaveDataDialogProgressBarInc", "libSceSaveDataDialog", "libSceSaveDataDialog");
 
     status = 0; // Not running
 }

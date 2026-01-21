@@ -11,6 +11,7 @@ MAKE_LOG_FUNCTION(log, lib_sceGnmDriver);
 
 void init(Module& module) {
     module.addSymbolExport("xbxNatawohc", "sceGnmSubmitAndFlipCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitAndFlipCommandBuffers);
+    module.addSymbolExport("zwY0YV91TTI", "sceGnmSubmitCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitCommandBuffers);
     module.addSymbolExport("yvZ73uQUqrk", "sceGnmSubmitDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitDone);
     module.addSymbolExport("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmAddEqEvent);
     module.addSymbolExport("29oKvKXzEZo", "sceGnmMapComputeQueue", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmMapComputeQueue);
@@ -70,6 +71,14 @@ s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32
         GCN::submitGraphics(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
 
     GCN::submitFlip(video_out_handle, buf_idx, flip_arg);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmSubmitCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes) {
+    log("sceGnmSubmitCommandBuffers(cnt=%d, dcb_gpu_addrs=*%p, dcb_sizes=%p, ccb_gpu_addrs=*%p, ccb_sizes=%p)\n", cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes);
+
+    for (int i = 0; i < cnt; i++)
+        GCN::submitGraphics(dcb_gpu_addrs[i], dcb_sizes[i], ccb_gpu_addrs ? ccb_gpu_addrs[i] : nullptr, ccb_sizes ? ccb_sizes[i] : 0);
     return SCE_OK;
 }
 

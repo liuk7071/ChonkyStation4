@@ -157,12 +157,12 @@ void updateBuffer(CachedBuffer* buf) {
 
     // We create a new buffer instead of actually updating the old one,
     // and then we free all allocations when clear() is called (at the end of every frame), in stream-buffer fashion.
-    // This is because buffers can and will be updated mid-frame.
+    // This is because buffers can and will be updated mid-frame, so we can't free the old ones right away.
     // The allocation costs shouldn't be too much due to how VMA is setup - see VulkanRenderer.cpp
     const vk::BufferCreateInfo buf_create_info = {
         .size = buf->size,
-        .usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eVertexBuffer
-                 | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst
+        .usage =   vk::BufferUsageFlagBits::eIndexBuffer   | vk::BufferUsageFlagBits::eVertexBuffer
+                 | vk::BufferUsageFlagBits::eTransferSrc   | vk::BufferUsageFlagBits::eTransferDst
                  | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer,
         .sharingMode = vk::SharingMode::eExclusive
     };
@@ -251,6 +251,8 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
 
 // This function exists to allow us to track memory pages without necessarily tying them to a Vulkan buffer.
 // I use this in my texture cache, where I handle the Vulkan code separately.
+// TODO: If you overwrite a region, the callback is silently not updated.
+// Change this behavior if I ever use this anywhere other than the texture cache.
 void track(void* base, size_t size, std::function<void(uptr)> callback) {
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)base, page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)base + size, page_size);
@@ -292,6 +294,7 @@ void track(void* base, size_t size, std::function<void(uptr)> callback) {
     buf->protect();
 }
 
+// Re-enables memory protection and resets the dirty flag.
 bool resetDirty(void* base, size_t size) {
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)base, page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)base + size, page_size);
@@ -325,6 +328,7 @@ bool resetDirty(void* base, size_t size) {
     Helpers::panic("Cache::resetDirty: cache error");
 }
 
+// Returns true if at least page in the specified region is dirty, otherwise false.
 bool isDirty(void* base, size_t size) {
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)base, page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)base + size, page_size);

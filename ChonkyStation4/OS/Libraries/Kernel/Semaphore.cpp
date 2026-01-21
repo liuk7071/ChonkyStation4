@@ -70,4 +70,25 @@ s32 PS4_FUNC sceKernelPollSema(SceKernelSema sem, s32 count) {
     return SCE_OK;
 }
 
+s32 PS4_FUNC kernel_sem_init(SceKernelSema* sem, s32 pshared, u32 value) {
+    log("sem_init(sem=*%p, pshared=%d, value=%d)\n", sem, pshared, value);
+
+    *sem = new Semaphore(value, INT32_MAX);
+    return 0;
+}
+
+s32 PS4_FUNC kernel_sem_post(SceKernelSema* sem) {
+    log("sem_post(sem=*%p)\n", sem);
+
+    (*sem)->signal(1);
+    return 0;
+}
+
+s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem) {
+    log("sem_wait(sem=*%p)\n", sem);
+
+    (*sem)->wait(1);
+    return 0;
+}
+
 };  // End namespace PS4::OS::Libs::Kernel

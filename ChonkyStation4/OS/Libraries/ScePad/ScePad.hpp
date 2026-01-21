@@ -145,6 +145,7 @@ void pollPads();
 s32 PS4_FUNC scePadInit();
 s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param);
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data);
+s32 PS4_FUNC scePadRead(s32 handle, ScePadData* data, s32 num);
 s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info);
 
 }   // End namespace PS4::OS::Libs::ScePad

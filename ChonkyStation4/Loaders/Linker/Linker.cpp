@@ -20,13 +20,13 @@ MAKE_LOG_FUNCTION(log, loader_linker);
 using namespace ELFIO;
 
 // Unresolved symbols are stubbed to call this function
-void PS4_FUNC unresolvedSymbol(const char* sym_name) {
-    printf("Linker: Called unresolved symbol %s @ %p\n", sym_name, RETURN_ADDRESS());
+void PS4_FUNC unresolvedSymbol(const char* sym_name, const char* lib_name, const char* mod_name) {
+    printf("Linker: Called unresolved symbol %s (lib: %s, mod: %s) @ %p\n", sym_name, lib_name, mod_name, RETURN_ADDRESS());
     //exit(0);
     std::_Exit(0);
 }
 
-void* generateTrampolineForUnresolvedSymbol(App& app, const std::string& sym_name) {
+void* generateTrampolineForUnresolvedSymbol(App& app, const std::string& sym_name, const char* lib_name, const char* mod_name) {
     using namespace Xbyak::util;
 
     app.unresolved_symbols.push_back(sym_name);
@@ -35,6 +35,8 @@ void* generateTrampolineForUnresolvedSymbol(App& app, const std::string& sym_nam
     auto code = std::make_unique<Xbyak::CodeGenerator>(128);
     
     code->mov(rdi, (u64)str_ptr);
+    code->mov(rsi, (u64)lib_name);
+    code->mov(rdx, (u64)mod_name);
     code->mov(rax, (u64)&unresolvedSymbol);
     code->jmp(rax);
 
@@ -114,7 +116,7 @@ void doRelocations(App& app) {
                     // If we couldn't resolve the symbol, make it point to the unresolved symbol handler
                     if (!ptr) {
                         log("* Could not resolve symbol %s (%s)\n", sym_name.c_str(), lib->name.c_str());
-                        ptr = generateTrampolineForUnresolvedSymbol(app, sym_name);
+                        ptr = generateTrampolineForUnresolvedSymbol(app, sym_name, lib->name.c_str(), mod->name.c_str());
                     }
                 } else {
                     // Symbol is not a nid

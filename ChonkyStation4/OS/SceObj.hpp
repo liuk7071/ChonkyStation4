@@ -14,15 +14,29 @@ struct SceObj {
 };
 
 inline std::vector<SceObj*> objs;
+inline std::mutex obj_mtx;
 
 template<typename T> requires std::is_base_of_v<SceObj, T>
 T* make() {
+    auto lk = std::unique_lock<std::mutex>(obj_mtx);
     auto* obj = (T*)objs.emplace_back(new T());
     return obj;
 }
 
+inline bool erase(u64 handle) {
+    auto lk = std::unique_lock<std::mutex>(obj_mtx);
+    for (auto it = objs.begin(); it != objs.end(); it++) {
+        if ((*it)->handle == handle) {
+            objs.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
 template<typename T> requires std::is_base_of_v<SceObj, T>
 T* find(u64 handle) {
+    auto lk = std::unique_lock<std::mutex>(obj_mtx);
     for (auto& obj : objs) {
         if (obj->handle == handle)
             return (T*)obj;

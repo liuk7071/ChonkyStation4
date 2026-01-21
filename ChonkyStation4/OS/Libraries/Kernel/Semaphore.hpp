@@ -36,4 +36,8 @@ s32 PS4_FUNC sceKernelSignalSema(SceKernelSema sem, s32 count);
 s32 PS4_FUNC sceKernelWaitSema(SceKernelSema sem, s32 count, u32* timeout);
 s32 PS4_FUNC sceKernelPollSema(SceKernelSema sem, s32 count);
 
+s32 PS4_FUNC kernel_sem_init(SceKernelSema* sem, s32 pshared, u32 value);
+s32 PS4_FUNC kernel_sem_post(SceKernelSema* sem);
+s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem);
+
 };  // End namespace PS4::OS::Libs::Kernel

@@ -56,6 +56,8 @@ void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]);
 u64 PS4_FUNC sceKernelGetTscFrequency();
 
 s32 PS4_FUNC kernel_getpid();
+s32 PS4_FUNC kernel_sched_get_priority_max();
+s32 PS4_FUNC kernel_sched_get_priority_min();
 s32 PS4_FUNC sigfillset();
 
 s32 PS4_FUNC __sys_regmgr_call();

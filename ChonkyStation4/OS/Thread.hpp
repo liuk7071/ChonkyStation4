@@ -26,6 +26,7 @@ public:
     ThreadStartFunc entry;
     void* args;
     bool exited = false;
+    void* ret_val = nullptr;
 
     pthread_t& getPThread() {
         return thread;

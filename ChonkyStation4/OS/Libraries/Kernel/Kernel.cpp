@@ -35,18 +35,23 @@ static u64 stack_chk_guard = 0x4452474B43415453;    // "STACKGRD"
 
 void init(Module& module) {
     module.addSymbolExport("wtkt-teR1so", "pthread_attr_init", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
+    module.addSymbolExport("wtkt-teR1so", "pthread_attr_init", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_init);
     module.addSymbolExport("nsYoNRywwNg", "scePthreadAttrInit", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
     module.addSymbolExport("Ucsu-OK+els", "pthread_attr_get_np", "libkernel", "libkernel", (void*)&kernel_pthread_attr_get_np);
     module.addSymbolExport("x1X76arYMxU", "scePthreadAttrGet", "libkernel", "libkernel", (void*)&kernel_pthread_attr_get_np);
     module.addSymbolExport("-wzZ7dvA7UU", "pthread_attr_getaffinity_np", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getaffinity_np);
     module.addSymbolExport("8+s5BzZjxSg", "scePthreadAttrGetaffinity", "libkernel", "libkernel", (void*)&scePthreadAttrGetaffinity);
     module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
+    module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("UTXzJbWhhTE", "scePthreadAttrSetstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("E+tyo3lp5Lw", "pthread_attr_setdetachstate", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setdetachstate);
+    module.addSymbolExport("E+tyo3lp5Lw", "pthread_attr_setdetachstate", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_setdetachstate);
     module.addSymbolExport("-Wreprtu0Qs", "scePthreadAttrSetdetachstate", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setdetachstate);
     module.addSymbolExport("zHchY8ft5pk", "pthread_attr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
+    module.addSymbolExport("zHchY8ft5pk", "pthread_attr_destroy", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("62KCwEMmzcM", "scePthreadAttrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_attr_destroy);
     module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libkernel", "libkernel", (void*)&kernel_pthread_self);
+    module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libScePosix", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("aI+OeCz8xrQ", "scePthreadSelf", "libkernel", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("onNY9Byn-W8", "scePthreadJoin", "libkernel", "libkernel", (void*)&kernel_pthread_join);
 
@@ -118,6 +123,10 @@ void init(Module& module) {
     module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libkernel", "libkernel", (void*)&kernel_lseek);
     module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libScePosix", "libkernel", (void*)&kernel_lseek);
     module.addSymbolExport("oib76F-12fk", "sceKernelLseek", "libkernel", "libkernel", (void*)&sceKernelLseek);
+    module.addSymbolExport("JGMio+21L4c", "mkdir", "libkernel", "libkernel", (void*)&kernel_mkdir);
+    module.addSymbolExport("JGMio+21L4c", "mkdir", "libScePosix", "libkernel", (void*)&kernel_mkdir);
+    module.addSymbolExport("JGMio+21L4c", "mkdir", "libScePosix", "libkernel", (void*)&kernel_mkdir);
+    module.addSymbolExport("1-LFLmRFxxM", "sceKernelMkdir", "libkernel", "libkernel", (void*)&sceKernelMkdir);
     module.addSymbolExport("AqBioC2vF3I", "read", "libkernel", "libkernel", (void*)&kernel_read);
     module.addSymbolExport("AqBioC2vF3I", "read", "libScePosix", "libkernel", (void*)&kernel_read);
     module.addSymbolExport("Cg4srZ6TKbU", "sceKernelRead", "libkernel", "libkernel", (void*)&sceKernelRead);
@@ -138,6 +147,10 @@ void init(Module& module) {
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
     
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libkernel", "libkernel", (void*)&kernel_getpid);
+    module.addSymbolExport("CBNtXOoef-E", "sched_get_priority_max", "libkernel", "libkernel", (void*)&kernel_sched_get_priority_max);
+    module.addSymbolExport("CBNtXOoef-E", "sched_get_priority_max", "libScePosix", "libkernel", (void*)&kernel_sched_get_priority_max);
+    module.addSymbolExport("m0iS6jNsXds", "sched_get_priority_min", "libkernel", "libkernel", (void*)&kernel_sched_get_priority_min);
+    module.addSymbolExport("m0iS6jNsXds", "sched_get_priority_min", "libScePosix", "libkernel", (void*)&kernel_sched_get_priority_min);
     module.addSymbolExport("VkTAsrZDcJ0", "sigfillset", "libkernel", "libkernel", (void*)&sigfillset);
     
     module.addSymbolExport("7NwggrWJ5cA", "__sys_regmgr_call", "libkernel", "libkernel", (void*)&__sys_regmgr_call);
@@ -145,6 +158,7 @@ void init(Module& module) {
     module.addSymbolExport("yS8U2TGCe1A", "nanosleep", "libkernel", "libkernel", (void*)&kernel_nanosleep);
     module.addSymbolExport("yS8U2TGCe1A", "nanosleep", "libScePosix", "libkernel", (void*)&kernel_nanosleep);
     module.addSymbolExport("QcteRwbsnV0", "usleep", "libkernel", "libkernel", (void*)&sceKernelUsleep); // TODO: Technically should be a separate function, but the behavior should be the same
+    module.addSymbolExport("QcteRwbsnV0", "usleep", "libScePosix", "libkernel", (void*)&sceKernelUsleep); // TODO: Technically should be a separate function, but the behavior should be the same
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
     module.addSymbolExport("-ZR+hG7aDHw", "sceKernelSleep", "libkernel", "libkernel", (void*)&sceKernelSleep);
     module.addSymbolExport("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel", (void*)&kernel_clock_gettime);
@@ -179,6 +193,14 @@ void init(Module& module) {
     module.addSymbolExport("4czppHBiriw", "sceKernelSignalSema", "libkernel", "libkernel", (void*)&sceKernelSignalSema);
     module.addSymbolExport("Zxa0VhQVTsk", "sceKernelWaitSema", "libkernel", "libkernel", (void*)&sceKernelWaitSema);
     module.addSymbolExport("12wOHk8ywb0", "sceKernelPollSema", "libkernel", "libkernel", (void*)&sceKernelPollSema);
+    module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libkernel", "libkernel", (void*)&kernel_sem_init);
+    module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libScePosix", "libkernel", (void*)&kernel_sem_init);
+    module.addSymbolExport("IKP8typ0QUk", "sem_post", "libkernel", "libkernel", (void*)&kernel_sem_post);
+    module.addSymbolExport("IKP8typ0QUk", "sem_post", "libScePosix", "libkernel", (void*)&kernel_sem_post);
+    module.addSymbolExport("YCV5dGGBcCo", "sem_wait", "libkernel", "libkernel", (void*)&kernel_sem_wait);
+    module.addSymbolExport("YCV5dGGBcCo", "sem_wait", "libScePosix", "libkernel", (void*)&kernel_sem_wait);
+    module.addSymbolStub("cDW233RAwWo", "sem_destroy", "libkernel", "libkernel");
+    module.addSymbolStub("cDW233RAwWo", "sem_destroy", "libScePosix", "libkernel");
     
     module.addSymbolExport("6ULAa0fq4jA", "scePthreadRwlockInit", "libkernel", "libkernel", (void*)&scePthreadRwlockInit);
     module.addSymbolExport("Ox9i0c7L5w0", "scePthreadRwlockRdlock", "libkernel", "libkernel", (void*)&kernel_pthread_rwlock_rdlock);
@@ -195,15 +217,24 @@ void init(Module& module) {
     
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
+    module.addSymbolStub("HF7lK46xzjY", "pthread_mutexattr_destroy", "libkernel", "libkernel");
+    module.addSymbolStub("HF7lK46xzjY", "pthread_mutexattr_destroy", "libScePosix", "libkernel");
+    module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libkernel", "libkernel");
+    module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libScePosix", "libkernel");
+    module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libkernel", "libkernel");
+    module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libScePosix", "libkernel");
     module.addSymbolStub("8mql9OcQnd4", "sceKernelDeleteEventFlag", "libkernel", "libkernel");
     module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("vSMAm3cxYTY", "sceKernelMprotect", "libkernel", "libkernel"); // TODO: Probably important
+    module.addSymbolStub("-o5uEDpN+oY", "sceKernelConvertUtcToLocaltime", "libkernel", "libkernel"); // TODO: Probably important
+    module.addSymbolStub("0NTHN1NKONI", "sceKernelConvertLocaltimeToUtc", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
     module.addSymbolStub("bnZxYgAFeA0", "sceKernelGetSanitizerNewReplaceExternal", "libkernel", "libkernel");
     module.addSymbolStub("bt3CTBKmGyI", "scePthreadSetaffinity", "libkernel", "libkernel");
     module.addSymbolStub("rcrVFJsQWRY", "scePthreadGetaffinity", "libkernel", "libkernel");
+    module.addSymbolStub("1tKyG7RlMJo", "scePthreadGetprio", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("W0Hpm2X0uPE", "scePthreadSetprio", "libkernel", "libkernel");
     module.addSymbolStub("eXbUSpEaTsA", "scePthreadAttrSetinheritsched", "libkernel", "libkernel");
     module.addSymbolStub("DzES9hQF4f4", "scePthreadAttrSetschedparam", "libkernel", "libkernel");
@@ -457,6 +488,16 @@ s32 PS4_FUNC kernel_getpid() {
     return 100;
 }
 
+s32 PS4_FUNC kernel_sched_get_priority_max() {
+    log("sched_get_priority_max()\n");
+    return 256;
+}
+
+s32 PS4_FUNC kernel_sched_get_priority_min() {
+    log("sched_get_priority_min()\n");
+    return 767;
+}
+
 s32 PS4_FUNC sigfillset() {
     // TODO
     unimpl("sigfillset() TODO\n");
@@ -554,7 +595,7 @@ s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
 
 #ifdef _WIN32
     auto lk = std::unique_lock<std::mutex>(allocator_mtx);
-    //VirtualFree(addr, len, MEM_DECOMMIT);
+    VirtualFree(addr, len, MEM_DECOMMIT);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif

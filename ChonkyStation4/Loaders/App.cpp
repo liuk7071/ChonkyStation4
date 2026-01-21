@@ -83,7 +83,8 @@ void App::run() {
     log("Running app\n");
     // Create main thread
     auto main_thread = PS4::OS::Thread::createThread("main", (PS4::OS::Thread::ThreadStartFunc)initAndJumpToEntry, &modules);
-    PS4::OS::Thread::joinThread(main_thread);
+    void* val;
+    PS4::OS::Thread::joinThread(main_thread, &val);
 }
 
 std::tuple<u8*, size_t, size_t> App::getTLSImage(u32 modid) {

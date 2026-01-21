@@ -24,6 +24,9 @@ struct SceRtcDateTime {
 };
 
 s32 PS4_FUNC sceRtcGetCurrentTick(SceRtcTick* tick);
+s32 PS4_FUNC sceRtcGetCurrentNetworkTick(SceRtcTick* tick);
 s32 PS4_FUNC sceRtcGetTick(const SceRtcDateTime* time, SceRtcTick* tick);
+s32 PS4_FUNC sceRtcSetTick(SceRtcDateTime* time, const SceRtcTick* tick);
+s32 PS4_FUNC sceRtcGetTime_t(const SceRtcDateTime* sce_time, u64* time);
 
 }   // End namespace PS4::OS::Libs::SceRtc
