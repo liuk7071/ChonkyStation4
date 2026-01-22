@@ -3,6 +3,7 @@
 #include <GCN/PM4.hpp>
 #include <BitField.hpp>
 #include <thread>
+#include <atomic>
 
 
 namespace PS4::GCN {
@@ -63,14 +64,87 @@ union IndirectBuffer2 {
     BitField<24, 8, u32> vmid;
 };
 
+// Constant engine
+std::atomic<u32> ce_count = 0;
+std::atomic<u32> de_count = 0;
+std::thread ce_thread;
+u8 constant_ram[48_KB];
+
+void initCommandProcessor() {
+    std::memset(constant_ram, 0, 48_KB);
+}
+
+void processCcb(u32* ccb, size_t ccb_size) {
+    if (ce_thread.joinable()) ce_thread.join();
+
+    ce_thread = std::thread([=]() {
+        for (u32* ptr = ccb; (u8*)ptr < (u8*)ccb + ccb_size; ) {
+            PM4Header* pkt = (PM4Header*)ptr;
+            u32* args = ptr;
+            args++;
+
+            if (pkt->type == 0) {
+                ptr++;
+                continue;
+                Helpers::panic("CCB PM4 type 0 packet\n");
+            }
+            else if (pkt->type == 1) {
+                Helpers::panic("CCB PM4 type 1 packet\n");
+            }
+            else if (pkt->type == 2) {
+                Helpers::panic("CCB PM4 type 1 packet\n");
+            }
+
+            switch ((PM4ItOpcode)(u32)pkt->opcode) {
+            case PM4ItOpcode::Nop:  break;
+
+            case PM4ItOpcode::WriteConstRam: {
+                const u32 offs = *args++;
+                std::memcpy(&constant_ram[offs], args, pkt->count * sizeof(u32));
+                break;
+            }
+
+            case PM4ItOpcode::DumpConstRam: {
+                const u32 offs = *args++;
+                const u32 n_dw = *args++;
+                const u32 addr_lo = *args++;
+                const u32 addr_hi = *args++;
+                void* addr = (void*)(addr_lo | ((u64)addr_hi << 32));
+                std::memcpy(addr, &constant_ram[offs], n_dw * sizeof(u32));
+                break;
+            }
+
+            case PM4ItOpcode::IncrementCeCounter: {
+                ce_count++;
+                break;
+            }
+
+            case PM4ItOpcode::WaitOnDeCounterDiff: {
+                const u32 diff = *args++;
+                while (de_count - ce_count >= diff) {
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                    std::this_thread::yield();
+                }
+                break;
+            }
+
+            default: {
+                //log("Unimplemented ccb opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
+                break;
+            }
+            }
+
+            ptr += pkt->count + 2;
+        }
+    });
+}
+
 void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     if (ccb) {
-        // TODO: What is ccb?
-        printf("TODO: ccb\n");
+        processCcb(ccb, ccb_size);
     }
 
     for (u32* ptr = dcb; (u8*)ptr < (u8*)dcb + dcb_size; ) {
-
         PM4Header* pkt = (PM4Header*)ptr;
         u32* args = ptr;
         args++;
@@ -315,6 +389,19 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             //const u32 draw_initiator = *args++;
             const void* index_buf_ptr = (void*)(index_base_lo | ((u64)index_base_hi << 32));
             renderer->draw(cnt, index_buf_ptr);
+            break;
+        }
+
+        case PM4ItOpcode::IncrementDeCounter: {
+            de_count++;
+            break;
+        }
+
+        case PM4ItOpcode::WaitOnCeCounter: {
+            while (ce_count <= de_count) {
+                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                std::this_thread::yield();
+            }
             break;
         }
 

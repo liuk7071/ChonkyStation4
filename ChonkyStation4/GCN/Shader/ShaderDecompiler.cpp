@@ -260,7 +260,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
 
     shader.clear();
-    shader.reserve(16_KB);  // Avoid reallocations
+    shader.reserve(64_KB);  // Avoid reallocations
     const_tables.clear();
     const_tables.reserve(1_KB);
     const_table_map.clear();
@@ -379,6 +379,7 @@ bool vcc;
                     buf.desc_info.type = DescriptorType::Vsharp;
                     auto name = std::format("ssbo{}", buf.binding);
                     addInSSBO(name, buf.binding);
+                    //printf("Created binding for %s\nsgpr=%d, is_ptr=%d, offs=%d\n", name.c_str(), sgpr, is_ptr, offs);
                     break;
                 }
 
@@ -406,7 +407,6 @@ bool vcc;
                 auto& buf = get_buffer(sgpr, false);
                 buffer_map[buf_mapping_idx++] = &buf;
                 //printf("Found V# in SGPR %d\n", buf.desc_info.sgpr);
-                //printf("Added buffer %s\n", name.c_str());
             }
             else {
                 auto& desc = descs[sgpr];
@@ -420,7 +420,7 @@ bool vcc;
     }
 
     std::string main;
-    main.reserve(8_KB); // Avoid reallocations
+    main.reserve(32_KB); // Avoid reallocations
 
     switch (stage) {
     case ShaderStage::Vertex: {
@@ -693,6 +693,11 @@ bool vcc;
 
         case Shader::Opcode::V_LSHRREV_B32: {
             main += setDST<true>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<true>(instr.src[1]), getSRC<true>(instr.src[0])));
+            break;
+        }
+        
+        case Shader::Opcode::V_LSHLREV_B32: {
+            main += setDST<true>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<true>(instr.src[1]), getSRC<true>(instr.src[0])));
             break;
         }
 

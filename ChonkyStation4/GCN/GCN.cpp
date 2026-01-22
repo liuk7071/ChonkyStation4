@@ -35,6 +35,7 @@ void gcnThread() {
     // Initialize event sources
     eop_ev_source.init(EOP_EVENT_ID, -14);
     
+    GCN::initCommandProcessor();
     initialized = true;
 
     RendererCommand cmd;

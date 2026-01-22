@@ -53,6 +53,8 @@ void init(Module& module) {
     module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libkernel", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("EotR8a3ASf4", "pthread_self", "libScePosix", "libkernel", (void*)&kernel_pthread_self);
     module.addSymbolExport("aI+OeCz8xrQ", "scePthreadSelf", "libkernel", "libkernel", (void*)&kernel_pthread_self);
+    module.addSymbolExport("h9CcP3J0oVM", "pthread_join", "libkernel", "libkernel", (void*)&kernel_pthread_join);
+    module.addSymbolExport("h9CcP3J0oVM", "pthread_join", "libScePosix", "libkernel", (void*)&kernel_pthread_join);
     module.addSymbolExport("onNY9Byn-W8", "scePthreadJoin", "libkernel", "libkernel", (void*)&kernel_pthread_join);
 
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
@@ -223,6 +225,10 @@ void init(Module& module) {
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libScePosix", "libkernel");
     module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libkernel", "libkernel");
     module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libScePosix", "libkernel");
+    module.addSymbolStub("Xs9hdiD7sAA", "pthread_setschedparam", "libkernel", "libkernel");
+    module.addSymbolStub("Xs9hdiD7sAA", "pthread_setschedparam", "libScePosix", "libkernel");
+    module.addSymbolStub("P41kTWUS3EI", "scePthreadGetschedparam", "libkernel", "libkernel");
+    module.addSymbolStub("oIRFTjoILbg", "scePthreadSetschedparam", "libkernel", "libkernel");
     module.addSymbolStub("8mql9OcQnd4", "sceKernelDeleteEventFlag", "libkernel", "libkernel");
     module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
@@ -232,6 +238,7 @@ void init(Module& module) {
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
     module.addSymbolStub("bnZxYgAFeA0", "sceKernelGetSanitizerNewReplaceExternal", "libkernel", "libkernel");
+    module.addSymbolStub("py6L8jiVAN8", "sceKernelGetSanitizerMallocReplaceExternal", "libkernel", "libkernel");
     module.addSymbolStub("bt3CTBKmGyI", "scePthreadSetaffinity", "libkernel", "libkernel");
     module.addSymbolStub("rcrVFJsQWRY", "scePthreadGetaffinity", "libkernel", "libkernel");
     module.addSymbolStub("1tKyG7RlMJo", "scePthreadGetprio", "libkernel", "libkernel"); // TODO: Probably important

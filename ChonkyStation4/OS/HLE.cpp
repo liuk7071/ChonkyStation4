@@ -63,8 +63,10 @@ Module buildHLEModule() {
     // libSceMsgDialog
     module.addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
     module.addSymbolStub("b06Hh0DPEaE", "sceMsgDialogOpen", "libSceMsgDialog", "libSceMsgDialog");
-    module.addSymbolStub("6fIC3XKt2k0", "sceMsgDialogUpdateStatus", "libSceMsgDialog", "libSceMsgDialog");
+    module.addSymbolStub("6fIC3XKt2k0", "sceMsgDialogUpdateStatus", "libSceMsgDialog", "libSceMsgDialog", 3);
     module.addSymbolStub("CWVW78Qc3fI", "sceMsgDialogGetStatus", "libSceMsgDialog", "libSceMsgDialog");
+    module.addSymbolStub("Lr8ovHH9l6A", "sceMsgDialogGetResult", "libSceMsgDialog", "libSceMsgDialog");
+    module.addSymbolStub("ePw-kqZmelo", "sceMsgDialogTerminate", "libSceMsgDialog", "libSceMsgDialog");
 
     // libSceCommonDialog
     module.addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
@@ -148,6 +150,20 @@ Module buildHLEModule() {
     
     // libSceCamera
     module.addSymbolStub("p6n3Npi3YY4", "sceCameraIsAttached", "libSceCamera", "libSceCamera");
+    
+    // libSceMove
+    module.addSymbolStub("j1ITE-EoJmE", "sceMoveInit", "libSceMove", "libSceMove");
+    module.addSymbolStub("HzC60MfjJxU", "sceMoveOpen", "libSceMove", "libSceMove", 1);
+    module.addSymbolStub("f2bcpK6kJfg", "sceMoveReadStateRecent", "libSceMove", "libSceMove");
+
+    // libSceMoveTracker
+    module.addSymbolStub("F4w2atwG428", "sceMoveTrackerInit", "libSceMoveTracker", "libSceMoveTracker");
+    module.addSymbolStub("gg1d4KsyVVs", "sceMoveTrackerGetWorkingMemorySize", "libSceMoveTracker", "libSceMoveTracker");
+    module.addSymbolStub("-Y8hlMgBsr4", "sceMoveTrackerControllersUpdate", "libSceMoveTracker", "libSceMoveTracker");
+    module.addSymbolStub("YV2CtE7qX8M", "sceMoveTrackerGetState", "libSceMoveTracker", "libSceMoveTracker");
+    
+    // libSceVideoRecording
+    module.addSymbolStub("Fc8qxlKINYQ", "sceVideoRecordingSetInfo", "libSceVideoRecording", "libSceVideoRecording");
     
     // libSceRemoteplay
     module.addSymbolStub("k1SwgkMSOM8", "sceRemoteplayInitialize", "libSceRemoteplay", "libSceRemoteplay");

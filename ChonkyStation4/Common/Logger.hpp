@@ -86,9 +86,9 @@ static Logger lib_sceRtc            = Logger<true> ("[Lib    ][SceRtc           
 static Logger lib_sceNet            = Logger<true> ("[Lib    ][SceNet           ] ");
 
 // GCN
-static Logger gcn_command_processor = Logger<true> ("[GCN    ][Command          ] ");
-static Logger gcn_fetch_shader      = Logger<true> ("[GCN    ][Fetch Shader     ] ");
-static Logger gcn_vulkan_renderer   = Logger<true> ("[GCN    ][VulkanRenderer   ] ");
+static Logger gcn_command_processor = Logger<false>("[GCN    ][Command          ] ");
+static Logger gcn_fetch_shader      = Logger<false>("[GCN    ][Fetch Shader     ] ");
+static Logger gcn_vulkan_renderer   = Logger<false>("[GCN    ][VulkanRenderer   ] ");
 
 // Other
 static Logger filesystem            = Logger<true> ("[Other  ][Filesystem       ] ");

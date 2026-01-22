@@ -276,14 +276,11 @@ void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module) {
     const u8* ptr = (u8*)module.base_address + seg.get_virtual_address();
     const u64 size = seg.get_memory_size();
 
-#ifdef _WIN32
     // Copy segment data
     std::memcpy((u8*)ptr, seg.get_data(), seg.get_file_size());
     // Set the remaining memory to 0
     std::memset((u8*)ptr + seg.get_file_size(), 0, seg.get_memory_size() - seg.get_file_size());
-#else
-    Helpers::panic("Unsupported platform\n");
-#endif
+
     // Apply patches if the segment is executable
     const bool x = seg.get_flags() & PF_X;
     if (x) PS4::Loader::ELF::patchCode(module, (u8*)ptr, size);
