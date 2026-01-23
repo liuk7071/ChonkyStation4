@@ -138,6 +138,18 @@ struct ScePadOpenParam {
     u8 reserved[8];
 };
 
+struct ScePadLightBarParam {
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 reserved;
+};
+
+struct ScePadVibrationParam {
+    u8 large_motor;
+    u8 small_motor;
+};
+
 void clearButtons();
 void pressButton(ScePadButtonDataOffset button);
 void pollPads();
@@ -147,5 +159,7 @@ s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data);
 s32 PS4_FUNC scePadRead(s32 handle, ScePadData* data, s32 num);
 s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info);
+s32 PS4_FUNC scePadSetLightBar(s32 handle, const ScePadLightBarParam* param);
+s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param);
 
 }   // End namespace PS4::OS::Libs::ScePad

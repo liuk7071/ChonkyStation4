@@ -1070,9 +1070,9 @@ bool vcc;
         }
 
         default: {
-            printf("Shader so far:\n%s\n", main.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            //main += "// TODO\n";
+            //printf("Shader so far:\n%s\n", main.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            main += "// TODO\n";
         }
         }
     }

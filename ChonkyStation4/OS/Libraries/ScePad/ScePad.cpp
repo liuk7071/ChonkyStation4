@@ -14,13 +14,13 @@ void init(Module& module) {
     module.addSymbolExport("YndgXqQVV7c", "scePadReadState", "libScePad", "libScePad", (void*)&scePadReadState);
     module.addSymbolExport("q1cHNfGycLI", "scePadRead", "libScePad", "libScePad", (void*)&scePadRead);
     module.addSymbolExport("gjP9-KQzoUk", "scePadGetControllerInformation", "libScePad", "libScePad", (void*)&scePadGetControllerInformation);
+    module.addSymbolExport("RR4novUEENY", "scePadSetLightBar", "libScePad", "libScePad", (void*)&scePadSetLightBar);
+    module.addSymbolExport("yFVnOdGxvZY", "scePadSetVibration", "libScePad", "libScePad", (void*)&scePadSetVibration);
     
     module.addSymbolStub("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad");
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
     module.addSymbolStub("clVvL4ZDntw", "scePadSetMotionSensorState", "libScePad", "libScePad");
-    module.addSymbolStub("yFVnOdGxvZY", "scePadSetVibration", "libScePad", "libScePad");
-    module.addSymbolStub("RR4novUEENY", "scePadSetLightBar", "libScePad", "libScePad");
 }
 
 ScePadData pad_state;
@@ -126,9 +126,8 @@ void pollPads() {
 
 s32 PS4_FUNC scePadInit() {
     log("scePadInit()\n");
-
+    
     controller = findController();
-
     std::memset(&pad_state, 0, sizeof(ScePadData));
     pad_state.connected = true;
     pad_state.connected_count = 1;
@@ -182,6 +181,22 @@ s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformat
     info->connected_count = 1;
     info->connected = true;
     info->device_class = ScePadDeviceClass::SCE_PAD_DEVICE_CLASS_STANDARD;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePadSetLightBar(s32 handle, const ScePadLightBarParam* param) {
+    log("scePadSetLightBar(handle=%d, param=*%p)\n", handle, param);
+
+    if (controller)
+        SDL_GameControllerSetLED(controller, param->r, param->g, param->b);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param) {
+    log("scePadSetVibration(handle=%d, param=*%p)\n", handle, param);
+
+    if (controller)
+        SDL_GameControllerRumble(controller, (param->large_motor << 8) | param->large_motor, (param->small_motor << 8) | param->small_motor, -1);
     return SCE_OK;
 }
 
