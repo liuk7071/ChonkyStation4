@@ -34,7 +34,6 @@ bool prepareApp(const fs::path& app_content_path, AppInfo& info) {
 
 bool getApp(const AppInfo& info, ::App& app) {
     fs::path tmp_path = info.executable_path;
-    tmp_path.replace_extension(".elf"); // For now we expect decrypted executables
     app = std::move(Loader::Linker::loadAndLink(tmp_path));
 
     // TODO: Just have an AppInfo inside App?
@@ -89,7 +88,6 @@ bool getApp(const AppInfo& info, ::App& app) {
 
         // For now we expect decrypted modules as .elf files
         auto module_path = module.path();
-        module_path.replace_extension(".elf");
         if (!fs::exists(module_path)) continue;
 
         Loader::Linker::loadAndLinkLib(app, module_path);

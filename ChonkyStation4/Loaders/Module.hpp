@@ -75,6 +75,7 @@ public:
     void* base_address = nullptr;  // Base address of the module in memory
     void* entry = nullptr;
     std::string filename;
+    s32 modid = 0;
 
     struct ModuleInfo {
         void load(u64 val, char* str_table_ptr) {

@@ -35,6 +35,9 @@ struct TLSIndex {
     u64 offset;
 };
 
+struct SceKernelLoadModuleOpt;
+using SceKernelModule = s32;
+
 s32* PS4_FUNC kernel_error();
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
@@ -47,6 +50,8 @@ s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz);
 s32 PS4_FUNC sceKernelGettimeofday(SceKernelTimeval* tv);
 s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz);
 u64 PS4_FUNC sceKernelGetProcessTime();
+u64 PS4_FUNC sceKernelGetProcessTimeCounter();
+u64 PS4_FUNC sceKernelGetProcessTimeCounterFrequency();
 void PS4_FUNC kernel_sched_yield();
 u64 PS4_FUNC sceKernelReadTsc();
 s32 PS4_FUNC sceKernelIsNeoMode();
@@ -70,5 +75,8 @@ s32 PS4_FUNC sceKernelMapNamedDirectMemory(void** addr, size_t len, s32 prot, s3
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name);
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
 s32 PS4_FUNC sceKernelGetDirectMemorySize();
+
+// Module
+SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res);
 
 }   // End namespace PS4::OS::Libs::Kernel

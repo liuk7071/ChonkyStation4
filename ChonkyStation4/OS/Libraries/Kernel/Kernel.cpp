@@ -3,6 +3,7 @@
 #include <ErrorCodes.hpp>
 #include <Loaders/Module.hpp>
 #include <Loaders/App.hpp>
+#include <Loaders/Linker/Linker.hpp>
 #include <OS/Thread.hpp>
 #include <OS/Libraries/Kernel/pthread/pthread.hpp>
 #include <OS/Libraries/Kernel/pthread/mutex.hpp>
@@ -12,6 +13,7 @@
 #include <OS/Libraries/Kernel/Eflag.hpp>
 #include <OS/Libraries/Kernel/Semaphore.hpp>
 #include <OS/Libraries/Kernel/Filesystem.hpp>
+#include <OS/Filesystem.hpp>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -31,7 +33,7 @@ MAKE_LOG_FUNCTION(log, lib_kernel);
 MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
 static u64 stack_chk_guard = 0x4452474B43415453;    // "STACKGRD"
-//static u64 stack_chk_guard = 0;
+static u64 proc_counter_start = 0;
 
 void init(Module& module) {
     module.addSymbolExport("wtkt-teR1so", "pthread_attr_init", "libkernel", "libkernel", (void*)&kernel_pthread_attr_init);
@@ -171,6 +173,8 @@ void init(Module& module) {
     module.addSymbolExport("ejekcaNQNq0", "sceKernelGettimeofday", "libkernel", "libkernel", (void*)&sceKernelGettimeofday);
     module.addSymbolExport("kOcnerypnQA", "sceKernelGettimezone", "libkernel", "libkernel", (void*)&sceKernelGettimezone);
     module.addSymbolExport("4J2sUJmuHZQ", "sceKernelGetProcessTime", "libkernel", "libkernel", (void*)&sceKernelGetProcessTime);
+    module.addSymbolExport("fgxnMeTNUtY", "sceKernelGetProcessTimeCounter", "libkernel", "libkernel", (void*)&sceKernelGetProcessTimeCounter);
+    module.addSymbolExport("BNowx2l588E", "sceKernelGetProcessTimeCounterFrequency", "libkernel", "libkernel", (void*)&sceKernelGetProcessTimeCounterFrequency);
     module.addSymbolExport("-2IRUCO--PM", "sceKernelReadTsc", "libkernel", "libkernel", (void*)&sceKernelReadTsc);
     module.addSymbolExport("6XG4B33N09g", "sched_yield", "libkernel", "libkernel", (void*)&kernel_sched_yield);
     
@@ -217,6 +221,8 @@ void init(Module& module) {
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
     
+    module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
+    
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
     module.addSymbolStub("HF7lK46xzjY", "pthread_mutexattr_destroy", "libkernel", "libkernel");
@@ -262,6 +268,8 @@ void init(Module& module) {
     module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
+
+    proc_counter_start = SDL_GetPerformanceCounter();
 }
 
 static thread_local s32 posix_errno = 0;
@@ -408,14 +416,12 @@ s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz) {
 
 s32 PS4_FUNC sceKernelGettimeofday(SceKernelTimeval* tv) {
     log("sceKernelGettimeofday(tv=*%p)\n", tv);
-
     kernel_gettimeofday(tv, nullptr);
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelGettimezone(SceKernelTimezone* tz) {
     log("sceKernelGettimezone(tz=*%p)\n", tz);
-
     kernel_gettimeofday(nullptr, tz);
     return SCE_OK;
 }
@@ -427,13 +433,23 @@ u64 PS4_FUNC sceKernelGetProcessTime() {
     return std::chrono::duration_cast<std::chrono::microseconds>(now - process_start_time).count();
 }
 
+u64 PS4_FUNC sceKernelGetProcessTimeCounter() {
+    //log("sceKernelGetProcessTimeCounter()\n");
+    const auto now = SDL_GetPerformanceCounter();
+    return now - proc_counter_start;
+}
+
+u64 PS4_FUNC sceKernelGetProcessTimeCounterFrequency() {
+    //log("sceKernelGetProcessTimeCounterFrequency()\n");
+    return SDL_GetPerformanceFrequency();
+}
+
 void PS4_FUNC kernel_sched_yield() {
     //std::this_thread::yield();
 }
 
 u64 PS4_FUNC sceKernelReadTsc() {
     log("sceKernelReadTsc()\n");
-    // Stubbed to just be the same as sceKernelGetProcessTime
     return __rdtsc();
 }
 
@@ -613,6 +629,17 @@ s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
 s32 PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
     return 5_GB - 512_MB;   // total size - flexible mem size
+}
+
+SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res) {
+    log("sceKernelLoadStartModule(module_path=\"%s\", args=%d, argp=%p, flags=0x%x, opt=*%p, res=*%p)\n", module_path, args, argp, flags, opt, res);
+
+    const fs::path host_module_path = FS::guestPathToHost(module_path);
+    auto* module = PS4::Loader::Linker::loadAndLinkLib(g_app, host_module_path);
+    s32 ret = module->init_func(args, argp, nullptr);   // TODO: libkernel.sprx seems to pass the address of the module_start (nid=0xBaOKcng8g88) symbol as parameter
+    
+    if (res) *res = ret;
+    return module->modid;
 }
 
 }

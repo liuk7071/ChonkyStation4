@@ -1,5 +1,6 @@
 #include "ELFLoader.hpp"
 #include "CodePatcher.hpp"
+#include <fstream>
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -9,20 +10,69 @@
 
 using namespace ELFIO;
 
+static int modid = 1;
 static int tls_modid = 0;
 static void* last_load_addr = (void*)0x80'0000'0000;
+
+std::ifstream file;
+ELFLoader::SELFHeader self_header;
+std::vector<ELFLoader::SELFSegment> self_segments;
+std::vector<Elf64_Phdr> elf_phdrs;
+bool is_self = true;
 
 Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
     elfio elf;
     Module module;
     module.filename = path.filename().generic_string();
+    module.modid = modid++;
 
+    // Try to load SELF header
     auto str = path.generic_string();
-    if (!elf.load(str.c_str())) {
-        Helpers::panic("Couldn't load ELF %s:\n%s\n", str.c_str(), elf.validate().c_str());
+    if (file.is_open()) file.close();
+    file.open(str, std::ios::binary);
+    file.read((char*)&self_header, sizeof(SELFHeader));
+    if (self_header.magic == SELF_MAGIC) {
+        is_self = true;
+        // Load SELF segments
+        self_segments.resize(self_header.n_segments);
+        file.read((char*)self_segments.data(), sizeof(SELFSegment) * self_header.n_segments);
+
+        // Load ELF header
+        const size_t ehdr_offs = file.tellg();
+        Elf64_Ehdr elf_header;
+        file.read((char*)&elf_header, sizeof(Elf64_Ehdr));
+
+        // Load ELF program headers
+        elf_phdrs.resize(elf_header.e_phnum);
+        file.seekg(ehdr_offs + elf_header.e_phoff, std::ios::beg);
+        file.read((char*)elf_phdrs.data(), sizeof(Elf64_Phdr) * elf_header.e_phnum);
+        
+        // Set entry
+        elf.set_entry(elf_header.e_entry);
+
+        // Populate elfio segment vector
+        for (auto& phdr : elf_phdrs) {
+            auto* seg = elf.segments.add();
+            seg->set_type(phdr.p_type);
+            seg->set_flags(phdr.p_flags);
+            seg->set_virtual_address(phdr.p_vaddr);
+            seg->set_physical_address(phdr.p_paddr);
+            seg->set_file_size(phdr.p_filesz);
+            seg->set_memory_size(phdr.p_memsz);
+            seg->set_align(phdr.p_align);
+        }
+    } else {
+        // File is an ELF file?
+        is_self = false;
+        log("File %s is not a SELF file, loading as ELF (magic was 0x%08x)\n", str.c_str(), self_header.magic);
+
+        // Try to load as ELF
+        if (!elf.load(str.c_str())) {
+            Helpers::panic("Couldn't load ELF %s:\n%s\n", str.c_str(), elf.validate().c_str());
+        }
     }
 
-    log("Loading ELF %s\n", str.c_str());
+    log("Loading %s %s\n", is_self ? "SELF" : "ELF", str.c_str());
     log("* %d segments\n", elf.segments.size());
 
     // Iterate over segments to find the total size we need to allocate
@@ -82,14 +132,14 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
 
         case PT_DYNAMIC: {
             module.dynamic_tags.resize(seg->get_file_size());
-            std::memcpy(module.dynamic_tags.data(), seg->get_data(), seg->get_file_size());
+            loadSegment(*seg, module, (u8*)module.dynamic_tags.data(), false, false);
             break;
         }
 
         // Contains data for dynamic linking (PT_DYNAMIC) (i.e. string tables and symbol info)
         case PT_SCE_DYNLIBDATA: {
             module.dynamic_data.resize(seg->get_file_size());
-            std::memcpy(module.dynamic_data.data(), seg->get_data(), seg->get_file_size());
+            loadSegment(*seg, module, (u8*)module.dynamic_data.data(), false, false);
             break;
         }
 
@@ -271,19 +321,47 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
     return module;
 }
 
-void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module) {
-    // Load segment in host memory
-    const u8* ptr = (u8*)module.base_address + seg.get_virtual_address();
-    const u64 size = seg.get_memory_size();
+void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module, u8* ptr, bool do_patch, bool zero_fill) {
+    // Load segment in host memory if no explicit pointer is specified
+    if (!ptr) {
+        ptr = (u8*)module.base_address + seg.get_virtual_address();
+    }
+    
+    if (!is_self) {
+        // Copy segment data
+        std::memcpy((u8*)ptr, seg.get_data(), seg.get_file_size());
+    } else {
+        // Find the SELF segment that corresponds to this ELF phdr
+        bool found = false;
+        for (auto& self_seg : self_segments) {
+            if ((self_seg.flags & 0x800) == 0) continue;   // if !IsBlocked
+            
+            const auto id = self_seg.flags >> 20;
+            const auto& phdr = elf_phdrs[id];
+            if (Helpers::inRangeSized<u64>(elf_phdrs[seg.get_index()].p_offset, phdr.p_offset, phdr.p_filesz)) {
+                found = true;
+                file.seekg((elf_phdrs[seg.get_index()].p_offset - phdr.p_offset) + self_seg.offset, std::ios::beg);
+                file.read((char*)ptr, seg.get_file_size());
+                break;
+            }
+        }
+        
+        if (!found) {
+            Helpers::panic("ELFLoader: could not find SELF segment for ELF segment offset 0x%016llx\n", elf_phdrs[seg.get_index()].p_offset);
+        }
+    }
 
-    // Copy segment data
-    std::memcpy((u8*)ptr, seg.get_data(), seg.get_file_size());
-    // Set the remaining memory to 0
-    std::memset((u8*)ptr + seg.get_file_size(), 0, seg.get_memory_size() - seg.get_file_size());
-
-    // Apply patches if the segment is executable
-    const bool x = seg.get_flags() & PF_X;
-    if (x) PS4::Loader::ELF::patchCode(module, (u8*)ptr, size);
+    if (zero_fill) {
+        // Set the remaining memory to 0
+        std::memset((u8*)ptr + seg.get_file_size(), 0, seg.get_memory_size() - seg.get_file_size());
+    }
+    
+    if (do_patch) {
+        // Apply patches if the segment is executable
+        const bool x = seg.get_flags() & PF_X;
+        const u64 size = seg.get_memory_size();
+        if (x) PS4::Loader::ELF::patchCode(module, (u8*)ptr, size);
+    }
 
     return (void*)((u8*)ptr);
 }

@@ -147,10 +147,11 @@ void doRelocations(App& app) {
     }
 }
 
-void loadAndLinkLib(App& app, const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
+Module* loadAndLinkLib(App& app, const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
     ELFLoader loader;
     app.modules.push_back(loader.load(path, is_partial_lle_module, hle_module));
     doRelocations(app);
+    return &app.modules.back(); // We can do this because std::deque is guaranteed to not reallocate
 }
 
 } // End namespace Loader::Linker
