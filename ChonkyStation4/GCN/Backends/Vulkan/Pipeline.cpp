@@ -24,9 +24,7 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         VSharp* vsharp = shader_binding.vsharp_loc.asPtr();
         auto& binding = bindings.emplace_back();
         auto& attrib = attribs.emplace_back();
-        
-        // TODO: Given that the vsharp could theoretically change between draws, add an assert (probably on each gatherVertices) to check if the stride of
-        // the current vsharp is different from the one which was set here.
+
         binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
         attrib = { shader_binding.idx, n_binding++, getBufFormatAndSize(vsharp->dfmt, vsharp->nfmt).first, 0 };
 
@@ -64,19 +62,22 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     
     vk::PipelineInputAssemblyStateCreateInfo input_assembly = { .topology = topology(cfg.prim_type) };
     vk::PipelineViewportStateCreateInfo      viewport_state = { .viewportCount = 1, .scissorCount = 1 };
-    vk::PipelineRasterizationStateCreateInfo rasterizer = { .depthClampEnable = cfg.enable_depth_clamp,
+    vk::PipelineRasterizationStateCreateInfo rasterizer = {
+        .depthClampEnable = cfg.enable_depth_clamp,
         .rasterizerDiscardEnable = vk::False,
         .polygonMode = vk::PolygonMode::eFill,
         .cullMode = vk::CullModeFlagBits::eNone,
         .frontFace = vk::FrontFace::eClockwise,
         .depthBiasEnable = vk::False,
         .depthBiasSlopeFactor = 1.0f,
-        .lineWidth = 1.0f };
+        .lineWidth = 1.0f
+    };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
-        .depthTestEnable = VK_FALSE,
-        .depthWriteEnable = VK_TRUE,
+        .depthTestEnable = cfg.depth_control.depth_enable,
+        .depthWriteEnable = cfg.depth_control.depth_write_enable,
         .depthCompareOp = vk::CompareOp::eLessOrEqual,
+        //.depthCompareOp = cfg.depth_control.depth_enable ? vk::CompareOp::eLessOrEqual : vk::CompareOp::eNever,
         .depthBoundsTestEnable = VK_FALSE,
         .stencilTestEnable = VK_FALSE,
     };
@@ -176,7 +177,12 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     descriptor_set_layout = vk::raii::DescriptorSetLayout(device, layout_info);
 
     // Create the pipeline layout
-    vk::PipelineLayoutCreateInfo pipeline_layout_info = { .setLayoutCount = 1, .pSetLayouts = &*descriptor_set_layout, .pushConstantRangeCount = 0 };
+    vk::PushConstantRange push_constant_range = {
+        vk::ShaderStageFlagBits::eAllGraphics,
+        0,
+        sizeof(PushConstants)
+    };
+    vk::PipelineLayoutCreateInfo pipeline_layout_info = { .setLayoutCount = 1, .pSetLayouts = &*descriptor_set_layout, .pushConstantRangeCount = 1, .pPushConstantRanges = &push_constant_range };
     pipeline_layout = vk::raii::PipelineLayout(device, pipeline_layout_info);
 
     vk::GraphicsPipelineCreateInfo gpci = {};
@@ -226,11 +232,12 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
     return &new_vtx_bindings;
 }
 
-std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
+std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConstants** push_constants_ptr) {
     // Create and upload buffers required by each shader
     std::vector<vk::WriteDescriptorSet> descriptor_writes;
     descriptor_writes.reserve(32);
-    
+    std::memset(&push_constants, 0, sizeof(PushConstants));
+
     auto create_buffers = [&](Shader::ShaderData data) {
         for (auto& buf_info : data.buffers) {
             switch (buf_info.desc_info.type) {
@@ -241,7 +248,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                 // Upload as SSBO
                 const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * (vsharp->num_records + 16);
                 void* guest_buf_data = (void*)vsharp->base;
-                if ((u64)guest_buf_data < 0x10000) return;
+                if ((u64)guest_buf_data < 0x10000) continue;
                 auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);
 
                 buffer_info.push_back({
@@ -257,6 +264,12 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
                     .descriptorType = vk::DescriptorType::eStorageBuffer,
                     .pBufferInfo = &buffer_info.back()
                 });
+
+                // Write push constants for this buffer
+                if (buf_info.binding < 32) {
+                    push_constants.stride[buf_info.binding] = vsharp->stride;
+                    push_constants.fmt[buf_info.binding]    = vsharp->dfmt | (vsharp->nfmt << 8);
+                } else printf("TODO: buf_info.binding >= 32\n");
                 break;
             }
 
@@ -282,6 +295,8 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures() {
 
     create_buffers(vert_shader);
     create_buffers(pixel_shader);
+
+    *push_constants_ptr = &push_constants;
     return descriptor_writes;
 }
 

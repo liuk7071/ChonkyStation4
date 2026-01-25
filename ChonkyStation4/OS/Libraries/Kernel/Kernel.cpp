@@ -100,10 +100,13 @@ void init(Module& module) {
     module.addSymbolExport("Z4QosVuAsA0", "pthread_once", "libkernel", "libkernel", (void*)&kernel_pthread_once);
     module.addSymbolExport("14bOACANTBo", "scePthreadOnce", "libkernel", "libkernel", (void*)&kernel_pthread_once);
     module.addSymbolExport("0-KXaS70xy4", "pthread_getspecific", "libkernel", "libkernel", (void*)&kernel_pthread_getspecific);
+    module.addSymbolExport("0-KXaS70xy4", "pthread_getspecific", "libScePosix", "libkernel", (void*)&kernel_pthread_getspecific);
     module.addSymbolExport("eoht7mQOCmo", "scePthreadGetspecific", "libkernel", "libkernel", (void*)&kernel_pthread_getspecific);
     module.addSymbolExport("WrOLvHU0yQM", "pthread_setspecific", "libkernel", "libkernel", (void*)&kernel_pthread_setspecific);
+    module.addSymbolExport("WrOLvHU0yQM", "pthread_setspecific", "libScePosix", "libkernel", (void*)&kernel_pthread_setspecific);
     module.addSymbolExport("+BzXYkqYeLE", "scePthreadSetspecific", "libkernel", "libkernel", (void*)&kernel_pthread_setspecific);
     module.addSymbolExport("mqULNdimTn0", "pthread_key_create", "libkernel", "libkernel", (void*)&kernel_pthread_key_create);
+    module.addSymbolExport("mqULNdimTn0", "pthread_key_create", "libScePosix", "libkernel", (void*)&kernel_pthread_key_create);
     module.addSymbolExport("geDaqgH9lTg", "scePthreadKeyCreate", "libkernel", "libkernel", (void*)&kernel_pthread_key_create);
     module.addSymbolExport("OxhIB8LB-PQ", "pthread_create", "libkernel", "libkernel", (void*)&kernel_pthread_create);
     module.addSymbolExport("OxhIB8LB-PQ", "pthread_create", "libScePosix", "libkernel", (void*)&kernel_pthread_create);
@@ -115,6 +118,8 @@ void init(Module& module) {
     module.addSymbolExport("B5GmVDKwpn0", "pthread_yield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
     module.addSymbolExport("T72hz6ffq08", "scePthreadYield", "libkernel", "libkernel", (void*)&kernel_pthread_yield);
     module.addSymbolExport("3kg7rT0NQIs", "scePthreadExit", "libkernel", "libkernel", (void*)&kernel_pthread_exit);
+    module.addSymbolExport("3eqs37G74-s", "pthread_getthreadid_np", "libkernel", "libkernel", (void*)&kernel_pthread_getthreadid_np);
+    module.addSymbolExport("EI-5-jlq2dE", "scePthreadGetthreadid", "libkernel", "libkernel", (void*)&kernel_pthread_getthreadid_np);
     
     module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
@@ -151,6 +156,7 @@ void init(Module& module) {
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
     
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libkernel", "libkernel", (void*)&kernel_getpid);
+    module.addSymbolExport("HoLVWNanBBc", "getpid", "libScePosix", "libkernel", (void*)&kernel_getpid);
     module.addSymbolExport("CBNtXOoef-E", "sched_get_priority_max", "libkernel", "libkernel", (void*)&kernel_sched_get_priority_max);
     module.addSymbolExport("CBNtXOoef-E", "sched_get_priority_max", "libScePosix", "libkernel", (void*)&kernel_sched_get_priority_max);
     module.addSymbolExport("m0iS6jNsXds", "sched_get_priority_min", "libkernel", "libkernel", (void*)&kernel_sched_get_priority_min);
@@ -218,8 +224,10 @@ void init(Module& module) {
     module.addSymbolExport("L-Q3LEjIbgA", "sceKernelMapDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapDirectMemory);
     module.addSymbolExport("NcaWUxfMNIQ", "sceKernelMapNamedDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedDirectMemory);
     module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
+    module.addSymbolExport("hwVSPCmp5tM", "sceKernelCheckedReleaseDirectMemory", "libkernel", "libkernel", (void*)&sceKernelCheckedReleaseDirectMemory);
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
+    module.addSymbolExport("rVjRvHJ0X6c", "sceKernelVirtualQuery", "libkernel", "libkernel", (void*)&sceKernelVirtualQuery);
     
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
     
@@ -613,6 +621,13 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len) {
+    log("sceKernelCheckedReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
+
+    // TODO
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
     log("sceKernelMunmap(addr=%p, len=0x%llx)\n", addr, len);
 
@@ -629,6 +644,31 @@ s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
 s32 PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
     return 5_GB - 512_MB;   // total size - flexible mem size
+}
+
+s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size) {
+    log("sceKernelVirtualQuery(addr=%p, flags=0x%x\n, info=*%p, info_size=%d)\n", addr, flags, info, info_size);
+
+    // TODO: This is a very bad stub. I need to properly implement the memory map.
+#ifdef _WIN32
+    MEMORY_BASIC_INFORMATION mbi;
+    VirtualQuery(addr, &mbi, sizeof(mbi));
+
+    info->start             = mbi.BaseAddress;
+    info->end               = (void*)((uptr)mbi.BaseAddress + mbi.RegionSize);
+    info->offset            = 0;
+    info->protection        = 0;
+    info->is_flexible_mem   = 1;
+    info->is_direct_mem     = 0;
+    info->is_stack          = 0;
+    info->is_pooled_mem     = 0;
+    info->is_committed      = 1;
+    info->name[0]           = '\0';
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
+
+    return SCE_OK;
 }
 
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res) {

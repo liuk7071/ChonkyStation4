@@ -68,7 +68,6 @@ s32 PS4_FUNC kernel_pthread_cond_broadcast(pthread_cond_t* cond) {
     log("pthread_cond_broadcast(cond=*%p)\n", cond);
 
     if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
-
     return pthread_cond_broadcast(cond);
 }
 

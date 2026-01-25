@@ -76,9 +76,25 @@ union BlendControl {
     BitField<31, 1, u32> disable_rop;
 };
 
+union DepthControl {
+    u32 raw = 0;
+    BitField<0,  1, u32> stencil_enable;
+    BitField<1,  1, u32> depth_enable;
+    BitField<2,  1, u32> depth_write_enable;
+    BitField<3,  1, u32> depth_bounds_enable;
+    BitField<4,  3, u32> depth_func;
+    BitField<7,  1, u32> stencil_backface_enable;
+    BitField<8,  3, u32> stencil_func;
+    BitField<20, 3, u32> stencil_func_backface;
+    BitField<30, 1, u32> enable_color_writes_on_depth_fail;
+    BitField<31, 1, u32> disable_color_writes_on_depth_fail;
+};
+
 struct PipelineConfig {
     u32 prim_type = 0;
     BlendControl blend_control[8];
+    
+    DepthControl depth_control;
     bool enable_depth_clamp = false;
 
     u64 vertex_hash = 0;
@@ -101,6 +117,11 @@ public:
         VmaAllocation alloc;
     };
 
+    struct PushConstants {
+        u16 stride[32];
+        u16 fmt[32];
+    };
+
     vk::raii::Pipeline& getVkPipeline() {
         return graphics_pipeline;
     }
@@ -109,7 +130,7 @@ public:
     }
 
     std::vector<VertexBinding>* gatherVertices();
-    std::vector<vk::WriteDescriptorSet> uploadBuffersAndTextures();
+    std::vector<vk::WriteDescriptorSet> uploadBuffersAndTextures(PushConstants** push_constants_ptr);
     void clearBuffers();
 
 private:
@@ -123,6 +144,7 @@ private:
     // The Vulkan buffers will be populated every time gatherVertices is called and added to this vector.
     std::deque<std::vector<VertexBinding>> vtx_bindings;
     std::deque<vk::DescriptorBufferInfo> buffer_info;
+    PushConstants push_constants;
 
     vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
 };

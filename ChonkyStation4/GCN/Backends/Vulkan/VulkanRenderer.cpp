@@ -531,10 +531,11 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     u64 hash;
     ptr += 4;
     std::memcpy(&hash, ptr, sizeof(u64));
-    //printf("0x%llx\n", hash);
+    //printf("0x%llx <-- hash\n", hash);
     if (   hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
         || hash == 0xf871bb9d4e8878f8   // Tomb Raider: Definitive Edition
         || hash == 0xd4f680821d9336a4   // Super Meat Boy
+        || hash == 0x0000000042119848   // Super Meat Boy Forever
         || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
        ) return;
     
@@ -565,8 +566,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     // Gather vertex data
     auto* vtx_bindings = pipeline.gatherVertices();
 
-    // Upload buffers and get descriptor writes
-    auto descriptor_writes = pipeline.uploadBuffersAndTextures();
+    // Upload buffers and get descriptor writes, as well as the push constants
+    Pipeline::PushConstants* push_constants;
+    auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants);
 
     // ---- Draw ----
 
@@ -577,6 +579,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 
     if (descriptor_writes.size())
         cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
+    
+    // I couldn't figure out how to use the RAII version of this...
+    vkCmdPushConstants(*cmd_bufs[0], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
 
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);

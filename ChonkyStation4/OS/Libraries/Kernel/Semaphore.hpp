@@ -24,7 +24,7 @@ struct Semaphore {
     std::mutex mtx;
 
     void signal(s32 count);
-    void wait(s32 count);
+    bool wait(s32 count, u32 timeout);
     bool poll(s32 count);
 };
 

@@ -27,6 +27,33 @@ void addFunc(std::string name, std::string body) {
     shader += "}\n";
 }
 
+static bool has_cubemap_id_func = false;
+void addCubemapIDFunc() {
+    if (has_cubemap_id_func) return;
+    has_cubemap_id_func = true;
+
+    shader += R"(
+float cubeid(float x, float y, float z) {
+    const float abs_x = abs(x);
+    const float abs_y = abs(y);
+    const float abs_z = abs(z);
+
+    if (abs_z >= abs_x && abs_z >= abs_y) {
+        if (z < 0.0f)   return 5.0f;
+        else            return 4.0f;
+    }
+    else if (abs_y >= abs_x) {
+        if (y < 0)      return 3.0f;
+        else            return 2.0f;
+    }
+    else {
+        if (x < 0.0f)   return 1.0f;
+        else            return 0.0f;
+    }
+}
+)";
+}
+
 static bool has_cubemap_scoord_func = false;
 void addCubemapSCoordFunc() {
     if (has_cubemap_scoord_func) return;
@@ -72,6 +99,41 @@ float tcoord(float x, float y, float z) {
     else return -y;
 }
 )";
+}
+
+static bool has_cubemap_majoraxis_func = false;
+void addCubemapMajorAxisFunc() {
+    if (has_cubemap_majoraxis_func) return;
+    has_cubemap_majoraxis_func = true;
+
+    shader += R"(
+float cubema(float x, float y, float z) {
+    const float abs_x = abs(x);
+    const float abs_y = abs(y);
+    const float abs_z = abs(z);
+
+    if (abs_z >= abs_x && abs_z >= abs_y)
+        return z * 2.0f;
+    else if (abs_y >= abs_x) {
+        return y * 2.0f;
+    }
+    else return x * 2.0f;
+}
+)";
+}
+
+std::unordered_map<int, bool> has_fetch_buffer_func_map;
+void addFetchBufferByteFunc(int binding) {
+    if (has_fetch_buffer_func_map.contains(binding)) return;
+    has_fetch_buffer_func_map[binding] = true;
+    
+    const auto ssbo_name = std::format("ssbo{}", binding);
+    shader += ""
+        "uint fetchBufferByte" + std::to_string(binding) + "(uint offs) {\n"
+        "    uint word  = " + ssbo_name + ".data[offs >> 2u];\n"
+        "    uint shift = (offs & 3u) << 3u;\n"
+        "    return (word >> shift) & 0xffu;\n"
+        "}\n";
 }
 
 void addInAttr(std::string name, std::string type, int location) {
@@ -186,7 +248,6 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     default:    Helpers::panic("Unhandled SRC %d\n", op.code);
     }
 
-
     if constexpr (!is_int) {
         src = "u2f(" + src + ")";
         if (op.input_modifier.abs)
@@ -251,11 +312,11 @@ template TSharp* DescriptorLocation::asPtr<TSharp>();
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
     std::ofstream out;
-    //if (stage == ShaderStage::Fragment) {
-        out.open("shader.bin", std::ios::binary);
-        out.write((char*)data, 1_KB);
-        out.close();
-    //}
+    ////if (stage == ShaderStage::Fragment) {
+    //    out.open("shader.bin", std::ios::binary);
+    //    out.write((char*)data, 8_KB);
+    //    out.close();
+    ////}
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
 
@@ -267,8 +328,11 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     in_attrs.clear();
     out_attrs.clear();
     in_buffers.clear();
+    has_cubemap_id_func = false;
     has_cubemap_scoord_func = false;
     has_cubemap_tcoord_func = false;
+    has_cubemap_majoraxis_func = false;
+    has_fetch_buffer_func_map.clear();
 
     shader += R"(
 #version 430 core
@@ -279,11 +343,26 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 
 vec4 tmp;
 float tmp2[4];
+uint tmp_u;
 
 uint s[104];
 uint v[104];
 bool scc;
 bool vcc;
+
+layout(push_constant, std430) uniform BufferInfo {
+    uint stride[32];
+    uint fmt[32];
+} buf_info;
+
+uint getStrideForBinding(uint binding) {
+    uint stride = buf_info.stride[binding >> 1u];
+    if (binding % 2 == 1)
+        stride >>= 16u;
+    else
+        stride &= 0xffffu;
+    return stride;
+}
 
 )";
 
@@ -332,6 +411,7 @@ bool vcc;
             if (descs.contains(src_sgpr)) {
                 backup_descs[(dest_vgpr << 16) | lane] = descs[src_sgpr];
             }
+            break;
         }
 
         case Shader::Opcode::V_READLANE_B32: {
@@ -356,7 +436,11 @@ bool vcc;
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX8:
-        case Shader::Opcode::S_BUFFER_LOAD_DWORDX16: {
+        case Shader::Opcode::S_BUFFER_LOAD_DWORDX16:
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_X: 
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY: 
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ: 
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW: {
             auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0) -> Buffer& {
                 // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
@@ -370,12 +454,25 @@ bool vcc;
                 auto& buf = out_data.buffers.emplace_back();
                 buf.binding = next_buf_binding++;
                 if (stage == ShaderStage::Fragment) buf.binding += 16;  // TODO: Not ideal, should probably use different descriptor sets for each shader stage instead.
+
+                if (   instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_X
+                    || instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_XY
+                    || instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ
+                    || instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW
+                   ) {
+                    buf.is_instr_typed = true;
+                    buf.instr_dfmt = instr.control.mtbuf.dfmt;
+                    buf.instr_nfmt = instr.control.mtbuf.nfmt;
+                }
+                else buf.is_instr_typed = false;
+
                 buf.desc_info.sgpr = sgpr;
                 buf.desc_info.is_ptr = is_ptr;
                 buf.desc_info.offs = offs;
                 buf.desc_info.stage = stage;
                 switch (instr.inst_class) {
-                case InstClass::ScalarMemRd: {
+                case InstClass::ScalarMemRd:
+                case InstClass::VectorMemBufFmt:{
                     buf.desc_info.type = DescriptorType::Vsharp;
                     auto name = std::format("ssbo{}", buf.binding);
                     addInSSBO(name, buf.binding);
@@ -398,9 +495,10 @@ bool vcc;
                 return buf;
             };
 
-            bool is_img = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp;
-            const int idx  = is_img ? 2 : 0;
-            const int mult = is_img ? 4 : 2;
+            bool is_img         = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp;
+            bool is_vector_mem  = instr.inst_class == InstClass::VectorMemBufFmt;
+            const int idx  = is_img || is_vector_mem ? 2 : 0;
+            const int mult = is_img || is_vector_mem ? 4 : 2;
             const auto sgpr = instr.src[idx].code * mult;
             if (!descs.contains(sgpr)) {
                 // We assume that the descriptor is being passed directly as user data.
@@ -562,6 +660,11 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::S_CMP_EQ_I32: {
+            main += std::format("scc = {} == {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+        
         case Shader::Opcode::S_CMP_EQ_U32: {
             main += std::format("scc = {} == {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
             break;
@@ -596,6 +699,7 @@ bool vcc;
             break;
         }
         
+        case Shader::Opcode::V_CMP_NGT_F32:
         case Shader::Opcode::V_CMP_LE_F32: {
             // TODO: This can set other registers too I think?
             main += std::format("vcc = {} <= {};\n", getSRC(instr.src[0]), getSRC(instr.src[1]));
@@ -635,15 +739,57 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::V_CMP_LT_I32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} < {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_EQ_I32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} == {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_LE_I32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} <= {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_GT_I32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} > {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+        
         case Shader::Opcode::V_CMP_NE_I32: {
             // TODO: This can set other registers too I think?
             main += std::format("vcc = {} != {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+        
+        case Shader::Opcode::V_CMP_GE_I32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} >= {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_LT_U32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} < {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
             break;
         }
 
         case Shader::Opcode::V_CMP_EQ_U32: {
             // TODO: This can set other registers too I think?
             main += std::format("vcc = {} == {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+        
+        case Shader::Opcode::V_CMP_LE_U32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} <= {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
             break;
         }
 
@@ -653,8 +799,30 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::V_CMP_NE_U32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} != {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_GE_U32: {
+            // TODO: This can set other registers too I think?
+            main += std::format("vcc = {} >= {};\n", getSRC<true>(instr.src[0]), getSRC<true>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_CNDMASK_B32: {
             main += "// TODO: V_CNDMASK_B32\n";
+            break;
+        }
+
+        case Shader::Opcode::V_READLANE_B32: {
+            main += "// TODO: V_READLANE_B32\n";
+            break;
+        }
+
+        case Shader::Opcode::V_WRITELANE_B32: {
+            main += "// TODO: V_WRITELANE_B32\n";
             break;
         }
 
@@ -745,6 +913,15 @@ bool vcc;
             main += setDST(instr.dst[0], std::format("float({})", getSRC<true>(instr.src[0])));
             break;
         }
+        case Shader::Opcode::V_CVT_F32_U32: {
+            main += setDST(instr.dst[0], std::format("float({})", getSRC<true>(instr.src[0])));
+            break;
+        }
+        
+        case Shader::Opcode::V_CVT_U32_F32: {
+            main += setDST<true>(instr.dst[0], std::format("uint({})", getSRC(instr.src[0])));
+            break;
+        }
 
         case Shader::Opcode::V_CVT_I32_F32: {
             const auto src0 = getSRC(instr.src[0]);
@@ -823,6 +1000,12 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::V_CUBEID_F32: {
+            addCubemapIDFunc();
+            main += setDST(instr.dst[0], std::format("cubeid({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+
         case Shader::Opcode::V_CUBESC_F32: {
             addCubemapSCoordFunc();
             main += setDST(instr.dst[0], std::format("scoord({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
@@ -832,6 +1015,12 @@ bool vcc;
         case Shader::Opcode::V_CUBETC_F32: {
             addCubemapTCoordFunc();
             main += setDST(instr.dst[0], std::format("tcoord({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+        
+        case Shader::Opcode::V_CUBEMA_F32: {
+            addCubemapMajorAxisFunc();
+            main += setDST(instr.dst[0], std::format("cubema({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
             break;
         }
 
@@ -978,12 +1167,30 @@ bool vcc;
             break;
         }
 
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_X:
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY:
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ:
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW: {
-            main += "// TODO: TBUFFER_LOAD_FORMAT_XYZW\n";
-            main += std::format("v[{}] = 0;\n", instr.src[1].code);
-            main += std::format("v[{}] = 0;\n", instr.src[1].code + 1);
-            main += std::format("v[{}] = 0;\n", instr.src[1].code + 2);
-            main += std::format("v[{}] = 0;\n", instr.src[1].code + 3);
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "TBUFFER_LOAD_FORMAT_XYZW: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+            addFetchBufferByteFunc(buf->binding);
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const std::string idx = instr.control.mtbuf.idxen ? getSRC<true>(instr.src[0]) : "0";
+            const std::string voffset = instr.control.mtbuf.offen ? std::format("v[{}]", instr.control.mtbuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
+            const std::string instr_offs = std::format("{}", instr.control.mtbuf.offset);
+            main += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {};\n", idx, buf->binding, voffset, instr_offs);
+
+            // TODO: Format conversion
+            for (int elem = 0; elem < instr.control.mtbuf.count; elem++) {
+                const std::string elem_addr = std::format("tmp_u + ({} << 2u)", elem);  // elem * sizeof(u32)
+                main += std::format("v[{}] = 0;\n", instr.src[1].code + elem);
+                main += std::format("v[{}] |= fetchBufferByte{}({} + 0) <<  0u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
+                main += std::format("v[{}] |= fetchBufferByte{}({} + 1) <<  8u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
+                main += std::format("v[{}] |= fetchBufferByte{}({} + 2) << 16u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
+                main += std::format("v[{}] |= fetchBufferByte{}({} + 3) << 24u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
+            }
             break;
         }
 
@@ -1070,9 +1277,9 @@ bool vcc;
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            main += "// TODO\n";
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //main += "// TODO\n";
         }
         }
     }

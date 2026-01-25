@@ -7,7 +7,7 @@ namespace PS4::OS::Libs::Kernel {
 MAKE_LOG_FUNCTION(log, lib_kernel);
 
 s32 PS4_FUNC scePthreadRwlockInit(pthread_rwlock_t* lock, const pthread_rwlockattr_t* attr, const char* name) {
-    log("scePthreadRwlockInit(lock=*%p, attr=*%p, name=\"%s\")", lock, attr, name);
+    log("scePthreadRwlockInit(lock=*%p, attr=*%p, name=\"%s\")\n", lock, attr, name);
     return pthread_rwlock_init(lock, attr);
 }
 

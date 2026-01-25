@@ -45,6 +45,9 @@ struct DescriptorLocation {
 struct Buffer {
     int binding = -1;
     DescriptorLocation desc_info;
+    bool is_instr_typed = false;
+    u32 instr_dfmt = 0;
+    u32 instr_nfmt = 0;
 };
 
 struct ShaderData {

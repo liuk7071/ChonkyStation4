@@ -138,6 +138,7 @@ Module buildHLEModule() {
     // libSceDiscMap
     module.addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
     module.addSymbolStub("ioKMruft1ek", "sceDiscMap_ioKMruft1ek", "libSceDiscMap", "libSceDiscMap");
+    module.addSymbolStub("fJgP+wqifno", "sceDiscMap_fJgP+wqifno", "libSceDiscMap", "libSceDiscMap");
     
     // libSceGameLiveStreaming
     module.addSymbolStub("kvYEw2lBndk", "sceGameLiveStreamingInitialize", "libSceGameLiveStreaming", "libSceGameLiveStreaming");

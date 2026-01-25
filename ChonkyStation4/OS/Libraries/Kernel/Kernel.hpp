@@ -35,6 +35,20 @@ struct TLSIndex {
     u64 offset;
 };
 
+struct SceKernelVirtualQueryInfo {
+    void* start;
+    void* end;
+    u64 offset;
+    s32 protection;
+    s32 memory_type;
+    u8 is_flexible_mem : 1;
+    u8 is_direct_mem : 1;
+    u8 is_stack : 1;
+    u8 is_pooled_mem : 1;
+    u8 is_committed : 1;
+    char name[32];
+};
+
 struct SceKernelLoadModuleOpt;
 using SceKernelModule = s32;
 
@@ -73,8 +87,10 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align);
 s32 PS4_FUNC sceKernelMapNamedDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align, const char* name);
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name);
+s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len);
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
 s32 PS4_FUNC sceKernelGetDirectMemorySize();
+s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size);
 
 // Module
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res);

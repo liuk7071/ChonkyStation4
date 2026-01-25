@@ -14,13 +14,34 @@ void Semaphore::signal(s32 count) {
     }
 }
 
-void Semaphore::wait(s32 count) {
+bool Semaphore::wait(s32 count, u32 timeout) {
     auto lk = std::unique_lock<std::mutex>(mtx);
-
-    while (count--) {
-        std_sema->acquire();
-        counter--;
+    
+    if (!timeout) {
+        while (count--) {
+            std_sema->acquire();
+            counter--;
+        }
     }
+    else {
+        using namespace std::chrono;
+        const auto start = steady_clock::now();
+        const auto deadline = start + microseconds(timeout);
+        s32 decremented_count = 0;  // Count to re-add in case we timeout
+
+        while (count--) {
+            if (!std_sema->try_acquire_until(deadline)) {
+                // We timed out, restore counter and return error
+                signal(decremented_count);
+                return false;
+            }
+  
+            counter--;
+            decremented_count++;
+        }
+    }
+
+    return true;
 }
 
 bool Semaphore::poll(s32 count) {
@@ -54,11 +75,8 @@ s32 PS4_FUNC sceKernelSignalSema(SceKernelSema sem, s32 count) {
 s32 PS4_FUNC sceKernelWaitSema(SceKernelSema sem, s32 count, u32* timeout) {
     log("sceKernelWaitSema(sem=%p, count=%d, timeout=*%p)\n", sem, count, timeout);
 
-    if (timeout && *timeout) {
-        Helpers::panic("sceKernelWaitSema: timeout (todo)\n");
-    }
-
-    sem->wait(count);
+    if (!sem->wait(count, timeout ? *timeout : 0))
+        return SCE_KERNEL_ERROR_ETIMEDOUT;
     return SCE_OK;
 }
 
@@ -87,7 +105,7 @@ s32 PS4_FUNC kernel_sem_post(SceKernelSema* sem) {
 s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem) {
     log("sem_wait(sem=*%p)\n", sem);
 
-    (*sem)->wait(1);
+    (*sem)->wait(1, 0);
     return 0;
 }
 

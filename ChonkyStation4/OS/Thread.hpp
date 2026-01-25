@@ -17,10 +17,13 @@ inline  thread_local std::unordered_map<u32, void*> tls_map; // Map TLS module I
 inline  u64 guest_tls_ptr_offs;
 inline  bool initialized = false;
 
+static s32 next_tid = 1;
 class Thread {
 public:
     Thread() {}
-    Thread(const std::string& name) : name(name) {}
+    Thread(const std::string& name) : name(name) {
+        tid = next_tid++;
+    }
     std::string name;
 
     ThreadStartFunc entry;
@@ -28,11 +31,11 @@ public:
     bool exited = false;
     void* ret_val = nullptr;
 
-    pthread_t& getPThread() {
-        return thread;
-    }
+    pthread_t& getPThread() { return thread; }
+    s32        getTID()     { return tid;    }
 private:
     pthread_t thread;
+    s32 tid;
 };
 
 inline std::deque<Thread> threads;

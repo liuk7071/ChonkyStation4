@@ -50,23 +50,25 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     vert_shader  = *shader_cache(vert_shader_code, Shader::ShaderStage::Vertex);
     pixel_shader = *shader_cache(pixel_shader_code, Shader::ShaderStage::Fragment);
     
-    // TODO: When we have more state to check (i.e. render targets), switch to a hashing algorithm + unordered_map
     PipelineConfig cfg;
     cfg.vertex_hash = vert_shader.hash;
     cfg.pixel_hash = pixel_shader.hash;
 
     // Hash fetch shader V#s
-    u64 binding_hash = 0;
+    XXH3_state_t* state = XXH3_createState();
+    XXH3_64bits_reset(state);
+    int index = 0;
     for (auto& binding : fetch_shader.bindings) {
         auto* vsharp = binding.vsharp_loc.asPtr();
         const u64 stride = vsharp->stride;
         const u64 nfmt   = vsharp->nfmt;
         const u64 dfmt   = vsharp->dfmt;
-        binding_hash ^= XXH3_64bits(&stride, sizeof(stride));
-        binding_hash ^= XXH3_64bits(&nfmt, sizeof(nfmt));
-        binding_hash ^= XXH3_64bits(&dfmt, sizeof(dfmt));
+        XXH3_64bits_update(state, &index, sizeof(index));
+        XXH3_64bits_update(state, &stride, sizeof(stride));
+        XXH3_64bits_update(state, &nfmt, sizeof(nfmt));
+        XXH3_64bits_update(state, &dfmt, sizeof(dfmt));
     }
-    cfg.binding_hash = binding_hash;
+    cfg.binding_hash = XXH3_64bits_digest(state);
 
     // Primitive info
     cfg.prim_type = regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI];
@@ -75,6 +77,9 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     for (int i = 0; i < 8; i++) {
         cfg.blend_control[i].raw = regs[Reg::mmCB_BLEND0_CONTROL + i];
     }
+
+    // Depth control
+    cfg.depth_control.raw = regs[Reg::mmDB_DEPTH_CONTROL];
 
     // Depth clamp
     cfg.enable_depth_clamp = (regs[Reg::mmDB_RENDER_OVERRIDE] >> 16) != 1;   // DISABLE_VIEWPORT_CLAMP

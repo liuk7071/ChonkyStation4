@@ -102,8 +102,8 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
 
                 // Patch instruction to jmp to our code
                 code = std::make_unique<Xbyak::CodeGenerator>(instruction.length, instr_addr);
-                code->jmp(patch_code_ptr);
                 Helpers::debugAssert(code->getSize() <= instruction.length, "CodePatcher: patch is larger than the original instruction (patch is %d, instruction is %d)\n", code->getSize(), instruction.length);
+                code->jmp(patch_code_ptr);
 
                 const auto leftover = std::max(instruction.length - code->getSize(), (u64)0);
                 std::memset(code_ptr + offs + code->getSize(), 0xcd, leftover);

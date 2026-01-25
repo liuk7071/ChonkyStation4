@@ -143,6 +143,12 @@ s64 PS4_FUNC kernel_writev(s32 fd, SceKernelIovec* iov, int iovcnt) {
 s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
     log("stat(path=\"%s\", stat=*%p)\n", path, stat);
 
+    // Hack
+    if (std::strcmp(path, "/proc/xen") == 0) {
+        *Kernel::kernel_error() = POSIX_ENOENT;
+        return -1;
+    }
+
     // Check if the path is valid
     // TODO: Is this the right error or should I also return ENOENT in this case?
     if (FS::guestPathToHost(path).empty()) {

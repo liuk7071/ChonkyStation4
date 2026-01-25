@@ -33,7 +33,7 @@ s32 PS4_FUNC kernel_pthread_once(pthread_once_t* once_control, void(*init_routin
 }
 
 void* PS4_FUNC kernel_pthread_self() {
-    log("pthread_self()\n");
+    //log("pthread_self()\n");
     pthread_t self = pthread_self();
     for (auto& thread : PS4::OS::Thread::threads) {
         if (self.p == thread.getPThread().p && self.x == thread.getPThread().x) {
@@ -150,6 +150,11 @@ void PS4_FUNC kernel_pthread_exit(void* status) {
 #else
     Helpers::panic("Unsupported platform");
 #endif
+}
+
+s32 PS4_FUNC kernel_pthread_getthreadid_np() {
+    log("pthread_getthreadid_np()\n");
+    return findThread(kernel_pthread_self()).getTID();
 }
 
 };  // End namespace PS4::OS::Libs::Kernel
