@@ -104,7 +104,7 @@ s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, voi
     return SCE_OK;
 }
 
-int reg_idx = 1;
+int reg_idx = 0;
 s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs, s32 n_bufs, SceVideoOutBufferAttribute* attrib) {
     log("sceVideoOutRegisterBuffers(handle=%d, start_idx=%d, addrs=*%p, n_bufs=%d, attrib=*%p)\n", handle, start_idx, addrs, n_bufs, attrib);
 

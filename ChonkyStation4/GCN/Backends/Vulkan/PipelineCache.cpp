@@ -3,6 +3,7 @@
 #include <GCN/FetchShader.hpp>
 #include <GCN/VSharp.hpp>
 #include <GCN/RegisterOffsets.hpp>
+#include <GCN/Backends/Vulkan/ShaderCache.hpp>
 #include <unordered_map>
 #include <memory>
 #include <xxhash.h>
@@ -13,46 +14,19 @@ namespace PS4::GCN::Vulkan::PipelineCache {
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 std::unordered_map<u64, Pipeline*> pipelines;
-std::unordered_map<u64, Shader::ShaderData*> shaders;
 
 Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, const u8* fetch_shader_code, const u32* regs) {
     // Compile shaders
     GCN::FetchShader fetch_shader = FetchShader(fetch_shader_code);
-    Shader::ShaderData vert_shader, pixel_shader;
 
-    auto shader_cache = [&](const u8* code, Shader::ShaderStage stage) -> Shader::ShaderData* {
-        // Find shader header
-        u32* ptr = (u32*)code;
-        while (*ptr != 0x5362724F) {    // "OrbS"
-            ptr++;
-        }
+    ShaderCache::CachedShader* vert_shader;
+    ShaderCache::CachedShader* pixel_shader;
+    vert_shader  = ShaderCache::getShader(vert_shader_code,  Shader::ShaderStage::Vertex,   &fetch_shader);
+    pixel_shader = ShaderCache::getShader(pixel_shader_code, Shader::ShaderStage::Fragment, &fetch_shader);
 
-        // Get the shader hash from the header
-        u64 hash;
-        ptr += 4;
-        std::memcpy(&hash, ptr, sizeof(u64));
-        
-        // Check if this shader was cached, otherwise compile and cache it
-        if (shaders.contains(hash)) {
-            return shaders[hash];
-        }
-
-        // Compile it
-        log("Compiling new shader %016llx\n", hash);
-        Shader::ShaderData* shader_data = new Shader::ShaderData();
-        Shader::decompileShader((u32*)code, stage, *shader_data, &fetch_shader);
-        // Cache it
-        shader_data->hash = hash;
-        shaders[hash] = shader_data;
-        return shader_data;
-    };
-
-    vert_shader  = *shader_cache(vert_shader_code, Shader::ShaderStage::Vertex);
-    pixel_shader = *shader_cache(pixel_shader_code, Shader::ShaderStage::Fragment);
-    
     PipelineConfig cfg;
-    cfg.vertex_hash = vert_shader.hash;
-    cfg.pixel_hash = pixel_shader.hash;
+    cfg.vertex_hash = vert_shader->data.hash;
+    cfg.pixel_hash  = pixel_shader->data.hash;
 
     // Hash fetch shader V#s
     XXH3_state_t* state = XXH3_createState();
@@ -61,12 +35,13 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     for (auto& binding : fetch_shader.bindings) {
         auto* vsharp = binding.vsharp_loc.asPtr();
         const u64 stride = vsharp->stride;
-        const u64 nfmt   = vsharp->nfmt;
-        const u64 dfmt   = vsharp->dfmt;
+        const u64 nfmt = vsharp->nfmt;
+        const u64 dfmt = vsharp->dfmt;
         XXH3_64bits_update(state, &index, sizeof(index));
         XXH3_64bits_update(state, &stride, sizeof(stride));
         XXH3_64bits_update(state, &nfmt, sizeof(nfmt));
         XXH3_64bits_update(state, &dfmt, sizeof(dfmt));
+        index++;
     }
     cfg.binding_hash = XXH3_64bits_digest(state);
 

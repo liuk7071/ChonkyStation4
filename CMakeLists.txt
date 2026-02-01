@@ -46,7 +46,7 @@ target_sources(ChonkyStation4 PRIVATE
  "ChonkyStation4/OS/Libraries/Kernel/pthread/rwlock.cpp" "ChonkyStation4/OS/Libraries/Kernel/pthread/rwlock.hpp"
  "ChonkyStation4/OS/Libraries/SceRtc/SceRtc.cpp" "ChonkyStation4/OS/Libraries/SceRtc/SceRtc.hpp" "ChonkyStation4/GCN/Backends/Vulkan/BufferCache.cpp" "ChonkyStation4/GCN/Backends/Vulkan/BufferCache.hpp"
  "ChonkyStation4/OS/Libraries/SceNet/SceNet.cpp" "ChonkyStation4/OS/Libraries/SceNet/SceNet.hpp"
- "ChonkyStation4/GCN/Backends/Vulkan/RenderTarget.cpp" "ChonkyStation4/GCN/Backends/Vulkan/RenderTarget.hpp")
+ "ChonkyStation4/GCN/Backends/Vulkan/RenderTarget.cpp" "ChonkyStation4/GCN/Backends/Vulkan/RenderTarget.hpp" "ChonkyStation4/GCN/Backends/Vulkan/ShaderCache.cpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)

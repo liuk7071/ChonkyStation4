@@ -27,5 +27,6 @@ void endRendering();
 void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::raii::CommandBuffer* cmd_buf = nullptr);
 u32 findMemoryType(u32 typeFilter, vk::MemoryPropertyFlags properties);
 std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt);
+vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
 
 }   // End namespace PS4::GCN::Vulkan

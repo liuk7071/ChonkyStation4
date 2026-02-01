@@ -460,7 +460,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     bool has_feedback_loop = false;
     vk::Extent2D extent = { 0xffffffff, 0xffffffff };
     if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 8; i++) {
             if (new_rt[i].enabled) {
                 if (color_rt_dim[i].width < extent.width)  extent.width = color_rt_dim[i].width;
                 if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;

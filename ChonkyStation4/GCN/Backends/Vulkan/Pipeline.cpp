@@ -5,7 +5,6 @@
 #include <GCN/Backends/Vulkan/TextureCache.hpp>
 #include <GCN/VSharp.hpp>
 #include <GCN/TSharp.hpp>
-#include <GCN/Backends/Vulkan/GLSLCompiler.hpp>
 #include <GCN/Detiler/gpuaddr.h>
 #include <GCN/Detiler/gnm/texture.h>
 
@@ -14,7 +13,7 @@ namespace PS4::GCN::Vulkan {
 
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
-Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg) : vert_shader(vert_shader), pixel_shader(pixel_shader), fetch_shader(fetch_shader), cfg(cfg) {
+Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedShader* pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg) : vert_shader(vert_shader), pixel_shader(pixel_shader), fetch_shader(fetch_shader), cfg(cfg) {
     // Iterate over fetch shader bindings and convert them to vulkan binding/attribute descriptions, and create the vertex buffers
     std::vector<vk::VertexInputBindingDescription> bindings;
     std::vector<vk::VertexInputAttributeDescription> attribs;
@@ -34,10 +33,9 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     }
 
     // Setup graphics pipeline
-    vk::raii::ShaderModule vert_shader_module = createShaderModule(PS4::GCN::compileGLSL(vert_shader.source, EShLangVertex));
-    vk::raii::ShaderModule frag_shader_module = createShaderModule(PS4::GCN::compileGLSL(pixel_shader.source, EShLangFragment));
-    vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex, .module = *vert_shader_module, .pName = "main" };
-    vk::PipelineShaderStageCreateInfo frag_stage_info = { .stage = vk::ShaderStageFlagBits::eFragment, .module = *frag_shader_module, .pName = "main" };
+    this->vert_shader = vert_shader;
+    vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex,   .module = vert_shader->vk_shader,  .pName = "main" };
+    vk::PipelineShaderStageCreateInfo frag_stage_info = { .stage = vk::ShaderStageFlagBits::eFragment, .module = pixel_shader->vk_shader, .pName = "main" };
     vk::PipelineShaderStageCreateInfo shader_stages[] = { vert_stage_info, frag_stage_info };
 
     vk::PipelineVertexInputStateCreateInfo   vertex_input_info = { .vertexBindingDescriptionCount = (u32)bindings.size(), .pVertexBindingDescriptions = bindings.data(), .vertexAttributeDescriptionCount = (u32)attribs.size(), .pVertexAttributeDescriptions = attribs.data() };
@@ -192,8 +190,8 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         }
     };
 
-    create_layout_bindings(vert_shader);
-    create_layout_bindings(pixel_shader);
+    create_layout_bindings(vert_shader->data);
+    create_layout_bindings(pixel_shader->data);
 
     // Create the descriptor set layout
     vk::DescriptorSetLayoutCreateInfo layout_info = {
@@ -267,7 +265,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
 
     *has_feedback_loop = false;
 
-    auto create_buffers = [&](Shader::ShaderData data) {
+    auto create_buffers = [&](Shader::ShaderData& data) {
         for (auto& buf_info : data.buffers) {
             switch (buf_info.desc_info.type) {
             case Shader::DescriptorType::Vsharp: {
@@ -332,8 +330,8 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
         }
         };
 
-    create_buffers(vert_shader);
-    create_buffers(pixel_shader);
+    create_buffers(vert_shader->data);
+    create_buffers(pixel_shader->data);
 
     *push_constants_ptr = &push_constants;
     return descriptor_writes;
@@ -342,12 +340,6 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
 void Pipeline::clearBuffers() {
     vtx_bindings.clear();
     buffer_info.clear();
-}
-
-vk::raii::ShaderModule Pipeline::createShaderModule(const std::vector<u32>& code) {
-    vk::ShaderModuleCreateInfo create_info = { .codeSize = code.size() * sizeof(u32), .pCode = code.data() };
-    vk::raii::ShaderModule shader_module = { device, create_info };
-    return shader_module;
 }
 
 }   // End namespace PS4::GCN::Vulkan

@@ -20,6 +20,7 @@ VSharp* VSharpLocation::asPtr() {
 FetchShader::FetchShader(const u8* data) {
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice((u32*)data, (u32*)data + std::numeric_limits<u32>::max());
+    bindings.reserve(32);
 
     // We parse the fetch shader on the CPU to figure out the vertex layout instead of actually running it on the GPU.
     // The instructions we care about are the LOAD_DWORD and BUFFER_LOAD_FORMAT_* instructions.

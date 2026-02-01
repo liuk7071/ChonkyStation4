@@ -3,8 +3,9 @@
 #include <Common.hpp>
 #include <BitField.hpp>
 #include <vulkan/vulkan_raii.hpp>
-#include <GCN/Shader/ShaderDecompiler.hpp>
 #include <GCN/FetchShader.hpp>
+#include <GCN/Shader/ShaderDecompiler.hpp>
+#include <GCN/Backends/Vulkan/ShaderCache.hpp>
 #include <deque>
 #include "vk_mem_alloc.h"
 
@@ -124,9 +125,9 @@ struct PipelineConfig {
 
 class Pipeline {
 public:
-    Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg);
-    Shader::ShaderData vert_shader;
-    Shader::ShaderData pixel_shader;
+    Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedShader* pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg);
+    ShaderCache::CachedShader* vert_shader;
+    ShaderCache::CachedShader* pixel_shader;
     FetchShader fetch_shader;
     PipelineConfig cfg;
 
@@ -165,8 +166,6 @@ private:
     std::deque<std::vector<VertexBinding>> vtx_bindings;
     std::deque<vk::DescriptorBufferInfo> buffer_info;
     PushConstants push_constants;
-
-    vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
 };
 
 }   // End namespace PS4::GCN::Vulkan

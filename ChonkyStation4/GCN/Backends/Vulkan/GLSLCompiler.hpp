@@ -4,6 +4,7 @@
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
+#include <glslang/SPIRV/SpvTools.h>
 
 
 namespace PS4::GCN {
@@ -125,9 +126,9 @@ static const TBuiltInResource DefaultTBuiltInResource = {
     }
 };
 
-#define SHADER_DEBUG
+//#define SHADER_DEBUG
 
-std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
+inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
     glslang::InitializeProcess();
 
     glslang::TShader shader(stage);
@@ -161,18 +162,20 @@ std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
 
     std::vector<u32> spirv;                         // the vector for the output
     
-#ifdef SHADER_DEBUG
     glslang::SpvOptions options;
+#ifdef SHADER_DEBUG
     shader.setDebugInfo(true);
     options.generateDebugInfo = true;
     options.stripDebugInfo = false;
     options.disableOptimizer = true;
     glslang::GlslangToSpv(*intermediate, spirv, &options);
 #else
-    glslang::GlslangToSpv(*intermediate, spirv);
+    options.optimizeSize = true;
+    options.disableOptimizer = false;
+    glslang::GlslangToSpv(*intermediate, spirv, &options);
 #endif
 
-    return spirv; // Usually the result is optimized with RVO so don't worry about copying
+    return spirv;
 }
 
 }   // End namespace PS4::GCN

@@ -43,22 +43,23 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
     size_t img_size;
     if (vk_fmt == vk::Format::eBc3UnormBlock || vk_fmt == vk::Format::eBc1RgbaUnormBlock) {
-        const auto blk_width  = (width  + 3) / 4;
+        const auto blk_width = (width + 3) / 4;
         const auto blk_height = (height + 3) / 4;
         img_size = blk_width * blk_height * 16;
 
-    } else img_size = pitch * height * pixel_size;
-    
-    const uptr   aligned_base   = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
-    const uptr   aligned_end    = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
-    const size_t aligned_size   = aligned_end - aligned_base;
-    const u64    size_in_pages  = aligned_size >> Cache::page_bits;
-    const u64    page           = aligned_base >> Cache::page_bits;
-    const u64    page_end       = page + size_in_pages;
+    }
+    else img_size = pitch * height * pixel_size;
+
+    const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
+    const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
+    const size_t aligned_size = aligned_end - aligned_base;
+    const u64    size_in_pages = aligned_size >> Cache::page_bits;
+    const u64    page = aligned_base >> Cache::page_bits;
+    const u64    page_end = page + size_in_pages;
 
     auto reupload_tex = [&](TrackedTexture* tex) {
         auto& img = tex->image;
-        device.waitIdle();
+        //device.waitIdle();
 
         // Transition image layout
         endRendering();
@@ -82,7 +83,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         const auto buffer_row_length = pitch >= width ? pitch : 0;
         if (pitch < width) printf("pitch < width\n");
         vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = buffer_row_length, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
-        cmd_bufs[0].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, {region});
+        cmd_bufs[0].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
     };
 
     auto invalidate = [&](uptr addr) {
@@ -94,7 +95,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             }
             else it++;
         }
-    };
+        };
 
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
@@ -102,11 +103,11 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     if (tracked_textures.contains(ptr)) {
         // Find one that matches the size and format
         for (auto& tracked_tex : tracked_textures[ptr]) {
-            if (   tracked_tex->width  == width 
+            if (tracked_tex->width == width
                 && tracked_tex->height == height
                 && tracked_tex->tsharp.data_format == tsharp->data_format
-                && tracked_tex->tsharp.num_format  == tsharp->num_format
-               ) {
+                && tracked_tex->tsharp.num_format == tsharp->num_format
+                ) {
                 auto* tex = tracked_tex;
                 if (is_depth_buffer && !tex->is_depth_buffer) {
                     tex->dead = true;
@@ -195,8 +196,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .image = *img,
         .viewType = vk::ImageViewType::e2D,
         .format = vk_fmt,
-        .subresourceRange = { 
-            !is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth, 
+        .subresourceRange = {
+            !is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth,
             0, 1,
             0, 1
         },
@@ -222,7 +223,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .addressModeU = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
         .addressModeV = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
         .addressModeW = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
-        
+
         .mipLodBias = 0.0f,
         .anisotropyEnable = vk::False,
         .maxAnisotropy = 1.0f,

@@ -297,4 +297,10 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     Helpers::panic("getBufFormatAndSize: unreachable\n");
 }
 
+vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code) {
+    vk::ShaderModuleCreateInfo create_info = { .codeSize = code.size() * sizeof(u32), .pCode = code.data() };
+    vk::raii::ShaderModule shader_module = device.createShaderModule(create_info);
+    return shader_module;
+}
+
 }   // End namespace PS4::GCN::Vulkan
