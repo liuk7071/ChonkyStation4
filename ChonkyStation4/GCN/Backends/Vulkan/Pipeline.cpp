@@ -73,13 +73,40 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
         .lineWidth = 1.0f
     };
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
+    
+    
+    auto depth_op = [](u32 func) -> vk::CompareOp {
+        switch ((CompareFunc)func) {
+        case CompareFunc::Never:        return vk::CompareOp::eNever;
+        case CompareFunc::Less:         return vk::CompareOp::eLess;
+        case CompareFunc::Equal:        return vk::CompareOp::eEqual;
+        case CompareFunc::LessEqual:    return vk::CompareOp::eLessOrEqual;
+        case CompareFunc::Greater:      return vk::CompareOp::eGreater;
+        case CompareFunc::NotEqual:     return vk::CompareOp::eNotEqual;
+        case CompareFunc::GreaterEqual: return vk::CompareOp::eGreaterOrEqual;
+        case CompareFunc::Always:       return vk::CompareOp::eAlways;
+        }
+    };
+
+    bool enable_depth = cfg.depth_control.depth_enable;
+    auto vk_depth_op = depth_op(cfg.depth_control.depth_func);
+    
+    // HACK: skip stencil-only draws
+    if (cfg.depth_control.stencil_enable && !cfg.depth_control.depth_enable) {
+        enable_depth = true;
+        vk_depth_op = vk::CompareOp::eNever;
+    }
+
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
-        .depthTestEnable = cfg.depth_control.depth_enable,
+        .depthTestEnable = enable_depth,
         .depthWriteEnable = cfg.depth_control.depth_write_enable,
-        .depthCompareOp = vk::CompareOp::eLessOrEqual,
-        //.depthCompareOp = cfg.depth_control.depth_enable ? vk::CompareOp::eLessOrEqual : vk::CompareOp::eNever,
-        .depthBoundsTestEnable = VK_FALSE,
-        .stencilTestEnable = VK_FALSE,
+        .depthCompareOp = vk_depth_op,
+        .depthBoundsTestEnable = cfg.depth_control.depth_bounds_enable,
+        .maxDepthBounds = cfg.max_depth_bounds,
+        .minDepthBounds = cfg.min_depth_bounds,
+        .stencilTestEnable = cfg.depth_control.stencil_enable,
+        .front.compareOp = vk::CompareOp::eNever,
+        .back.compareOp = vk::CompareOp::eNever,
     };
 
     auto blend_factor = [](u32 factor) -> vk::BlendFactor {
@@ -120,8 +147,8 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
 
     auto color_src_blend = blend_factor(cfg.blend_control[0].src_blend);
     auto color_dst_blend = blend_factor(cfg.blend_control[0].dst_blend);
-    auto alpha_src_blend = cfg.blend_control[0].separate_alpha_blend ? blend_factor(cfg.blend_control[0].src_blend) : color_src_blend;
-    auto alpha_dst_blend = cfg.blend_control[0].separate_alpha_blend ? blend_factor(cfg.blend_control[0].dst_blend) : color_dst_blend;
+    auto alpha_src_blend = cfg.blend_control[0].separate_alpha_blend ? blend_factor(cfg.blend_control[0].alpha_src_blend) : color_src_blend;
+    auto alpha_dst_blend = cfg.blend_control[0].separate_alpha_blend ? blend_factor(cfg.blend_control[0].alpha_dst_blend) : color_dst_blend;
     
     auto color_op = blend_op(cfg.blend_control[0].color_func);
     auto alpha_op = cfg.blend_control[0].separate_alpha_blend ? blend_op(cfg.blend_control[0].alpha_func) : color_op;
@@ -145,7 +172,7 @@ Pipeline::Pipeline(Shader::ShaderData vert_shader, Shader::ShaderData pixel_shad
     };
     vk::PipelineColorBlendStateCreateInfo color_blending = { .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &color_blend_attachment };
 
-    std::vector dynamic_states = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+    std::vector dynamic_states = { vk::DynamicState::eViewport, vk::DynamicState::eScissor, vk::DynamicState::eAttachmentFeedbackLoopEnableEXT };
     vk::PipelineDynamicStateCreateInfo dynamic_state = { .dynamicStateCount = (u32)dynamic_states.size(), .pDynamicStates = dynamic_states.data() };
 
     std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
@@ -232,11 +259,13 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
     return &new_vtx_bindings;
 }
 
-std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConstants** push_constants_ptr) {
+std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConstants** push_constants_ptr, TrackedTexture* rt, bool* has_feedback_loop) {
     // Create and upload buffers required by each shader
     std::vector<vk::WriteDescriptorSet> descriptor_writes;
     descriptor_writes.reserve(32);
     std::memset(&push_constants, 0, sizeof(PushConstants));
+
+    *has_feedback_loop = false;
 
     auto create_buffers = [&](Shader::ShaderData data) {
         for (auto& buf_info : data.buffers) {
@@ -256,7 +285,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                     .offset = offs,
                     .range = buf_size,
                 });
-                descriptor_writes.push_back(vk::WriteDescriptorSet{
+                descriptor_writes.push_back(vk::WriteDescriptorSet {
                     .dstSet = nullptr,  // Not used for push descriptors
                     .dstBinding = (u32)buf_info.binding,
                     .dstArrayElement = 0,
@@ -266,26 +295,36 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                 });
 
                 // Write push constants for this buffer
-                if (buf_info.binding < 32) {
+                if (buf_info.binding < 48) {
                     push_constants.stride[buf_info.binding] = vsharp->stride;
-                    push_constants.fmt[buf_info.binding]    = vsharp->dfmt | (vsharp->nfmt << 8);
-                } else printf("TODO: buf_info.binding >= 32\n");
+                    //push_constants.fmt[buf_info.binding]    = vsharp->dfmt | (vsharp->nfmt << 8);
+                } else printf("TODO: buf_info.binding >= 48\n");
                 break;
             }
 
             case Shader::DescriptorType::Tsharp: {
                 TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
-                vk::DescriptorImageInfo* image_info;
-                Vulkan::getVulkanImageInfoForTSharp(tsharp, &image_info);
+                TrackedTexture* tex;
+                Vulkan::getVulkanImageInfoForTSharp(tsharp, &tex);
+                tex->was_bound = true;
+
+                if (tex == rt) {
+                    *has_feedback_loop = true;
+                }
+
+                if (tex->curr_layout != vk::ImageLayout::eShaderReadOnlyOptimal) {
+                    endRendering();
+                    tex->transition(vk::ImageLayout::eShaderReadOnlyOptimal);
+                }
                 //if (image_info == nullptr) break;
 
-                descriptor_writes.push_back(vk::WriteDescriptorSet{
+                descriptor_writes.push_back(vk::WriteDescriptorSet {
                     .dstSet = nullptr,  // Not used for push descriptors
                     .dstBinding = (u32)buf_info.binding,
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = vk::DescriptorType::eCombinedImageSampler,
-                    .pImageInfo = image_info
+                    .pImageInfo = &tex->image_info
                 });
                 break;
             }

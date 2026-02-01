@@ -133,14 +133,14 @@ std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
     glslang::TShader shader(stage);
     const char* strings[1] = { source.c_str() };
     shader.setStrings(strings, 1);
-    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 100);
+    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 450);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-    shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_2);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_2);
     shader.parse(
         &DefaultTBuiltInResource,  // default TBuiltInResource from ResourceLimits.h
-        100,                    // default version
+        450,                    // default version
         false,                  // not forward compatible
-        (EShMessages)(EShMsgDefault | EShMsgDebugInfo)
+        (EShMessages)(EShMsgDefault | EShMsgDebugInfo | EShMsgSpvRules | EShMsgVulkanRules)
     );
 
     if (shader.getInfoLog()[0] != '\0') {

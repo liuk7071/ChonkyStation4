@@ -14,6 +14,7 @@ void init(Module& module) {
     module.addSymbolExport("8w-H19ip48I", "sceRtcGetTick", "libSceRtc", "libSceRtc", (void*)&sceRtcGetTick);
     module.addSymbolExport("ueega6v3GUw", "sceRtcSetTick", "libSceRtc", "libSceRtc", (void*)&sceRtcSetTick);
     module.addSymbolExport("BtqmpTRXHgk", "sceRtcGetTime_t", "libSceRtc", "libSceRtc", (void*)&sceRtcGetTime_t);
+    module.addSymbolExport("ZPD1YOKI+Kw", "sceRtcGetCurrentClockLocalTime", "libSceRtc", "libSceRtc", (void*)&sceRtcGetCurrentClockLocalTime);
 }
 
 s32 PS4_FUNC sceRtcGetCurrentTick(SceRtcTick* tick) {
@@ -85,6 +86,15 @@ s32 PS4_FUNC sceRtcGetTime_t(const SceRtcDateTime* sce_time, u64* time) {
     SceRtcTick tick;
     sceRtcGetTick(sce_time, &tick);
     *time = tick.tick / 1'000'000;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceRtcGetCurrentClockLocalTime(SceRtcDateTime* time) {
+    log("sceRtcGetCurrentClockLocalTime(time=*%p)\n", time);
+
+    SceRtcTick tick;
+    sceRtcGetCurrentTick(&tick);
+    sceRtcSetTick(time, &tick);
     return SCE_OK;
 }
 

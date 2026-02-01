@@ -64,6 +64,14 @@ union IndirectBuffer2 {
     BitField<24, 8, u32> vmid;
 };
 
+union WriteData1 {
+    u32 raw;
+    BitField<8,  4, u32> dst_sel;
+    BitField<16, 1, u32> wr_one_addr;
+    BitField<20, 1, u32> wr_confirm;
+    BitField<30, 2, u32> engine_sel;
+};
+
 // Constant engine
 std::atomic<u32> ce_count = 0;
 std::atomic<u32> de_count = 0;
@@ -179,6 +187,20 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             }
             }
 
+            break;
+        }
+
+        case PM4ItOpcode::WriteData: {
+            const WriteData1 d1 = { .raw = *args++ };
+            const u64 addr = *args | ((u64)(*(args + 1)) << 32);
+            args += 2;
+            
+            if (d1.wr_one_addr) {
+                // TODO: Does this mean we don't increment the destination or the source address
+                Helpers::panic("WriteData: wr_one_addr\n");
+            }
+
+            std::memcpy((void*)addr, args, (pkt->count - 2) * sizeof(u32));
             break;
         }
 
@@ -314,6 +336,9 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
             if (dst_addr_lo == 0x3022c) break;
 
+            bool is_fill = false;
+            const auto& fill_data = src_addr_lo;
+
             void* dst;
             void* src;
             switch (info.dst_sel) {
@@ -327,14 +352,21 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             switch (info.src_sel) {
             case DmaData::DmaDataSrc::Memory:
             case DmaData::DmaDataSrc::MemoryUsingL2:    src = (void*)(src_addr_lo | ((u64)src_addr_hi << 32));  break;
-            case DmaData::DmaDataSrc::Data:             log("TODO: DATA SRC TRANSFER\n"); src = 0;              break;
+            case DmaData::DmaDataSrc::Data:             is_fill = true;                                         break;
             default:
                 Helpers::panic("DmaData: unhandled src_sel %d\n", info.src_sel.Value());
             }
 
             log("DmaData: dst=%p, src=%p, size=%d\n", dst, src, size);
-            if (dst && src)
-                std::memcpy(dst, src, size);
+
+            if (is_fill) {
+                if (dst)
+                    std::memset(dst, fill_data, size);
+            }
+            else {
+                if (dst && src)
+                    std::memcpy(dst, src, size);
+            }
             break;
         }
 
@@ -353,6 +385,64 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             if (reg_offset < 0xd000)
                 std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));
             else printf("Bad context register offset 0x%x\n", reg_offset);
+
+            // This hack is ported from shadPS4.
+            // We can't rely on the hardware pitch/slice registers to figure out the size of the render targets, because
+            // they are always forcefully aligned to tile size (8x8). This leads to inaccurate sizes (i.e. 1920x1088 for 1080p).
+            // Thankfully for us games seem to always insert a hint packet that contains the actual surface dimensions, which is what we catch here.
+            switch (reg_offset) {
+            case Reg::mmCB_COLOR0_BASE:
+            case Reg::mmCB_COLOR1_BASE:
+            case Reg::mmCB_COLOR2_BASE:
+            case Reg::mmCB_COLOR3_BASE:
+            case Reg::mmCB_COLOR4_BASE:
+            case Reg::mmCB_COLOR5_BASE:
+            case Reg::mmCB_COLOR6_BASE:
+            case Reg::mmCB_COLOR7_BASE: {
+                const auto rt_id = (reg_offset - Reg::mmCB_COLOR0_BASE) / (Reg::mmCB_COLOR1_BASE - Reg::mmCB_COLOR0_BASE);
+                Helpers::debugAssert(rt_id < 8, "SetContextReg: invalid rt_id\n");
+                
+                const auto nop_offs = pkt->count;
+                if (nop_offs == 0xe || nop_offs == 0xd || nop_offs == 0xb) {
+                    Helpers::debugAssert(args[nop_offs] == 0xc0001000, "CB hint is missing\n");
+                    renderer->color_rt_dim[rt_id].raw = args[nop_offs + 1];
+                }
+                else {
+                    renderer->color_rt_dim[rt_id].raw = 0;
+                }
+                break;
+            }
+
+            case Reg::mmCB_COLOR0_CMASK:
+            case Reg::mmCB_COLOR1_CMASK:
+            case Reg::mmCB_COLOR2_CMASK:
+            case Reg::mmCB_COLOR3_CMASK:
+            case Reg::mmCB_COLOR4_CMASK:
+            case Reg::mmCB_COLOR5_CMASK:
+            case Reg::mmCB_COLOR6_CMASK:
+            case Reg::mmCB_COLOR7_CMASK: {
+                const auto rt_id = (reg_offset - Reg::mmCB_COLOR0_CMASK) / (Reg::mmCB_COLOR1_CMASK - Reg::mmCB_COLOR0_CMASK);
+                Helpers::debugAssert(rt_id < 8, "SetContextReg: invalid rt_id\n");
+
+                const auto nop_offs = pkt->count;
+                if (nop_offs == 0x4) {
+                    Helpers::debugAssert(args[nop_offs] == 0xc0001000, "CB hint is missing\n");
+                    renderer->color_rt_dim[rt_id].raw = args[nop_offs + 1];
+                }
+                break;
+            }
+
+            case Reg::mmDB_Z_INFO: {
+                if (pkt->count == 8) {
+                    Helpers::debugAssert(args[20] == 0xc0001000, "DB hint is missing\n");
+                    renderer->depth_rt_dim.raw = args[21];
+                }
+                else {
+                    renderer->depth_rt_dim.raw = 0;
+                }
+                break;
+            }
+            }
             break;
         }
 

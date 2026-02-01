@@ -3,7 +3,6 @@
 #include <Logger.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
-#include <GCN/TSharp.hpp>
 #include <GCN/Detiler/gpuaddr.h>
 #include <GCN/Detiler/gnm/texture.h>
 #include <xxhash.h>
@@ -24,32 +23,23 @@ size_t page_size = 0;
 
 std::mutex cache_mtx;
 
-struct TrackedTexture {
-    TSharp  tsharp;
-    void*   base        = nullptr;
-    size_t  size        = 0;
-    u32     width       = 0;
-    u32     height      = 0;
-    u64     page        = 0;
-    u64     page_end    = 0;
-    bool    dirty       = false;
-    vk::raii::Image image       = nullptr;
-    vk::raii::DeviceMemory mem  = nullptr;
-    vk::raii::ImageView view    = nullptr;
-    vk::raii::Sampler sampler   = nullptr;
-    vk::DescriptorImageInfo image_info;
-};
-
-std::unordered_map<void*, TrackedTexture*> tracked_textures;
+std::unordered_map<void*, std::vector<TrackedTexture*>> tracked_textures;
 std::vector<TrackedTexture*> currently_tracking;
 
-void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_info) {
+void TrackedTexture::transition(vk::ImageLayout new_layout) {
+    if (curr_layout == new_layout) return;
+    transitionImageLayout(image, vk_fmt, curr_layout, new_layout);
+    curr_layout = new_layout;
+}
+
+void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool is_depth_buffer, vk::Format depth_vk_fmt) {
     const u32 width = tsharp->width + 1;
     const u32 height = tsharp->height + 1;
     const u32 pitch = tsharp->pitch + 1;
 
-    auto [vk_fmt, pixel_size] = getBufFormatAndSize(tsharp->data_format, tsharp->num_format);
     void* ptr = (void*)(tsharp->base_address << 8);
+    auto [vk_fmt, pixel_size] = getBufFormatAndSize(tsharp->data_format, tsharp->num_format);
+    vk_fmt = is_depth_buffer ? depth_vk_fmt : vk_fmt;
 
     size_t img_size;
     if (vk_fmt == vk::Format::eBc3UnormBlock || vk_fmt == vk::Format::eBc1RgbaUnormBlock) {
@@ -66,135 +56,33 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     const u64    page           = aligned_base >> Cache::page_bits;
     const u64    page_end       = page + size_in_pages;
 
-    auto reupload_tex = [&](TrackedTexture* tex, bool is_first_upload) {
+    auto reupload_tex = [&](TrackedTexture* tex) {
         auto& img = tex->image;
         device.waitIdle();
 
-        // Check if we need to recreate the image
-        // TODO: We should check this regardless of if the image was dirty or not (aka, outside this lambda)
-        // and probably keep a copy of the image for every T# it is accessed with
-        // We can't use one single image because if it's accessed with two different T#s/formats within the same frame, we would delete the first one before the GPU can use it...
-
-        // TODO: Just hash the T#?
-        if (tex->width != width || tex->height != height || tex->tsharp.data_format != tsharp->data_format || tex->tsharp.num_format != tsharp->num_format) {
-            tex->tsharp = *tsharp;
-            tex->width = width;
-            tex->height = height;
-            tex->page = page;
-            tex->page_end = page_end;
-            auto& mem = tex->mem;
-            vk::ImageCreateInfo img_info = {
-                .imageType = vk::ImageType::e2D,
-                .format = vk_fmt,
-                .extent = { width, height, 1 },
-                .mipLevels = 1,
-                .arrayLayers = 1,
-                .samples = vk::SampleCountFlagBits::e1,
-                .tiling = vk::ImageTiling::eOptimal,
-                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-                .sharingMode = vk::SharingMode::eExclusive
-            };
-            img = vk::raii::Image(device, img_info);
-            auto mem_requirements = img.getMemoryRequirements();
-            vk::MemoryAllocateInfo alloc_info = { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) };
-            mem = vk::raii::DeviceMemory(device, alloc_info);
-            img.bindMemory(*mem, 0);
-            is_first_upload = true;
-        }
-
         // Transition image layout
-        if (is_first_upload)
-            transitionImageLayout(img, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-        else
-            transitionImageLayout(img, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferDstOptimal);
+        endRendering();
+        tex->transition(vk::ImageLayout::eTransferDstOptimal);
 
         // Detile the texture
+        void* img_ptr = ptr;
         auto detiled_buf = std::make_unique<u8[]>(img_size);
-        const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
-        GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
+
+        //if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL) {
+            const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
+            GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
+            img_ptr = detiled_buf.get();
+        //}
 
         // Upload to a buffer
-        const vk::BufferCreateInfo buf_create_info = {
-            .size = img_size,
-            .usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eVertexBuffer
-                     | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst
-                     | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer,
-            .sharingMode = vk::SharingMode::eExclusive
-        };
-        VmaAllocationCreateInfo alloc_create_info = {};
-        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        VkBuffer raw_buf;
-        VmaAllocation alloc;
-        VmaAllocationInfo info;
-        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, &info);
-        std::memcpy(info.pMappedData, detiled_buf.get(), img_size);
+        auto [buf, buf_ptr] = Cache::getMappedBufferForFrame(img_size);
+        std::memcpy(buf_ptr, img_ptr, img_size);
 
         // Copy buffer to image
-        vk::raii::CommandBuffer tmp_cmd = beginCommands();
-        const auto buffer_row_length = pitch > width ? pitch : 0;
+        const auto buffer_row_length = pitch >= width ? pitch : 0;
         if (pitch < width) printf("pitch < width\n");
         vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = buffer_row_length, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
-        tmp_cmd.copyBufferToImage(raw_buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
-        endCommands(tmp_cmd);
-
-        // Free buffer
-        vmaDestroyBuffer(allocator, raw_buf, alloc);
-
-        transitionImageLayout(img, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-
-        // Create image view
-        vk::ComponentSwizzle swizzle_map[] = {
-            vk::ComponentSwizzle::eZero,    // 0 - DSEL_0
-            vk::ComponentSwizzle::eOne,     // 1 - DSEL_1
-            vk::ComponentSwizzle::eR,       // 2 - invalid
-            vk::ComponentSwizzle::eG,       // 3 - invalid
-            vk::ComponentSwizzle::eR,       // 4 - DSEL_R
-            vk::ComponentSwizzle::eG,       // 5 - DSEL_G
-            vk::ComponentSwizzle::eB,       // 6 - DSEL_B
-            vk::ComponentSwizzle::eA,       // 7 - DSEL_A
-        };
-        auto& img_view = tex->view;
-        vk::ImageViewCreateInfo view_info = {
-            .image = *img,
-            .viewType = vk::ImageViewType::e2D,
-            .format = vk_fmt,
-            .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 },
-
-            // TODO: You can in theory change the T# swizzling without changing the texture itself.
-            .components = {
-                swizzle_map[tsharp->dst_sel_x],
-                swizzle_map[tsharp->dst_sel_y],
-                swizzle_map[tsharp->dst_sel_z],
-                swizzle_map[tsharp->dst_sel_w],
-            }
-        };
-        img_view = vk::raii::ImageView(device, view_info);
-
-        // Create image sampler
-        auto& sampler = tex->sampler;
-        vk::PhysicalDeviceProperties properties = physical_device.getProperties();
-        vk::SamplerCreateInfo sampler_info = {
-            .magFilter = vk::Filter::eNearest,
-            .minFilter = vk::Filter::eNearest,
-            .mipmapMode = vk::SamplerMipmapMode::eNearest,
-            .addressModeU = vk::SamplerAddressMode::eRepeat,
-            .addressModeV = vk::SamplerAddressMode::eRepeat,
-            .addressModeW = vk::SamplerAddressMode::eRepeat,
-            .mipLodBias = 0.0f,
-            .anisotropyEnable = vk::False,
-            .maxAnisotropy = 1.0f,
-            .compareEnable = vk::False,
-            .compareOp = vk::CompareOp::eLessOrEqual,
-            .borderColor = vk::BorderColor::eFloatTransparentBlack
-        };
-        sampler = vk::raii::Sampler(device, sampler_info);
-
-        tex->image_info = {
-            .sampler = *sampler,
-            .imageView = *img_view,
-            .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
-        };
+        cmd_bufs[0].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, {region});
     };
 
     auto invalidate = [&](uptr addr) {
@@ -212,23 +100,39 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
 
     // Check if we are already tracking this texture
     if (tracked_textures.contains(ptr)) {
-        auto* tex = tracked_textures[ptr];
-
-        // If the texture was modified, reupload it
-        if (tex->dirty) {
-            // If the page this texture was in was just dirtied, dirty all textures that are part of this page.
-            tex->dirty = false;
-            reupload_tex(tex, false);
-            for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
-                if (!Cache::resetDirty((void*)curr_page, Cache::page_size)) {
-                    Cache::track((void*)curr_page, Cache::page_size, invalidate);
+        // Find one that matches the size and format
+        for (auto& tracked_tex : tracked_textures[ptr]) {
+            if (   tracked_tex->width  == width 
+                && tracked_tex->height == height
+                && tracked_tex->tsharp.data_format == tsharp->data_format
+                && tracked_tex->tsharp.num_format  == tsharp->num_format
+               ) {
+                auto* tex = tracked_tex;
+                if (is_depth_buffer && !tex->is_depth_buffer) {
+                    tex->dead = true;
+                    continue;
                 }
-            }
-            currently_tracking.push_back(tex);
-        }
 
-        *out_info = &tex->image_info;
-        return;
+                if (tex->dead) continue;
+
+                // If the texture was modified, reupload it
+                if (tex->dirty) {
+                    // If the page this texture was in was just dirtied, dirty all textures that are part of this page.
+                    tex->dirty = false;
+                    reupload_tex(tex);
+                    for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
+                        if (!Cache::resetDirty((void*)curr_page, Cache::page_size)) {
+                            Cache::track((void*)curr_page, Cache::page_size, invalidate);
+                        }
+                    }
+                    currently_tracking.push_back(tex);
+                }
+
+                tex->image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+                *out_info = tex;
+                return;
+            }
+        }
     }
 
     log("Tracking new texture\n");
@@ -251,8 +155,13 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     tex->height = height;
     tex->page = page;
     tex->page_end = page_end;
+    tex->is_depth_buffer = is_depth_buffer;
+    tex->vk_fmt = vk_fmt;
     auto& img = tex->image;
     auto& mem = tex->mem;
+
+    auto attachment_bits = !is_depth_buffer ? vk::ImageUsageFlagBits::eColorAttachment : vk::ImageUsageFlagBits::eDepthStencilAttachment;
+
     vk::ImageCreateInfo img_info = {
         .imageType = vk::ImageType::e2D,
         .format = vk_fmt,
@@ -261,7 +170,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
         .tiling = vk::ImageTiling::eOptimal,
-        .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+        .usage = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT | attachment_bits,
         .sharingMode = vk::SharingMode::eExclusive
     };
     img = vk::raii::Image(device, img_info);
@@ -270,14 +179,73 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, vk::DescriptorImageInfo** out_i
     mem = vk::raii::DeviceMemory(device, alloc_info);
     img.bindMemory(*mem, 0);
 
+    // Create image view
+    vk::ComponentSwizzle swizzle_map[] = {
+        vk::ComponentSwizzle::eZero,    // 0 - DSEL_0
+        vk::ComponentSwizzle::eOne,     // 1 - DSEL_1
+        vk::ComponentSwizzle::eR,       // 2 - invalid
+        vk::ComponentSwizzle::eG,       // 3 - invalid
+        vk::ComponentSwizzle::eR,       // 4 - DSEL_R
+        vk::ComponentSwizzle::eG,       // 5 - DSEL_G
+        vk::ComponentSwizzle::eB,       // 6 - DSEL_B
+        vk::ComponentSwizzle::eA,       // 7 - DSEL_A
+    };
+    auto& img_view = tex->view;
+    vk::ImageViewCreateInfo view_info = {
+        .image = *img,
+        .viewType = vk::ImageViewType::e2D,
+        .format = vk_fmt,
+        .subresourceRange = { 
+            !is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth, 
+            0, 1,
+            0, 1
+        },
+
+        // TODO: You can in theory change the T# swizzling without changing the texture itself.
+        .components = {
+            swizzle_map[tsharp->dst_sel_x],
+            swizzle_map[tsharp->dst_sel_y],
+            swizzle_map[tsharp->dst_sel_z],
+            swizzle_map[tsharp->dst_sel_w],
+        }
+    };
+    img_view = vk::raii::ImageView(device, view_info);
+
+    // Create image sampler
+    auto& sampler = tex->sampler;
+    vk::SamplerCreateInfo sampler_info = {
+        .magFilter = vk::Filter::eNearest,
+        .minFilter = vk::Filter::eNearest,
+        .mipmapMode = vk::SamplerMipmapMode::eNearest,
+
+        // Hack for Tomb Raider, fix when I implement samplers
+        .addressModeU = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeV = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeW = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        
+        .mipLodBias = 0.0f,
+        .anisotropyEnable = vk::False,
+        .maxAnisotropy = 1.0f,
+        .compareEnable = vk::False,
+        .compareOp = vk::CompareOp::eLessOrEqual,
+        .borderColor = vk::BorderColor::eFloatTransparentBlack
+    };
+    sampler = vk::raii::Sampler(device, sampler_info);
+
+    tex->image_info = {
+        .sampler = *sampler,
+        .imageView = *img_view,
+        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
+    };
+
     for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
         Cache::track((void*)curr_page, Cache::page_size, invalidate);
     }
 
-    reupload_tex(tex, true);
-    tracked_textures[ptr] = tex;
+    reupload_tex(tex);
+    tracked_textures[ptr].push_back(tex);
     currently_tracking.push_back(tex);
-    *out_info = &tex->image_info;
+    *out_info = tex;
 }
 
 } // End namespace PS4::GCN::Vulkan

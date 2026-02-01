@@ -21,38 +21,109 @@ void endCommands(vk::raii::CommandBuffer& cmd_buffer) {
     queue.waitIdle();
 }
 
-void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout old_layout, vk::ImageLayout new_layout) {
-    vk::raii::CommandBuffer tmp_cmd = beginCommands();
-    vk::ImageMemoryBarrier barrier = { .oldLayout = old_layout, .newLayout = new_layout, .image = *image, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
-    vk::PipelineStageFlags source_stage;
-    vk::PipelineStageFlags destination_stage;
+void beginRendering(vk::RenderingInfo render_info) {
+    is_recording_render_block = true;
+    cmd_bufs[0].beginRendering(render_info);
+}
 
-    if (old_layout == vk::ImageLayout::eUndefined && new_layout == vk::ImageLayout::eTransferDstOptimal) {
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+void endRendering() {
+    if (is_recording_render_block) {
+        is_recording_render_block = false;
+        cmd_bufs[0].endRendering();
+    }
+}
 
-        source_stage      = vk::PipelineStageFlagBits::eTopOfPipe;
-        destination_stage = vk::PipelineStageFlagBits::eTransfer;
-    }
-    else if (old_layout == vk::ImageLayout::eTransferDstOptimal && new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::raii::CommandBuffer* cmd_buf) {
+    auto get_aspect = [](const vk::Format fmt) -> vk::ImageAspectFlagBits {
+        switch (fmt) {
+        case vk::Format::eD16Unorm:
+        case vk::Format::eD32Sfloat:
+            return vk::ImageAspectFlagBits::eDepth;
+        default:
+            return vk::ImageAspectFlagBits::eColor;
+        }
+    };
+    
+    vk::ImageMemoryBarrier barrier = {
+        .oldLayout = old_layout,
+        .newLayout = new_layout,
+        .image = image,
+        .subresourceRange = {
+            get_aspect(fmt),
+            0, 1, 
+            0, 1
+        }
+    };
+    
+    auto get_access_and_stage_bits = [](vk::ImageLayout layout) -> std::pair<vk::Flags<vk::AccessFlagBits>, vk::Flags<vk::PipelineStageFlagBits>> {
+        switch (layout) {
+        case vk::ImageLayout::eUndefined:                           
+            return { 
+                {}, 
+                vk::PipelineStageFlagBits::eTopOfPipe 
+            };
+        
+        case vk::ImageLayout::eTransferSrcOptimal:    
+            return {
+                vk::AccessFlagBits::eTransferRead,
+                vk::PipelineStageFlagBits::eTransfer
+            };
+        
+        case vk::ImageLayout::eTransferDstOptimal:           
+            return {
+                vk::AccessFlagBits::eTransferWrite,
+                vk::PipelineStageFlagBits::eTransfer
+            };
+        
+        case vk::ImageLayout::eColorAttachmentOptimal:    
+            return {
+                vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, 
+                vk::PipelineStageFlagBits::eColorAttachmentOutput
+            };
+        
+        case vk::ImageLayout::eDepthAttachmentOptimal:  
+            return { 
+                vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite, 
+                vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests 
+            };
+        
+        case vk::ImageLayout::eShaderReadOnlyOptimal:         
+            return {
+                vk::AccessFlagBits::eShaderRead,
+                vk::PipelineStageFlagBits::eAllGraphics
+            };
+        
+        case vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT:   
+            return {
+                vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, 
+                vk::PipelineStageFlagBits::eAllGraphics
+            };
+        
+        case vk::ImageLayout::ePresentSrcKHR:     
+            return {
+                {},
+                vk::PipelineStageFlagBits::eTopOfPipe
+            };
+        default:    Helpers::panic("transitionImageLayout: unhandled image layout %d\n", layout);
+        }
+    };
 
-        source_stage      = vk::PipelineStageFlagBits::eTransfer;
-        destination_stage = vk::PipelineStageFlagBits::eAllGraphics;
-    }
-    else if (old_layout == vk::ImageLayout::eShaderReadOnlyOptimal && new_layout == vk::ImageLayout::eTransferDstOptimal) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+    if (!cmd_buf)
+        cmd_buf = &cmd_bufs[0];
 
-        source_stage      = vk::PipelineStageFlagBits::eAllGraphics;
-        destination_stage = vk::PipelineStageFlagBits::eTransfer;
+    auto [src_access_mask, src_stage] = get_access_and_stage_bits(old_layout);
+    auto [dst_access_mask, dst_stage] = get_access_and_stage_bits(new_layout);
+
+    if (   new_layout == vk::ImageLayout::eColorAttachmentOptimal
+        //|| new_layout == vk::ImageLayout::eDepthAttachmentOptimal
+        || new_layout == vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT
+        ) {
+        src_access_mask |= vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
     }
-    else {
-        Helpers::panic("Unsupported layout transition\n");
-    }
-    tmp_cmd.pipelineBarrier(source_stage, destination_stage, {}, {}, nullptr, barrier);
-    endCommands(tmp_cmd);
+
+    barrier.srcAccessMask = src_access_mask;
+    barrier.dstAccessMask = dst_access_mask;
+    cmd_buf->pipelineBarrier(src_stage, dst_stage, {}, {}, nullptr, barrier);
 }
 
 u32 findMemoryType(u32 type_filter, vk::MemoryPropertyFlags properties) {
@@ -131,6 +202,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         case NumberFormat::Unorm:   return { vk::Format::eR8G8B8A8Unorm, sizeof(u32) };
         case NumberFormat::Snorm:   return { vk::Format::eR8G8B8A8Snorm, sizeof(u32) };
         case NumberFormat::Uscaled: return { vk::Format::eR8G8B8A8Uscaled, sizeof(u32) };
+        case NumberFormat::SnormNz: return { vk::Format::eR8G8B8A8Srgb, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }

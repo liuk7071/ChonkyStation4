@@ -249,6 +249,28 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     return { buf->buf, (uptr)base - (uptr)buf->base, true };
 }
 
+// This function returns an empty mapped buffer that is cleared at the end of the frame (when clear() is called)
+std::pair<vk::Buffer, void*> getMappedBufferForFrame(size_t size) {
+    const vk::BufferCreateInfo buf_create_info = {
+        .size = size,
+        .usage =   vk::BufferUsageFlagBits::eIndexBuffer   | vk::BufferUsageFlagBits::eVertexBuffer
+                 | vk::BufferUsageFlagBits::eTransferSrc   | vk::BufferUsageFlagBits::eTransferDst
+                 | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer,
+        .sharingMode = vk::SharingMode::eExclusive
+    };
+    VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };
+    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+    alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    VkBuffer raw_buf;
+    VmaAllocationInfo info;
+    VmaAllocation alloc;
+    vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, &info);
+    vk::Buffer vk_buf = vk::Buffer(raw_buf);
+
+    allocations.push_back({ .buf = vk_buf, .alloc = alloc });
+    return { vk_buf, (void*)info.pMappedData };
+}
+
 // This function exists to allow us to track memory pages without necessarily tying them to a Vulkan buffer.
 // I use this in my texture cache, where I handle the Vulkan code separately.
 // TODO: If you overwrite a region, the callback is silently not updated.

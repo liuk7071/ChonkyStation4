@@ -17,12 +17,6 @@ static constexpr s32 SCE_VIDEO_OUT_BUS_TYPE_MAIN = 0;
 
 static constexpr s32 SCE_VIDEO_OUT_FLIP_EVENT_ID = 0x6;
 
-struct SceVideoOutBuffer {
-    s32 group_idx = -1;
-    void* addr_left = nullptr;
-    void* addr_right = nullptr;
-};
-
 struct SceVideoOutBufferAttribute {
 	s32 pixel_format;
 	s32 tiling_mode;
@@ -34,6 +28,12 @@ struct SceVideoOutBufferAttribute {
 	u32 _reserved0;
 	u64 _reserved1;
 };
+
+struct SceVideoOutBuffer {
+    void* base;
+    SceVideoOutBufferAttribute attrib;
+};
+inline SceVideoOutBuffer bufs[16];
 
 struct SceVideoOutFlipStatus {
 	u64 count;

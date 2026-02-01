@@ -14,7 +14,7 @@ public:
 
     void init() override;
     void draw(const u64 cnt, const void* idx_buf_ptr = nullptr) override;
-    void flip() override;
+    void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) override;
 
 private:
     u64 frame_count = 0;
@@ -28,11 +28,6 @@ private:
     vk::raii::SwapchainKHR           swapchain          = nullptr;
     std::vector<vk::Image>           swapchain_images;
     std::vector<vk::raii::ImageView> swapchain_image_views;
-    vk::raii::Image                  depth_image = nullptr;
-    vk::raii::ImageView              depth_image_view = nullptr;
-    VmaAllocation                    depth_image_alloc = nullptr;
-
-    std::vector<vk::raii::CommandBuffer> cmd_bufs;
 
     vk::raii::Semaphore present_sema = nullptr;
     vk::raii::Semaphore render_sema = nullptr;
@@ -47,6 +42,8 @@ private:
 	    VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
         VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
         VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+        VK_EXT_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_EXTENSION_NAME,
+        VK_EXT_ATTACHMENT_FEEDBACK_LOOP_DYNAMIC_STATE_EXTENSION_NAME
         //VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
         //VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME
     };
@@ -54,15 +51,6 @@ private:
     bool framebuffer_resized = false;
 
     void recreateSwapChain();
-    void createDepthBuffer();
-    void transitionImageLayoutForSwapchain(
-        u32                     img_idx,
-        vk::ImageLayout         old_layout,
-        vk::ImageLayout         new_layout,
-        vk::AccessFlags2        src_access_mask,
-        vk::AccessFlags2        dst_access_mask,
-        vk::PipelineStageFlags2 src_stage_mask,
-        vk::PipelineStageFlags2 dst_stage_mask);
     void advanceSwapchain();
 };
 

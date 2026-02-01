@@ -73,13 +73,15 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     // Primitive info
     cfg.prim_type = regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI];
 
-    // Color buffer info
+    // Color blending info
     for (int i = 0; i < 8; i++) {
         cfg.blend_control[i].raw = regs[Reg::mmCB_BLEND0_CONTROL + i];
     }
 
     // Depth control
     cfg.depth_control.raw = regs[Reg::mmDB_DEPTH_CONTROL];
+    cfg.max_depth_bounds = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MAX]);
+    cfg.min_depth_bounds = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MIN]);
 
     // Depth clamp
     cfg.enable_depth_clamp = (regs[Reg::mmDB_RENDER_OVERRIDE] >> 16) != 1;   // DISABLE_VIEWPORT_CLAMP

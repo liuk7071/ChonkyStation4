@@ -13,6 +13,8 @@ class VSharp;
 
 namespace PS4::GCN::Vulkan {
 
+struct TrackedTexture;
+
 enum class PrimitiveType : u32 {
     None = 0,
     PointList = 1,
@@ -63,6 +65,17 @@ enum class BlendFunc : u32 {
     ReverseSubtract = 4,
 };
 
+enum class CompareFunc : u32 {
+    Never = 0,
+    Less = 1,
+    Equal = 2,
+    LessEqual = 3,
+    Greater = 4,
+    NotEqual = 5,
+    GreaterEqual = 6,
+    Always = 7,
+};
+
 union BlendControl {
     u32 raw = 0;
     BitField<0,  5, u32> src_blend;
@@ -70,7 +83,7 @@ union BlendControl {
     BitField<8,  5, u32> dst_blend;
     BitField<16, 5, u32> alpha_src_blend;
     BitField<21, 3, u32> alpha_func;
-    BitField<24, 5, u32> dst_alpha;
+    BitField<24, 5, u32> alpha_dst_blend;
     BitField<29, 1, u32> separate_alpha_blend;
     BitField<30, 1, u32> enable;
     BitField<31, 1, u32> disable_rop;
@@ -91,12 +104,19 @@ union DepthControl {
 };
 
 struct PipelineConfig {
+    // Draw primitive
     u32 prim_type = 0;
+
+    // Blending
     BlendControl blend_control[8];
-    
+    float max_depth_bounds = 0.0f;
+    float min_depth_bounds = 0.0f;
+
+    // Depth
     DepthControl depth_control;
     bool enable_depth_clamp = false;
 
+    // Other hashes
     u64 vertex_hash = 0;
     u64 pixel_hash = 0;
     u64 binding_hash = 0;   // Hash calculated on the fetch shader binding info
@@ -118,8 +138,8 @@ public:
     };
 
     struct PushConstants {
-        u16 stride[32];
-        u16 fmt[32];
+        u16 stride[48];
+        u32 fmt[32];    // TODO
     };
 
     vk::raii::Pipeline& getVkPipeline() {
@@ -130,7 +150,7 @@ public:
     }
 
     std::vector<VertexBinding>* gatherVertices();
-    std::vector<vk::WriteDescriptorSet> uploadBuffersAndTextures(PushConstants** push_constants_ptr);
+    std::vector<vk::WriteDescriptorSet> uploadBuffersAndTextures(PushConstants** push_constants_ptr, TrackedTexture* rt, bool* has_feedback_loop);
     void clearBuffers();
 
 private:

@@ -68,7 +68,7 @@ void gcnThread() {
             u64* buf_label;
             OS::Libs::SceVideoOut::sceVideoOutGetBufferLabelAddress(cmd.video_out_handle, (void**)&buf_label);
             buf_label[cmd.buf_idx] = 1;
-            renderer->flip();
+            renderer->flip(&OS::Libs::SceVideoOut::bufs[cmd.buf_idx]);
 
             // Signal SceVideoOut port event queues
             auto port = PS4::OS::find<OS::Libs::SceVideoOut::SceVideoOutPort>(cmd.video_out_handle);

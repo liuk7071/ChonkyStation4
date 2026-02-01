@@ -16,7 +16,6 @@ s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
     }
 
     s32 ret = pthread_mutex_lock(mutex);
-    if (ret != 0) Helpers::panic("aaaaaa\n");
     return ret;
 }
 
@@ -26,7 +25,6 @@ s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
     if (*mutex == 0) *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
 
     s32 ret = pthread_mutex_trylock(mutex);
-    if (ret != 0) Helpers::panic("aaaaaa\n");
     return ret;
 }
 

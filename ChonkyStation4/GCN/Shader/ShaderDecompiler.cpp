@@ -335,7 +335,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     has_fetch_buffer_func_map.clear();
 
     shader += R"(
-#version 430 core
+#version 450
 #extension GL_ARB_shading_language_packing : require
 
 #define u2f(x) uintBitsToFloat(x)
@@ -351,7 +351,7 @@ bool scc;
 bool vcc;
 
 layout(push_constant, std430) uniform BufferInfo {
-    uint stride[32];
+    uint stride[24];
     uint fmt[32];
 } buf_info;
 
@@ -519,6 +519,11 @@ uint getStrideForBinding(uint binding) {
 
     std::string main;
     main.reserve(32_KB); // Avoid reallocations
+    
+    if (stage == ShaderStage::Fragment) {
+        main += "v[2] = f2u(gl_FragCoord.x);\n";
+        main += "v[3] = f2u(gl_FragCoord.y);\n";
+    }
 
     switch (stage) {
     case ShaderStage::Vertex: {
@@ -812,7 +817,7 @@ uint getStrideForBinding(uint binding) {
         }
 
         case Shader::Opcode::V_CNDMASK_B32: {
-            main += "// TODO: V_CNDMASK_B32\n";
+            main += setDST<true>(instr.dst[0], std::format("vcc ? {} : {} /* V_CNDMASK_B32 */", getSRC<true>(instr.src[1]), getSRC<true>(instr.src[0])));
             break;
         }
 
@@ -1203,6 +1208,8 @@ uint getStrideForBinding(uint binding) {
             const auto buffer_mapping = buf_mapping_idx++;
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_SAMPLE: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
+
+            main += std::format("// T# is in s[{}]\n", instr.src[2].code * 4);
 
             const auto sampler_name = std::format("tex{}", buf->binding);
             const std::string texcoords = std::format("vec2(u2f(v[{}]), u2f(v[{}]))", instr.src[0].code, instr.src[0].code + 1);

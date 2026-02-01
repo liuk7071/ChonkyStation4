@@ -205,6 +205,7 @@ void init(Module& module) {
     module.addSymbolExport("4czppHBiriw", "sceKernelSignalSema", "libkernel", "libkernel", (void*)&sceKernelSignalSema);
     module.addSymbolExport("Zxa0VhQVTsk", "sceKernelWaitSema", "libkernel", "libkernel", (void*)&sceKernelWaitSema);
     module.addSymbolExport("12wOHk8ywb0", "sceKernelPollSema", "libkernel", "libkernel", (void*)&sceKernelPollSema);
+    module.addSymbolStub("R1Jvn8bSCW8", "sceKernelDeleteSema", "libkernel", "libkernel");
     module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libkernel", "libkernel", (void*)&kernel_sem_init);
     module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libScePosix", "libkernel", (void*)&kernel_sem_init);
     module.addSymbolExport("IKP8typ0QUk", "sem_post", "libkernel", "libkernel", (void*)&kernel_sem_post);

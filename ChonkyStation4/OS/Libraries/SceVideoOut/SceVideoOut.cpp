@@ -104,10 +104,14 @@ s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, voi
     return SCE_OK;
 }
 
-int reg_idx = 0;
+int reg_idx = 1;
 s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs, s32 n_bufs, SceVideoOutBufferAttribute* attrib) {
-    log("sceVideoOutRegisterBuffers(handle=%d, start_idx=%d, addrs=*%p, n_bufs=%d, attrib=*%p) TODO\n", handle, start_idx, addrs, n_bufs, attrib);
+    log("sceVideoOutRegisterBuffers(handle=%d, start_idx=%d, addrs=*%p, n_bufs=%d, attrib=*%p)\n", handle, start_idx, addrs, n_bufs, attrib);
 
+    for (int idx = start_idx; idx < start_idx + n_bufs; idx++) {
+        bufs[idx].base = addrs[idx];
+        bufs[idx].attrib = *attrib;
+    }
     return reg_idx++;   // "Registration index" - return a progressive number for now
 }
 
@@ -121,13 +125,13 @@ s32 PS4_FUNC sceVideoOutSetBufferAttribute(SceVideoOutBufferAttribute* attrib, u
     attrib->height = height;
     attrib->pitch_in_pixels = pitch_in_pixels;
     attrib->option = 0; // SCE_VIDEO_OUT_BUFFER_ATTRIBUTE_OPTION_NONE
-
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVideoOutBufferAttribute* attrib) {
-    log("sceVideoOutSubmitChangeBufferAttribute(handle=%d, idx=%d, attrib=*%p) TODO\n", handle, idx, attrib);
+    log("sceVideoOutSubmitChangeBufferAttribute(handle=%d, idx=%d, attrib=*%p)\n", handle, idx, attrib);
 
+    bufs[idx].attrib = *attrib;
     return SCE_OK;
 }
 
