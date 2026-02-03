@@ -59,7 +59,31 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     };
     
     vk::PipelineInputAssemblyStateCreateInfo input_assembly = { .topology = topology(cfg.prim_type) };
-    vk::PipelineViewportStateCreateInfo      viewport_state = { .viewportCount = 1, .scissorCount = 1 };
+
+    // Viewport
+    const auto z_offset = cfg.viewport_control.z_offset_enable ? cfg.z_offset : 0.0f;
+    const auto z_scale = cfg.viewport_control.z_scale_enable ? cfg.z_scale : 1.0f;
+    if (!cfg.dx_clip_space_enable) {
+        // -1 ... +1
+        min_viewport_depth = z_offset - z_scale;
+        max_viewport_depth = z_offset + z_scale;
+    }
+    else {
+        // 0 ... 1
+        min_viewport_depth = z_offset;
+        max_viewport_depth = z_offset + z_scale;
+    }
+
+    vk::PipelineViewportDepthClipControlCreateInfoEXT depth_clip_control = {
+        .negativeOneToOne = !cfg.dx_clip_space_enable
+    };
+
+    vk::PipelineViewportStateCreateInfo viewport_state = { 
+        .viewportCount = 1,
+        .scissorCount = 1,
+        .pNext = &depth_clip_control
+    };
+    
     vk::PipelineRasterizationStateCreateInfo rasterizer = {
         .depthClampEnable = cfg.enable_depth_clamp,
         .rasterizerDiscardEnable = vk::False,
@@ -231,20 +255,6 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipeline_create_info_chain(gpci, rendering_info);
     graphics_pipeline = vk::raii::Pipeline(device, nullptr, pipeline_create_info_chain.get());
-
-    // Viewport
-    const auto z_offset = cfg.viewport_control.z_offset_enable ? cfg.z_offset : 0.0f;
-    const auto z_scale  = cfg.viewport_control.z_scale_enable  ? cfg.z_scale : 1.0f;
-    if (!cfg.dx_clip_space_enable) {
-        // -1 ... +1
-        min_viewport_depth = z_offset - z_scale;
-        max_viewport_depth = z_offset + z_scale;
-    }
-    else {
-        // 0 ... 1
-        min_viewport_depth = z_offset;
-        max_viewport_depth = z_offset + z_scale;
-    }
 }
 
 std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
