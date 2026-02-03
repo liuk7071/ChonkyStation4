@@ -126,7 +126,7 @@ static const TBuiltInResource DefaultTBuiltInResource = {
     }
 };
 
-//#define SHADER_DEBUG
+#define SHADER_DEBUG
 
 inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
     glslang::InitializeProcess();

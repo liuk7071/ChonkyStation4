@@ -215,8 +215,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     // Create image sampler
     auto& sampler = tex->sampler;
     vk::SamplerCreateInfo sampler_info = {
-        .magFilter = vk::Filter::eNearest,
-        .minFilter = vk::Filter::eNearest,
+        .magFilter = vk::Filter::eLinear,
+        .minFilter = vk::Filter::eLinear,
         .mipmapMode = vk::SamplerMipmapMode::eNearest,
 
         // Hack for Tomb Raider, fix when I implement samplers

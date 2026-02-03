@@ -61,6 +61,14 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     // Depth clamp
     cfg.enable_depth_clamp = (regs[Reg::mmDB_RENDER_OVERRIDE] >> 16) != 1;   // DISABLE_VIEWPORT_CLAMP
 
+    // Viewport
+    cfg.viewport_control.raw = regs[Reg::mmPA_CL_VTE_CNTL];
+    cfg.z_offset = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_ZOFFSET]);
+    cfg.z_scale  = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_ZSCALE]);
+
+    // Clip space
+    cfg.dx_clip_space_enable = (regs[Reg::mmPA_CL_CLIP_CNTL] >> 19) & 1;
+
     // Calculate final pipeline hash
     const u64 pipeline_hash = XXH3_64bits(&cfg, sizeof(PipelineConfig));
     if (pipelines.contains(pipeline_hash))

@@ -87,7 +87,8 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
         switch (depth->z_info.format) {
         case 1: return { DataFormat::Format16, NumberFormat::Unorm };
         case 3: return { DataFormat::Format32, NumberFormat::Float };
-        default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+        //default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+        default: return { DataFormat::Format32, NumberFormat::Float };
         }
     };
     
@@ -95,7 +96,8 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
         switch (depth->z_info.format) {
         case 1: return vk::Format::eD16Unorm;
         case 3: return vk::Format::eD32Sfloat;
-        default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+        //default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+        default: return vk::Format::eD32Sfloat;
         }
     };
 

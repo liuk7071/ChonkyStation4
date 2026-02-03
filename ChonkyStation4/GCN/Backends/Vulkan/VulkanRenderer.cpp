@@ -393,6 +393,9 @@ ColorTarget last_color_rt[8] = {};
 DepthTarget last_depth_rt = {};
 RenderTarget::Attachment color_attachments[8] = {};
 RenderTarget::Attachment depth_attachment = {};
+float last_viewport_min_depth = 0.0f;
+float last_viewport_max_depth = 0.0f;
+vk::Extent2D last_extent = vk::Extent2D { 0xffffffff, 0xffffffff };
 
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
@@ -462,7 +465,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {
         for (int i = 0; i < 8; i++) {
             if (new_rt[i].enabled) {
-                if (color_rt_dim[i].width < extent.width)  extent.width = color_rt_dim[i].width;
+                if (color_rt_dim[i].width < extent.width)   extent.width  = color_rt_dim[i].width;
                 if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;
 
 
@@ -497,14 +500,15 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         needs_new_render_pass = true;
         std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
     }
-
+    
     if (pipeline.cfg.depth_control.depth_enable || pipeline.cfg.depth_control.stencil_enable) {
-        if (depth_rt_dim.width < extent.width)  extent.width = depth_rt_dim.width;
+        if (depth_rt_dim.width < extent.width)   extent.width  = depth_rt_dim.width;
         if (depth_rt_dim.height < extent.height) extent.height = depth_rt_dim.height;
 
         if (last_depth_rt != new_depth_rt) {
             bool save = false;
             depth_attachment = RenderTarget::getVulkanAttachmentForDepthTarget(&new_depth_rt, &save);
+
             if (save)
                 last_depth_rt = new_depth_rt;
             else
@@ -540,9 +544,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
             .pDepthAttachment = pipeline.cfg.depth_control.depth_enable || pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
         };
 
-        cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, 1.0f, 0.02f));
-        cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
-
         beginRendering(render_info);
         cmd_bufs[0].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
     }
@@ -556,6 +557,15 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     if (&pipeline != last_draw_pipeline) {
         cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
         last_draw_pipeline = &pipeline;
+    }
+
+    // Viewport
+    if (pipeline.min_viewport_depth != last_viewport_min_depth || pipeline.max_viewport_depth != last_viewport_max_depth || extent != last_extent) {
+        cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+        last_viewport_min_depth = pipeline.min_viewport_depth;
+        last_viewport_max_depth = pipeline.max_viewport_depth;
+        last_extent = extent;
     }
 
     if (descriptor_writes.size())
@@ -715,15 +725,13 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         pipeline->clearBuffers();
     curr_frame_pipelines.clear();
     last_draw_pipeline = nullptr;
+    last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
     Cache::clear();
     RenderTarget::reset();
 
     cmd_bufs[0].reset();
     advanceSwapchain();
     cmd_bufs[0].begin({});
-
-    cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)swapchain_extent.height, (float)swapchain_extent.width, -(float)swapchain_extent.height, 0.0f, 1.0f));
-    cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain_extent));
 }
 
 }   // End namespace PS4::GCN::Vulkan

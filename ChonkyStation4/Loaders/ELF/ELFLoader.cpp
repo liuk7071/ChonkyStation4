@@ -246,6 +246,14 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
             continue;
         }
 
+        // module_start
+        if (sym_name == "BaOKcng8g88")
+            continue;
+        
+        // module_stop
+        if (sym_name == "KpDMrPHvt3Q")
+            continue;
+
         // Find library and module
         auto tokens = Helpers::split(sym_name, "#");
         Helpers::debugAssert(tokens.size() == 3, "Linker: invalid symbol %s\n", sym_name.c_str());

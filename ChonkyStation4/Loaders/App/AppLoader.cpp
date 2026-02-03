@@ -44,7 +44,10 @@ bool getApp(const AppInfo& info, ::App& app) {
         "libSceLibcInternal.sprx",
         "libSceNgs2.sprx",
         "libSceUlt.sprx",
-        "libScePngDec.sprx"
+        "libScePngDec.sprx",
+        "libSceFont.sprx",
+        "libSceFontFt.sprx",
+        "libSceFreeTypeOt.sprx"
     };
 
     const std::string partial_lle_sysmodules_to_load[] = {

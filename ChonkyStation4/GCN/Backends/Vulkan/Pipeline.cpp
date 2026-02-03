@@ -231,6 +231,20 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipeline_create_info_chain(gpci, rendering_info);
     graphics_pipeline = vk::raii::Pipeline(device, nullptr, pipeline_create_info_chain.get());
+
+    // Viewport
+    const auto z_offset = cfg.viewport_control.z_offset_enable ? cfg.z_offset : 0.0f;
+    const auto z_scale  = cfg.viewport_control.z_scale_enable  ? cfg.z_scale : 1.0f;
+    if (!cfg.dx_clip_space_enable) {
+        // -1 ... +1
+        min_viewport_depth = z_offset - z_scale;
+        max_viewport_depth = z_offset + z_scale;
+    }
+    else {
+        // 0 ... 1
+        min_viewport_depth = z_offset;
+        max_viewport_depth = z_offset + z_scale;
+    }
 }
 
 std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {

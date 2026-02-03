@@ -3,6 +3,7 @@
 #include <Common.hpp>
 #include <OS/SceObj.hpp>
 #include <OS/Libraries/Kernel/Equeue.hpp>
+#include <thread>
 
 
 class Module;
@@ -74,7 +75,9 @@ struct SceVideoOutPort : SceObj {
     SceVideoOutFlipStatus flip_status;
     SceVideoOutVblankStatus vblank_status;
     Libs::Kernel::EventSource flip_ev_source;
+    Libs::Kernel::EventSource vblank_ev_source;
 	SceVideoOutResolutionStatus resolution_status;
+    std::thread vblank_thread;
 
     void signalFlip(u64 flip_arg);
 };
@@ -84,6 +87,7 @@ s32 PS4_FUNC sceVideoOutClose(s32 handle);
 s32 PS4_FUNC sceVideoOutGetBufferLabelAddress(s32 handle, void** label_addr);
 s32 PS4_FUNC sceVideoOutSetFlipRate(s32 handle, s32 rate);
 s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata);
+s32 PS4_FUNC sceVideoOutAddVblankEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata);
 s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs, s32 n_bufs, SceVideoOutBufferAttribute* attrib);
 s32 PS4_FUNC sceVideoOutSetBufferAttribute(SceVideoOutBufferAttribute* attrib, u32 pixel_format, u32 tiling_mode, u32 aspect_ratio, u32 width, u32 height, u32 pitch_in_pixels);
 s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVideoOutBufferAttribute* attrib);

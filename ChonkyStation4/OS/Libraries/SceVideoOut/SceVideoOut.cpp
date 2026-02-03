@@ -14,6 +14,7 @@ void init(Module& module) {
     module.addSymbolExport("OcQybQejHEY", "sceVideoOutGetBufferLabelAddress", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetBufferLabelAddress);
     module.addSymbolExport("CBiu4mCE1DA", "sceVideoOutSetFlipRate", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSetFlipRate);
     module.addSymbolExport("HXzjK9yI30k", "sceVideoOutAddFlipEvent", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutAddFlipEvent);
+    module.addSymbolExport("Xru92wHJRmg", "sceVideoOutAddVblankEvent", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutAddVblankEvent);
     module.addSymbolExport("w3BY+tAEiQY", "sceVideoOutRegisterBuffers", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutRegisterBuffers);
     module.addSymbolExport("i6-sR91Wt-4", "sceVideoOutSetBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSetBufferAttribute);
     module.addSymbolExport("IOdgHlCGU-k", "sceVideoOutSubmitChangeBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitChangeBufferAttribute);
@@ -26,6 +27,7 @@ void init(Module& module) {
     module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
 }
 
+static int vblank = 100;
 void SceVideoOutPort::signalFlip(u64 flip_arg) {
     flip_ev_source.trigger(flip_arg);
     flip_status.count++;
@@ -46,7 +48,7 @@ s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) 
         Helpers::panic("sceVideoOutOpen: bus_type is not SCE_VIDEO_OUT_BUS_TYPE_MAIN\n");
     }
 
-    auto port = PS4::OS::make<SceVideoOutPort>();
+    auto* port = PS4::OS::make<SceVideoOutPort>();
 
     // Initialize event source
     port->flip_ev_source.init(SCE_VIDEO_OUT_FLIP_EVENT_ID, 0);  // TODO: Properly set filter
@@ -61,6 +63,13 @@ s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) 
     port->resolution_status.refresh_rate = 3; // SCE_VIDEO_OUT_REFRESH_RATE_59_94HZ
     port->resolution_status.screen_size_in_inch = 24.0f;
     port->resolution_status.flags = 0; // ?
+
+    port->vblank_thread = std::thread([=]() {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            port->vblank_ev_source.trigger(port->vblank_status.count++);
+        }
+    });
 
     return port->handle;
 }
@@ -101,6 +110,19 @@ s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, voi
 
     // TODO: Check if the eq exists?
     port->flip_ev_source.addToEventQueue(eq, udata);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceVideoOutAddVblankEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata) {
+    log("sceVideoOutAddVblankEvent(eq=*%p, handle=%d, udata=*%p) TODO\n", eq, handle, udata);
+
+    auto port = PS4::OS::find<SceVideoOutPort>(handle);
+    if (!port) {
+        Helpers::panic("sceVideoOutAddVblankEvent: handle %d does not exist\n", handle);
+    }
+
+    // TODO: Check if the eq exists?
+    port->vblank_ev_source.addToEventQueue(eq, udata);
     return SCE_OK;
 }
 

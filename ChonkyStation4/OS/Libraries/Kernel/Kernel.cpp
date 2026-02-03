@@ -262,6 +262,7 @@ void init(Module& module) {
     module.addSymbolStub("DzES9hQF4f4", "scePthreadAttrSetschedparam", "libkernel", "libkernel");
     module.addSymbolStub("4+h9EzwKF4I", "scePthreadAttrSetschedpolicy", "libkernel", "libkernel");
     module.addSymbolStub("3qxgM4ezETA", "scePthreadAttrSetaffinity", "libkernel", "libkernel");
+    module.addSymbolStub("El+cQ20DynU", "scePthreadAttrSetguardsize", "libkernel", "libkernel");
     module.addSymbolStub("rNhWz+lvOMU", "_sceKernelSetThreadDtors", "libkernel", "libkernel");  // void
     module.addSymbolStub("pB-yGZ2nQ9o", "_sceKernelSetThreadAtexitCount", "libkernel", "libkernel");  // void
     module.addSymbolStub("WhCc1w3EhSI", "_sceKernelSetThreadAtexitReport", "libkernel", "libkernel");  // void
@@ -277,6 +278,8 @@ void init(Module& module) {
     module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
+    
+    module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
 
     proc_counter_start = SDL_GetPerformanceCounter();
 }

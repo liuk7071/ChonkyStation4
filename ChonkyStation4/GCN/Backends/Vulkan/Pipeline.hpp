@@ -104,6 +104,19 @@ union DepthControl {
     BitField<31, 1, u32> disable_color_writes_on_depth_fail;
 };
 
+union ViewportTransformControl {
+    u32 raw;
+    BitField<0,  1, u32> x_scale_enable;
+    BitField<1,  1, u32> x_offset_enable;
+    BitField<2,  1, u32> y_scale_enable;
+    BitField<3,  1, u32> y_offset_enable;
+    BitField<4,  1, u32> z_scale_enable;
+    BitField<5,  1, u32> z_offset_enable;
+    BitField<8,  1, u32> vtx_xy_fmt;
+    BitField<9,  1, u32> vtx_z_fmt;
+    BitField<10, 1, u32> vtx_w0_fmt;
+};
+
 struct PipelineConfig {
     // Draw primitive
     u32 prim_type = 0;
@@ -116,6 +129,14 @@ struct PipelineConfig {
     // Depth
     DepthControl depth_control;
     bool enable_depth_clamp = false;
+
+    // Viewport
+    ViewportTransformControl viewport_control;
+    float z_offset = 0.0f;
+    float z_scale  = 0.0f;
+
+    // Clip space
+    bool dx_clip_space_enable = false;
 
     // Other hashes
     u64 vertex_hash = 0;
@@ -130,6 +151,8 @@ public:
     ShaderCache::CachedShader* pixel_shader;
     FetchShader fetch_shader;
     PipelineConfig cfg;
+    float min_viewport_depth = 0.0f;
+    float max_viewport_depth = 0.0f;
 
     struct VertexBinding {
         FetchShaderVertexBinding fetch_shader_binding;

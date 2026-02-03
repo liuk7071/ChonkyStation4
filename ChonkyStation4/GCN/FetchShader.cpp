@@ -39,8 +39,8 @@ FetchShader::FetchShader(const u8* data) {
     // The final address of the vetex fetch is calculated as the following:
     // vsharp.base + soffset + vindex * stride + voffset + inst_offset
 
-    // Here we map SGPRs to V# pointers
-    std::unordered_map<u32, VSharpLocation> vsharps;
+    // Each elements corresponds to an SGPR and contains the V# pointer stored by that register
+    VSharpLocation vsharps[104];
 
     u32 curr_idx = 0;
     while (!code_slice.atEnd()) {
