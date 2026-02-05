@@ -124,10 +124,10 @@ void init(Module& module) {
     module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
     module.addSymbolExport("vNe1w4diLCs", "__tls_get_addr", "libkernel", "libkernel", (void*)&__tls_get_addr);
-    module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
 
     module.addSymbolExport("6c3rCVE-fTU", "_open", "libkernel", "libkernel", (void*)&kernel_open);
     module.addSymbolExport("wuCroIGjt2g", "open", "libkernel", "libkernel", (void*)&kernel_open);   // ???
+    module.addSymbolExport("wuCroIGjt2g", "open", "libScePosix", "libkernel", (void*)&kernel_open);   // ???
     module.addSymbolExport("1G3lF1Gg1k8", "sceKernelOpen", "libkernel", "libkernel", (void*)&sceKernelOpen);
     module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libkernel", "libkernel", (void*)&kernel_lseek);
     module.addSymbolExport("Oy6IpwgtYOk", "lseek", "libScePosix", "libkernel", (void*)&kernel_lseek);
@@ -151,6 +151,9 @@ void init(Module& module) {
     module.addSymbolExport("mqQMh1zPPT8", "fstat", "libkernel", "libkernel", (void*)&kernel_fstat);
     module.addSymbolExport("mqQMh1zPPT8", "fstat", "libScePosix", "libkernel", (void*)&kernel_fstat);
     module.addSymbolExport("kBwCPsYX-m4", "sceKernelFstat", "libkernel", "libkernel", (void*)&sceKernelFstat);
+    module.addSymbolExport("2G6i6hMIUUY", "getdents", "libkernel", "libkernel", (void*)&kernel_getdents);
+    module.addSymbolExport("2G6i6hMIUUY", "getdents", "libScePosix", "libkernel", (void*)&kernel_getdents);
+    module.addSymbolExport("j2AIqSqJP0w", "sceKernelGetdents", "libkernel", "libkernel", (void*)&sceKernelGetdents);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libScePosix", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
@@ -229,6 +232,8 @@ void init(Module& module) {
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
     module.addSymbolExport("rVjRvHJ0X6c", "sceKernelVirtualQuery", "libkernel", "libkernel", (void*)&sceKernelVirtualQuery);
+    module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
+    module.addSymbolExport("BPE9s9vQQXo", "mmap", "libScePosix", "libkernel", (void*)&kernel_mmap);
     
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
     
@@ -278,6 +283,7 @@ void init(Module& module) {
     module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
+    module.addSymbolStub("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel");  // TODO: Important
     
     module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
 
@@ -291,7 +297,7 @@ std::mutex allocator_mtx;
 
 void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
     auto lk = std::unique_lock<std::mutex>(allocator_mtx);
-
+    
     if (reservation_start >= reservation_end) return nullptr;
     if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
     if (size == 0) return nullptr;
@@ -343,12 +349,6 @@ void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx) {
     //log("__tls_get_addr(tls_idx=*%p)\n", tls_idx);
     //log("modid=%d, offset=0x%x\n", tls_idx->modid, tls_idx->offset);
     return (void*)((u64)Thread::getTLSPtr(tls_idx->modid) + tls_idx->offset);
-}
-
-void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs) {
-    log("mmap(addr=%p, len=0x%llx, prot=0x%x, flags=0x%x, fd=%d, offs=0x%llx)\n", addr, len, prot, flags, fd, offs);
-    // TODO: This is stubbed as malloc for now
-    return std::malloc(len);
 }
 
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp) {
@@ -673,6 +673,25 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
 #endif
 
     return SCE_OK;
+}
+
+void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs) {
+    log("mmap(addr=%p, len=0x%llx, prot=0x%x, flags=0x%x, fd=%d, offs=0x%llx)\n", addr, len, prot, flags, fd, offs);
+
+    // TODO: This is stubbed as a normal alloc for now
+
+    void* out_addr;
+#ifdef _WIN32
+    out_addr = allocate((u64)addr, 0x8000'0000 + 500_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
+
+    // Clear allocated memory
+    std::memset(out_addr, 0, len);
+
+    log("Allocated at %p\n", out_addr);
+    return out_addr;
 }
 
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res) {

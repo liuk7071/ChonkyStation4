@@ -54,7 +54,6 @@ using SceKernelModule = s32;
 
 s32* PS4_FUNC kernel_error();
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
-void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
 s32 PS4_FUNC sceKernelSleep(u32 s);
@@ -91,6 +90,7 @@ s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len);
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
 s32 PS4_FUNC sceKernelGetDirectMemorySize();
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size);
+void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 
 // Module
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res);

@@ -15,6 +15,7 @@ void init(Module& module) {
     module.addSymbolStub("qqUVGDgQBm0", "sceNpTrophyGetTrophyInfo", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("28xmRUFao68", "sceNpTrophyUnlockTrophy", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("GNcF4oidY0Y", "sceNpTrophyDestroyHandle", "libSceNpTrophy", "libSceNpTrophy");
+    module.addSymbolStub("aTnHs7W-9Uk", "sceNpTrophyAbortHandle", "libSceNpTrophy", "libSceNpTrophy");
 }
 
 }   // End namespace PS4::OS::Libs::SceSysmodule

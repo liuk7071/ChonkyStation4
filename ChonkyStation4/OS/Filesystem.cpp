@@ -2,6 +2,7 @@
 
 #include "Filesystem.hpp"
 #include <Logger.hpp>
+#include <ErrorCodes.hpp>
 #include <OS/SceObj.hpp>
 
 
@@ -31,7 +32,9 @@ void init() {
         fs::create_directories(i.second);
 }
 
-u64 open(fs::path path, u32 flags) {
+static int fileno = 1;
+
+u64 open(fs::path path, u32& err, u32 flags) {
     const fs::path host_path = guestPathToHost(path);
     std::string mode = "";
     if      ((flags & 3) == SCE_KERNEL_O_RDONLY) mode = "rb";
@@ -54,14 +57,18 @@ u64 open(fs::path path, u32 flags) {
         Helpers::panic("Filesystem: excl (TODO)\n");
     }
 
-    if (dir) {
-        Helpers::panic("Filesystem: dir (TODO)\n");
+    // If it's not a directory and the dir flag was specified, return an error
+    const bool is_dir = fs::is_directory(host_path);
+    if (dir && !is_dir) {
+        err = POSIX_ENOTDIR;
+        return 0;
     }
 
     if (!fs::exists(host_path)) {
         // For SCE_KERNEL_O_CREAT, the parent path must exist, otherwise return an error regardless (TODO: This was PS3 behavior, verify on PS4)
         if (!create || !fs::exists(host_path.parent_path())) {
             log("WARNING: Tried to open non-existing file %s\n", path.generic_string().c_str());
+            err = POSIX_ENOENT;
             return 0;
         } else {
             // Create the file if it didn't exist and the create flag was specified
@@ -78,11 +85,34 @@ u64 open(fs::path path, u32 flags) {
     }
 
     const u64 new_file_id = OS::requestHandle();
-    FILE* file = std::fopen(host_path.generic_string().c_str(), mode.c_str());
-    if (!file) {
-        Helpers::panic("Failed to open file %s with mode %s\n", host_path.generic_string().c_str(), mode.c_str());
+    open_files[new_file_id] = std::make_unique<File>();
+    auto& file_desc = open_files[new_file_id];
+    file_desc->path         = host_path;
+    file_desc->guest_path   = path;
+    file_desc->is_dir       = is_dir;
+    file_desc->flags        = flags;
+
+    FILE* file = nullptr;
+    if (!is_dir) {
+        file = std::fopen(host_path.generic_string().c_str(), mode.c_str());
+        if (!file) {
+            Helpers::panic("Failed to open file %s with mode %s\n", host_path.generic_string().c_str(), mode.c_str());
+        }
     }
-    open_files[new_file_id] = std::make_unique<File>(file, host_path, path, flags);
+    else {
+        // Populate dirents
+        for (auto& entry : fs::directory_iterator(host_path)) {
+            auto name_str = entry.path().filename().generic_string();
+            auto& dirent = file_desc->dirents.emplace_back();
+            dirent.d_fileno = fileno++;  // TODO: Proper implementation?
+            dirent.d_reclen = sizeof(SceKernelDirent);
+            dirent.d_type = !entry.is_directory() ? SCE_KERNEL_DT_REG : SCE_KERNEL_DT_DIR;
+            dirent.d_namlen = name_str.length();
+            std::strcpy(dirent.d_name, name_str.c_str());
+        }
+    }
+
+    file_desc->file = file;
     log("Opened file %s with id %d\n", host_path.generic_string().c_str(), new_file_id);
     return new_file_id;
 }
@@ -101,8 +131,11 @@ u64 opendir(fs::path path) {
 }
 
 void close(u64 file_id) {
-    FILE* file = getFileFromID(file_id).file;
-    std::fclose(file);
+    auto& file = getFileFromID(file_id);
+
+    if (!file.is_dir) {
+        std::fclose(file.file);
+    }
     open_files.erase(file_id);
 }
 
@@ -114,15 +147,23 @@ u64 read(u64 file_id, u8* buf, u64 size) {
     // TODO: In ChonkyStation3, I had to make this function read only up to PAGE_SIZE bytes due to there being a distinction
     // between virtual and physical memory. I don't think this will be a problem here so I just read it all at once.
 
-    FILE* file = getFileFromID(file_id).file;
-    return std::fread(buf, sizeof(u8), size, file);
+    auto& file = getFileFromID(file_id);
+    if (file.is_dir) {
+        Helpers::panic("FS::read: file is dir\n");
+    }
+
+    return std::fread(buf, sizeof(u8), size, file.file);
 }
 
 u64 write(u64 file_id, u8* buf, u64 size) {
     // TODO: Read the comment in the read function
     
-    FILE* file = getFileFromID(file_id).file;
-    return std::fwrite(buf, sizeof(u8), size, file);
+    auto& file = getFileFromID(file_id);
+    if (file.is_dir) {
+        Helpers::panic("FS::write: file is dir\n");
+    }
+
+    return std::fwrite(buf, sizeof(u8), size, file.file);
 }
 
 u64 seek(u64 file_id, s64 offs, u32 mode) {

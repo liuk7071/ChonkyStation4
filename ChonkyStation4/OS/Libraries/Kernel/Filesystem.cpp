@@ -12,9 +12,11 @@ MAKE_LOG_FUNCTION(log, lib_kernel_filesystem);
 s32 PS4_FUNC kernel_open(const char* path, s32 flags, u16 mode) {
     log("_open(path=\"%s\", flags=%d, mode=%o)\n", path, flags, mode);
     // TODO: mode
-    const auto ret = FS::open(path, flags);
+
+    u32 err = 0;
+    const auto ret = FS::open(path, err, flags);
     if (!ret) {
-        *Kernel::kernel_error() = POSIX_ENOENT;
+        *Kernel::kernel_error() = err;
         return -1;
     }
     return ret;
@@ -143,8 +145,8 @@ s64 PS4_FUNC kernel_writev(s32 fd, SceKernelIovec* iov, int iovcnt) {
 s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
     log("stat(path=\"%s\", stat=*%p)\n", path, stat);
 
-    // Hack
-    if (std::strcmp(path, "/proc/xen") == 0) {
+    if (!FS::isDeviceMounted(path)) {
+        log("WARNING: Device not mounted\n");
         *Kernel::kernel_error() = POSIX_ENOENT;
         return -1;
     }
@@ -170,7 +172,7 @@ s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
     // TODO: time
     stat->st_size = FS::getFileSize(path);
     stat->st_blksize = 512;    // TODO: ?
-    stat->st_blocks = (stat->st_size + stat->st_blksize - 1) / stat->st_blksize;    // TODO: ?
+    stat->st_blocks = (stat->st_size + stat->st_blksize - 1) / stat->st_blksize;
     return 0;
 }
 
@@ -200,6 +202,31 @@ s32 PS4_FUNC kernel_fstat(s32 fd, SceKernelStat* stat) {
 
 s32 PS4_FUNC sceKernelFstat(s32 fd, SceKernelStat* stat) {
     const auto res = kernel_fstat(fd, stat);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
+}
+
+s32 PS4_FUNC kernel_getdents(s32 fd, char* buf, s32 n_bytes) {
+    log("getdents(fd=%d, buf=%p, n_bytes=%d)\n", fd, buf, n_bytes);
+    auto lock = FS::getFileLock(fd);
+    auto& file = FS::getFileFromID(fd);
+
+    if (n_bytes != 512) {
+        Helpers::panic("TODO: getdents n_bytes != st_blksize");
+    }
+
+    // TODO: Should this also return "." and ".."? Verify.
+    if (file.cur_dirent < file.dirents.size()) {
+        std::memcpy(buf, &file.dirents[file.cur_dirent], sizeof(FS::SceKernelDirent));
+        file.cur_dirent++;
+        return sizeof(FS::SceKernelDirent);
+    }
+
+    return 0;
+}
+
+s32 PS4_FUNC sceKernelGetdents(s32 fd, char* buf, s32 n_bytes) {
+    const auto res = kernel_getdents(fd, buf, n_bytes);
     if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
     return res;
 }

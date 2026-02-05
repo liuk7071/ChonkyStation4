@@ -13,6 +13,7 @@ void init(Module& module) {
     module.addSymbolExport("1n37q1Bvc5Y", "sceSystemServiceGetDisplaySafeAreaInfo", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceGetDisplaySafeAreaInfo);
     
     module.addSymbolStub("Vo5V8KAwCmk", "sceSystemServiceHideSplashScreen", "libSceSystemService", "libSceSystemService");
+    module.addSymbolStub("9kPCz7Or+1Y", "sceSystemServiceReenableMusicPlayer", "libSceSystemService", "libSceSystemService");
 }
 
 s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* val) {

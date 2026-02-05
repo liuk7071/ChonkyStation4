@@ -18,6 +18,7 @@ void init(Module& module) {
     module.addSymbolExport("7Bt5pBC-Aco", "sceSaveDataGetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataGetSaveDataMemory);
     module.addSymbolExport("h3YURzXGSVQ", "sceSaveDataSetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataSetSaveDataMemory);
     module.addSymbolExport("dyIhnXq-0SM", "sceSaveDataDirNameSearch", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataDirNameSearch);
+    module.addSymbolExport("ANmSWUiyyGQ", "sceSaveDataGetProgress", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataGetProgress);
     
     module.addSymbolStub("ZkZhskCPXFw", "sceSaveDataInitialize", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("TywrFKCoLGY", "sceSaveDataInitialize3", "libSceSaveData", "libSceSaveData");
@@ -153,6 +154,13 @@ s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, 
     }
     else Helpers::panic("TODO: sceSaveDataDirNameSearch with empty dir_name");
 
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceSaveDataGetProgress(float* progress) {
+    log("sceSaveDataGetProgress(progress=*%p)\n", progress);
+
+    *progress = 1.0f;   // Done
     return SCE_OK;
 }
 

@@ -39,6 +39,7 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("Idffwf3yh8s", "sceGnmDrawInitDefaultHardwareState", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("0H2vBYbTLHI", "sceGnmDrawInitDefaultHardwareState200", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("yb2cRhagD1I", "sceGnmDrawInitDefaultHardwareState350", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("im2ZuItabu4", "sceGnmDrawInitToDefaultContextState400", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("nF6bFRUBRAU", "sceGnmDispatchInitDefaultHardwareState", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("+AFvOEXrKJk", "sceGnmSetEmbeddedVsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("X9Omw9dwv5M", "sceGnmSetEmbeddedPsShader", "libSceGnmDriver", "libSceGnmDriver");

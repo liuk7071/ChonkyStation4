@@ -500,7 +500,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         needs_new_render_pass = true;
         std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
     }
-    
+
     if (pipeline.cfg.depth_control.depth_enable || pipeline.cfg.depth_control.stencil_enable) {
         if (depth_rt_dim.width < extent.width)   extent.width  = depth_rt_dim.width;
         if (depth_rt_dim.height < extent.height) extent.height = depth_rt_dim.height;

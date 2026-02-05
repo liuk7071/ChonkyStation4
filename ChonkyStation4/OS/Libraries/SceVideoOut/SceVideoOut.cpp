@@ -101,7 +101,7 @@ s32 PS4_FUNC sceVideoOutSetFlipRate(s32 handle, s32 rate) {
 }
 
 s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata) {
-    log("sceVideoOutAddFlipEvent(eq=*%p, handle=%d, udata=*%p) TODO\n", eq, handle, udata);
+    log("sceVideoOutAddFlipEvent(eq=*%p, handle=%d, udata=*%p)\n", eq, handle, udata);
 
     auto port = PS4::OS::find<SceVideoOutPort>(handle);
     if (!port) {

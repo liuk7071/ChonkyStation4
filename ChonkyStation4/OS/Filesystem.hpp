@@ -8,6 +8,8 @@
 
 namespace PS4::FS {
 
+static constexpr s32 SCE_KERNEL_MAXNAMLEN = 255;
+
 static constexpr s32 SCE_KERNEL_O_RDONLY = 0;
 static constexpr s32 SCE_KERNEL_O_WRONLY = 1;
 static constexpr s32 SCE_KERNEL_O_RDWR   = 2;
@@ -27,6 +29,9 @@ static constexpr s32 SCE_KERNEL_S_IRWU  = 0777;
 static constexpr s32 SCE_KERNEL_S_IFDIR = 0040000;
 static constexpr s32 SCE_KERNEL_S_IFREG = 0100000;
 
+static constexpr s32 SCE_KERNEL_DT_DIR = 0040000;
+static constexpr s32 SCE_KERNEL_DT_REG = 0100000;
+
 enum class Device {
     APP0,
     SAVEDATA0,
@@ -34,12 +39,23 @@ enum class Device {
     INVALID
 };
 
+struct SceKernelDirent {
+    u32 d_fileno;
+    u16 d_reclen;
+    u8  d_type;
+    u8  d_namlen;
+    char d_name[SCE_KERNEL_MAXNAMLEN + 1];
+};
+
 struct File {
     FILE* file;
     fs::path path;
     fs::path guest_path;
+    bool is_dir;
     u32 flags = 0;
     std::mutex mtx;
+    std::vector<SceKernelDirent> dirents;
+    u32 cur_dirent = 0;
 };
 
 struct Directory {
@@ -50,7 +66,7 @@ struct Directory {
 void mount(Device device, fs::path path);
 void umount(Device device);
 void init();
-u64 open(fs::path path, u32 flags = 0);
+u64 open(fs::path path, u32& err, u32 flags = 0);
 u64 opendir(fs::path path);
 void close(u64 file_id);
 void closedir(u64 file_id);

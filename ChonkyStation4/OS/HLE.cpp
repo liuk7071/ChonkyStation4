@@ -14,6 +14,7 @@
 #include <OS/Libraries/ScePlayGo/ScePlayGo.hpp>
 #include <OS/Libraries/SceRtc/SceRtc.hpp>
 #include <OS/Libraries/SceNet/SceNet.hpp>
+#include <OS/Libraries/SceRandom/SceRandom.hpp>
 
 
 // Stub until we implement audio input
@@ -50,6 +51,7 @@ Module buildHLEModule() {
     PS4::OS::Libs::ScePlayGo::init(module);
     PS4::OS::Libs::SceRtc::init(module);
     PS4::OS::Libs::SceNet::init(module);
+    PS4::OS::Libs::SceRandom::init(module);
 
     // libSceAppContent
     module.addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
@@ -187,6 +189,9 @@ Module buildHLEModule() {
     
     // ulobjmgr (TODO: What is this?)
     module.addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
+    
+    // dlcldr (TODO: What is this?)
+    module.addSymbolStub("4qL3yyKEXoM", "dlcldr_4qL3yyKEXoM", "dlcldr", "dlcldr");
 
     return module;
 }

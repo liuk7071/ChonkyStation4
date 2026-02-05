@@ -115,5 +115,6 @@ s32 PS4_FUNC sceSaveDataSetupSaveDataMemory(const SceUserService::SceUserService
 s32 PS4_FUNC sceSaveDataGetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);
 s32 PS4_FUNC sceSaveDataSetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);
 s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, SceSaveDataDirNameSearchResult* result);
+s32 PS4_FUNC sceSaveDataGetProgress(float* progress);
 
 }   // End namespace PS4::OS::Libs::SceSaveData
