@@ -235,6 +235,7 @@ void VulkanRenderer::init() {
                                         && features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering
                                         && features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState
                                         && features.template get<vk::PhysicalDeviceFeatures2>().features.depthClamp
+                                        && features.template get<vk::PhysicalDeviceFeatures2>().features.tessellationShader
                                         && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
                                         && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout
                                         && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
@@ -260,13 +261,13 @@ void VulkanRenderer::init() {
 
     // Query for required features (Vulkan 1.1 and 1.3)
     vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT, vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT> feature_chain = {
-        { .features = { .depthClamp = true } },                             // vk::PhysicalDeviceFeatures2
-        { .shaderDrawParameters = true                              },      // vk::PhysicalDeviceVulkan11Features
-        { .synchronization2     = true, .dynamicRendering = true    },      // vk::PhysicalDeviceVulkan13Features
-        { .extendedDynamicState = true                              },      // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
-        { .dynamicRenderingUnusedAttachments = true                 },      // vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
-        { .attachmentFeedbackLoopLayout = true                      },      // vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT
-        { .attachmentFeedbackLoopDynamicState = true                }       // vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT
+        { .features = { .depthClamp = true, .tessellationShader = true } },         // vk::PhysicalDeviceFeatures2
+        { .shaderDrawParameters = true                                   },         // vk::PhysicalDeviceVulkan11Features
+        { .synchronization2     = true, .dynamicRendering = true         },         // vk::PhysicalDeviceVulkan13Features
+        { .extendedDynamicState = true                                   },         // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+        { .dynamicRenderingUnusedAttachments = true                      },         // vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
+        { .attachmentFeedbackLoopLayout = true                           },         // vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT
+        { .attachmentFeedbackLoopDynamicState = true                     }          // vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT
     };
 
     // Create a (logical) Device

@@ -149,6 +149,8 @@ public:
     Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedShader* pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg);
     ShaderCache::CachedShader* vert_shader;
     ShaderCache::CachedShader* pixel_shader;
+    vk::raii::ShaderModule tess_control_shader = nullptr;
+    vk::raii::ShaderModule tess_eval_shader = nullptr;
     FetchShader fetch_shader;
     PipelineConfig cfg;
     float min_viewport_depth = 0.0f;

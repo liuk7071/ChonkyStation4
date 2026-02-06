@@ -53,6 +53,7 @@ struct Buffer {
 struct ShaderData {
     std::string source;
     std::deque<Buffer> buffers; // Buffers required by this shader
+    std::vector<int> vtx_outputs;   // For vertex shaders only, this is a list of the output attribute locations
     u64 hash;
 
     bool operator==(const ShaderData& other) {

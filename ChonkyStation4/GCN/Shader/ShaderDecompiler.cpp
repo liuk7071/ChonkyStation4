@@ -1307,9 +1307,8 @@ uint getStrideForBinding(uint binding) {
                 addOutAttr(attr, "vec4", tgt);
                 main += std::format("{} = {};\n", attr, data);
             }
-            // Output to Z (TODO)
+            // Output to Z
             else if (tgt == 8) {
-                //main += "// TODO: Output to Z\n";
                 main += "gl_FragDepth = " + data + ".x;\n";
             }
             // Output pos0
@@ -1343,6 +1342,13 @@ uint getStrideForBinding(uint binding) {
 
    //printf("%s\n", shader.c_str());
     out_data.source = shader;
+
+    if (stage == ShaderStage::Vertex) {
+        // Save vertex outputs
+        out_data.vtx_outputs.reserve(32);
+        for (auto& [location, name] : out_attrs)
+            out_data.vtx_outputs.push_back(location);
+    }
 }
 
 }   // End namespace PS4::GCN::Shader

@@ -1,8 +1,10 @@
 #include "Pipeline.hpp"
 #include <Logger.hpp>
+#include <GCN/HostTessShaders.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/Backends/Vulkan/TextureCache.hpp>
+#include <GCN/Backends/Vulkan/GLSLCompiler.hpp>
 #include <GCN/VSharp.hpp>
 #include <GCN/TSharp.hpp>
 #include <GCN/Detiler/gpuaddr.h>
@@ -33,12 +35,35 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     }
 
     // Setup graphics pipeline
-    this->vert_shader = vert_shader;
+    int stage_count = 2;
     vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex,   .module = vert_shader->vk_shader,  .pName = "main" };
     vk::PipelineShaderStageCreateInfo frag_stage_info = { .stage = vk::ShaderStageFlagBits::eFragment, .module = pixel_shader->vk_shader, .pName = "main" };
-    vk::PipelineShaderStageCreateInfo shader_stages[] = { vert_stage_info, frag_stage_info };
+    vk::PipelineShaderStageCreateInfo shader_stages[4] = { vert_stage_info, frag_stage_info };
+    
+    vk::PipelineTessellationStateCreateInfo tess;
+    if (cfg.prim_type == (u32)PrimitiveType::RectList || cfg.prim_type == (u32)PrimitiveType::QuadList) {
+        std::string tcs;
+        std::string tes;
 
-    vk::PipelineVertexInputStateCreateInfo   vertex_input_info = { .vertexBindingDescriptionCount = (u32)bindings.size(), .pVertexBindingDescriptions = bindings.data(), .vertexAttributeDescriptionCount = (u32)attribs.size(), .pVertexAttributeDescriptions = attribs.data() };
+        if (cfg.prim_type == (u32)PrimitiveType::RectList) {
+            tess.patchControlPoints = 3;
+            HostShaders::generateRectTCS(&vert_shader->data, tcs);
+            HostShaders::generateRectTES(&vert_shader->data, tes);
+        }
+        else {
+            tess.patchControlPoints = 4;
+            HostShaders::generateQuadTCS(&vert_shader->data, tcs);
+            HostShaders::generateQuadTES(&vert_shader->data, tes);
+        }
+
+        tess_control_shader = createShaderModule(GCN::compileGLSL(tcs, EShLangTessControl));
+        tess_eval_shader    = createShaderModule(GCN::compileGLSL(tes, EShLangTessEvaluation));
+        shader_stages[2] = { .stage = vk::ShaderStageFlagBits::eTessellationControl,    .module = tess_control_shader,  .pName = "main" };
+        shader_stages[3] = { .stage = vk::ShaderStageFlagBits::eTessellationEvaluation, .module = tess_eval_shader,     .pName = "main" };
+        stage_count = 4;
+    }
+
+    vk::PipelineVertexInputStateCreateInfo vertex_input_info = { .vertexBindingDescriptionCount = (u32)bindings.size(), .pVertexBindingDescriptions = bindings.data(), .vertexAttributeDescriptionCount = (u32)attribs.size(), .pVertexAttributeDescriptions = attribs.data() };
     
     auto topology = [](u32 prim_type) {
         switch ((PrimitiveType)prim_type) {
@@ -52,8 +77,10 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         case PrimitiveType::AdjLineStrip:       return vk::PrimitiveTopology::eLineStripWithAdjacency;
         case PrimitiveType::AdjTriangleList:    return vk::PrimitiveTopology::eTriangleListWithAdjacency;
         case PrimitiveType::AdjTriangleStrip:   return vk::PrimitiveTopology::eTriangleStripWithAdjacency;
-        case PrimitiveType::RectList:           return vk::PrimitiveTopology::eTriangleList;    // TODO
-        case PrimitiveType::QuadList:           return vk::PrimitiveTopology::eTriangleList;    // TODO
+        
+        // Rects and Quads are implemented using tessellation shaders
+        case PrimitiveType::RectList:           return vk::PrimitiveTopology::ePatchList;
+        case PrimitiveType::QuadList:           return vk::PrimitiveTopology::ePatchList;
         default:    Helpers::panic("Unimplemented primitive type %d\n", prim_type);
         }
     };
@@ -235,7 +262,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     pipeline_layout = vk::raii::PipelineLayout(device, pipeline_layout_info);
 
     vk::GraphicsPipelineCreateInfo gpci = {};
-    gpci.stageCount = 2;
+    gpci.stageCount = stage_count;
     gpci.pStages = shader_stages;
     gpci.pVertexInputState = &vertex_input_info;
     gpci.pInputAssemblyState = &input_assembly;
@@ -247,6 +274,10 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     gpci.pDynamicState = &dynamic_state;
     gpci.layout = *pipeline_layout;
     gpci.renderPass = VK_NULL_HANDLE;
+
+    if (cfg.prim_type == (u32)PrimitiveType::RectList || cfg.prim_type == (u32)PrimitiveType::QuadList) {
+        gpci.pTessellationState = &tess;
+    }
 
     vk::PipelineRenderingCreateInfo rendering_info = {};
     rendering_info.colorAttachmentCount = 1;
