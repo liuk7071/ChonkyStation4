@@ -36,6 +36,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     const u32 width = tsharp->width + 1;
     const u32 height = tsharp->height + 1;
     const u32 pitch = tsharp->pitch + 1;
+    //if (tsharp->pow2pad) pitch = std::bit_ceil(pitch);
 
     void* ptr = (void*)(tsharp->base_address << 8);
     auto [vk_fmt, pixel_size] = getBufFormatAndSize(tsharp->data_format, tsharp->num_format);
@@ -59,7 +60,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
     auto reupload_tex = [&](TrackedTexture* tex) {
         auto& img = tex->image;
-        //device.waitIdle();
 
         // Transition image layout
         endRendering();
@@ -82,7 +82,17 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         // Copy buffer to image
         const auto buffer_row_length = pitch >= width ? pitch : 0;
         if (pitch < width) printf("pitch < width\n");
-        vk::BufferImageCopy region = { .bufferOffset = 0, .bufferRowLength = buffer_row_length, .bufferImageHeight = 0, .imageSubresource = { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, .imageOffset = { 0, 0, 0 }, .imageExtent = { width, height, 1 } };
+        vk::BufferImageCopy region = {
+            .bufferOffset = 0,
+            .bufferRowLength = buffer_row_length,
+            .bufferImageHeight = height,
+            .imageSubresource = {
+                !tex->is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth,
+                0, 0, 1
+            },
+            .imageOffset = { 0, 0, 0 },
+            .imageExtent = { width, height, 1 }
+        };
         cmd_bufs[0].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
     };
 
@@ -95,7 +105,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             }
             else it++;
         }
-        };
+    };
 
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
@@ -103,10 +113,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     if (tracked_textures.contains(ptr)) {
         // Find one that matches the size and format
         for (auto& tracked_tex : tracked_textures[ptr]) {
-            if (tracked_tex->width == width
+            if (   tracked_tex->width  == width
                 && tracked_tex->height == height
                 && tracked_tex->tsharp.data_format == tsharp->data_format
-                && tracked_tex->tsharp.num_format == tsharp->num_format
+                && tracked_tex->tsharp.num_format  == tsharp->num_format
                 ) {
                 auto* tex = tracked_tex;
                 if (is_depth_buffer && !tex->is_depth_buffer) {
@@ -161,7 +171,19 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     auto& img = tex->image;
     auto& mem = tex->mem;
 
-    auto attachment_bits = !is_depth_buffer ? vk::ImageUsageFlagBits::eColorAttachment : vk::ImageUsageFlagBits::eDepthStencilAttachment;
+    const bool is_compressed = [&]() -> bool {
+        switch (Vulkan::getBufFormatAndSize(tex->tsharp.data_format, tex->tsharp.num_format).first) {
+        case vk::Format::eBc1RgbaUnormBlock:
+        case vk::Format::eBc3UnormBlock:
+            return true;
+        default:
+            return false;
+        }
+    }();
+
+    vk::Flags<vk::ImageUsageFlagBits> attachment_bits = {};
+    if (!is_compressed)
+        attachment_bits = (!is_depth_buffer ? vk::ImageUsageFlagBits::eColorAttachment : vk::ImageUsageFlagBits::eDepthStencilAttachment) | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT;
 
     vk::ImageCreateInfo img_info = {
         .imageType = vk::ImageType::e2D,
@@ -243,7 +265,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         Cache::track((void*)curr_page, Cache::page_size, invalidate);
     }
 
-    reupload_tex(tex);
+    if (!is_depth_buffer)
+        reupload_tex(tex);
     tracked_textures[ptr].push_back(tex);
     currently_tracking.push_back(tex);
     *out_info = tex;

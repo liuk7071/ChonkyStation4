@@ -22,7 +22,11 @@ s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
 s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
     log("pthread_mutex_trylock(mutex=%p)\n", mutex);
 
-    if (*mutex == 0) *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
+    if (*mutex == (pthread_mutex_t)0 || *mutex == (pthread_mutex_t)1) {
+        log("mutex was null, initializing\n");
+        *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
+        kernel_pthread_mutex_init(mutex, nullptr);
+    }
 
     s32 ret = pthread_mutex_trylock(mutex);
     return ret;

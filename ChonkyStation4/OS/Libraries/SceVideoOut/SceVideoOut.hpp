@@ -78,6 +78,7 @@ struct SceVideoOutPort : SceObj {
     Libs::Kernel::EventSource vblank_ev_source;
 	SceVideoOutResolutionStatus resolution_status;
     std::thread vblank_thread;
+    std::mutex flip_mtx;
 
     void signalFlip(u64 flip_arg);
 };

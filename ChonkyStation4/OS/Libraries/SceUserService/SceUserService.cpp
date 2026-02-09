@@ -15,6 +15,7 @@ void init(Module& module) {
     module.addSymbolExport("1xxcMiGu2fo", "sceUserServiceGetUserName", "libSceUserService", "libSceUserService", (void*)&sceUserServiceGetUserName);
     
     module.addSymbolStub("j3YMu1MVNNo", "sceUserServiceInitialize", "libSceUserService", "libSceUserService");
+    module.addSymbolStub("az-0R6eviZ0", "sceUserServiceInitialize2", "libSceUserService", "libSceUserService");
 }
 
 bool is_logged_in = false;

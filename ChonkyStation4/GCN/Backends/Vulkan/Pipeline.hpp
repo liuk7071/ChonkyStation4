@@ -17,64 +17,83 @@ namespace PS4::GCN::Vulkan {
 struct TrackedTexture;
 
 enum class PrimitiveType : u32 {
-    None = 0,
-    PointList = 1,
-    LineList = 2,
-    LineStrip = 3,
-    TriangleList = 4,
-    TriangleFan = 5,
-    TriangleStrip = 6,
-    PatchPrimitive = 9,
-    AdjLineList = 10,
-    AdjLineStrip = 11,
-    AdjTriangleList = 12,
-    AdjTriangleStrip = 13,
-    RectList = 17,
-    LineLoop = 18,
-    QuadList = 19,
-    QuadStrip = 20,
-    Polygon = 21,
+    None                = 0,
+    PointList           = 1,
+    LineList            = 2,
+    LineStrip           = 3,
+    TriangleList        = 4,
+    TriangleFan         = 5,
+    TriangleStrip       = 6,
+    PatchPrimitive      = 9,
+    AdjLineList         = 10,
+    AdjLineStrip        = 11,
+    AdjTriangleList     = 12,
+    AdjTriangleStrip    = 13,
+    RectList            = 17,
+    LineLoop            = 18,
+    QuadList            = 19,
+    QuadStrip           = 20,
+    Polygon             = 21,
 };
 
 enum class BlendFactor : u32 {
-    Zero = 0,
-    One = 1,
-    SrcColor = 2,
-    OneMinusSrcColor = 3,
-    SrcAlpha = 4,
-    OneMinusSrcAlpha = 5,
-    DstAlpha = 6,
-    OneMinusDstAlpha = 7,
-    DstColor = 8,
-    OneMinusDstColor = 9,
-    SrcAlphaSaturate = 10,
-    ConstantColor = 13,
-    OneMinusConstantColor = 14,
-    Src1Color = 15,
-    InvSrc1Color = 16,
-    Src1Alpha = 17,
-    InvSrc1Alpha = 18,
-    ConstantAlpha = 19,
-    OneMinusConstantAlpha = 20,
+    Zero                    = 0,
+    One                     = 1,
+    SrcColor                = 2,
+    OneMinusSrcColor        = 3,
+    SrcAlpha                = 4,
+    OneMinusSrcAlpha        = 5,
+    DstAlpha                = 6,
+    OneMinusDstAlpha        = 7,
+    DstColor                = 8,
+    OneMinusDstColor        = 9,
+    SrcAlphaSaturate        = 10,
+    ConstantColor           = 13,
+    OneMinusConstantColor   = 14,
+    Src1Color               = 15,
+    InvSrc1Color            = 16,
+    Src1Alpha               = 17,
+    InvSrc1Alpha            = 18,
+    ConstantAlpha           = 19,
+    OneMinusConstantAlpha   = 20,
 };
 
 enum class BlendFunc : u32 {
-    Add = 0,
-    Subtract = 1,
-    Min = 2,
-    Max = 3,
+    Add             = 0,
+    Subtract        = 1,
+    Min             = 2,
+    Max             = 3,
     ReverseSubtract = 4,
 };
 
 enum class CompareFunc : u32 {
-    Never = 0,
-    Less = 1,
-    Equal = 2,
-    LessEqual = 3,
-    Greater = 4,
-    NotEqual = 5,
-    GreaterEqual = 6,
-    Always = 7,
+    Never           = 0,
+    Less            = 1,
+    Equal           = 2,
+    LessEqual       = 3,
+    Greater         = 4,
+    NotEqual        = 5,
+    GreaterEqual    = 6,
+    Always          = 7,
+};
+
+enum class StencilOp : u32 {
+    Keep            = 0,
+    Zero            = 1,
+    One             = 2,
+    ReplaceTest     = 3,
+    ReplaceOpVal    = 4,
+    AddOpValClamp   = 5,
+    SubOpValClamp   = 6,
+    Invert          = 7,
+    AddOpValWrap    = 8,
+    SubOpValWrap    = 9,
+    AndOpVal        = 10,
+    OrOpVal         = 11,
+    XorOpVal        = 12,
+    NandOpVal       = 13,
+    NorOpVal        = 14,
+    XnorOpVal       = 15,
 };
 
 union BlendControl {
@@ -98,14 +117,32 @@ union DepthControl {
     BitField<3,  1, u32> depth_bounds_enable;
     BitField<4,  3, u32> depth_func;
     BitField<7,  1, u32> stencil_backface_enable;
-    BitField<8,  3, u32> stencil_func;
-    BitField<20, 3, u32> stencil_func_backface;
+    BitField<8,  3, u32> stencil_func_front;
+    BitField<20, 3, u32> stencil_func_back;
     BitField<30, 1, u32> enable_color_writes_on_depth_fail;
     BitField<31, 1, u32> disable_color_writes_on_depth_fail;
 };
 
+union StencilControl {
+    u32 raw = 0;
+    BitField<0,  4, u32> front_fail_op;
+    BitField<4,  4, u32> front_pass_op;
+    BitField<8,  4, u32> front_depth_fail_op;
+    BitField<12, 4, u32> back_fail_op;
+    BitField<16, 4, u32> back_pass_op;
+    BitField<20, 4, u32> back_depth_fail_op;
+};
+
+union StencilRefMask {
+    u32 raw = 0;
+    BitField<0,  8, u32> stencil_ref;
+    BitField<8,  8, u32> stencil_compare_mask;
+    BitField<16, 8, u32> stencil_write_mask;
+    BitField<24, 8, u32> stencil_op_val;
+};
+
 union ViewportTransformControl {
-    u32 raw;
+    u32 raw = 0;
     BitField<0,  1, u32> x_scale_enable;
     BitField<1,  1, u32> x_offset_enable;
     BitField<2,  1, u32> y_scale_enable;
@@ -118,6 +155,10 @@ union ViewportTransformControl {
 };
 
 struct PipelineConfig {
+    // Shader
+    bool has_vs = false;
+    bool has_ps = false;
+
     // Draw primitive
     u32 prim_type = 0;
 
@@ -126,9 +167,12 @@ struct PipelineConfig {
     float max_depth_bounds = 0.0f;
     float min_depth_bounds = 0.0f;
 
-    // Depth
-    DepthControl depth_control;
+    // Depth / Stencil
+    DepthControl   depth_control;
+    StencilControl stencil_control;
     bool enable_depth_clamp = false;
+    StencilRefMask stencil_refmask_front;
+    StencilRefMask stencil_refmask_back;
 
     // Viewport
     ViewportTransformControl viewport_control;

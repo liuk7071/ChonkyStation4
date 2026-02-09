@@ -62,7 +62,8 @@ struct ColorTarget {
 };
 
 struct DepthTarget {
-    void* base = nullptr;
+    void* depth_base   = nullptr;
+    void* stencil_base = nullptr;
     u32 width = 0;
     u32 height = 0;
     union {
@@ -75,18 +76,29 @@ struct DepthTarget {
         BitField<29, 1, u32> tile_surface_enable;
         BitField<31, 1, u32> zrange_precision;
     } z_info;
+    union {
+        u32 raw;
+        BitField<0,  1, u32> format;
+        BitField<13, 3, u32> tile_split;
+        BitField<27, 1, u32> allow_expclear;
+        BitField<29, 1, u32> tile_stencil_disable;
+    } stencil_info;
 
     DepthTarget operator=(const DepthTarget& other) {
-        base = other.base;
+        depth_base = other.depth_base;
+        stencil_base = other.stencil_base;
         z_info.raw = other.z_info.raw;
+        stencil_info.raw = other.stencil_info.raw;
         width = other.width;
         height = other.height;
         return *this;
     }
 
     bool operator==(const DepthTarget& other) {
-        return base == other.base
+        return depth_base == other.depth_base
+            && stencil_base == other.stencil_base
             && z_info.raw == other.z_info.raw
+            && stencil_info.raw == other.stencil_info.raw
             && width == other.width
             && height == other.height;
     }
@@ -189,15 +201,29 @@ public:
         }
     }
 
-    void getDepthTarget(DepthTarget* depth) {
+    void getDepthTarget(DepthTarget* depth, bool stencil_only) {
         if (regs[Reg::mmDB_Z_READ_BASE] != regs[Reg::mmDB_Z_WRITE_BASE]) {
             Helpers::panic("TODO: DB_Z_READ_BASE != DB_Z_WRITE_BASE");
         }
 
-        depth->base       = (void*)((u64)regs[Reg::mmDB_Z_READ_BASE] << 8);
-        depth->z_info.raw = regs[Reg::mmDB_Z_INFO];
-        depth->width      = depth_rt_dim.width;
-        depth->height     = depth_rt_dim.height;
+        if (regs[Reg::mmDB_STENCIL_READ_BASE] != regs[Reg::mmDB_STENCIL_WRITE_BASE]) {
+            Helpers::panic("TODO: DB_STENCIL_READ_BASE != DB_STENCIL_WRITE_BASE");
+        }
+
+        if (regs[Reg::mmDB_Z_READ_BASE] != regs[Reg::mmDB_STENCIL_READ_BASE]) {
+            //Helpers::panic("TODO: DB_Z_READ_BASE != DB_STENCIL_READ_BASE");
+        }
+
+        depth->depth_base       = (void*)((u64)regs[Reg::mmDB_Z_READ_BASE] << 8);
+        depth->stencil_base     = (void*)((u64)regs[Reg::mmDB_STENCIL_READ_BASE] << 8);
+        depth->z_info.raw       = regs[Reg::mmDB_Z_INFO];
+        depth->stencil_info.raw = regs[Reg::mmDB_STENCIL_INFO];
+        depth->width            = depth_rt_dim.width;
+        depth->height           = depth_rt_dim.height;
+
+        // Temporary hack
+        if (stencil_only)
+            depth->depth_base = depth->stencil_base;
     }
 };
 

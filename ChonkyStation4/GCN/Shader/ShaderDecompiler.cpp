@@ -210,6 +210,8 @@ std::string getType(int n_lanes, u32 nfmt) {
         case NumberFormat::Snorm:   return std::format("vec{}", n_lanes);
         case NumberFormat::Uscaled: return std::format("vec{}", n_lanes);
         case NumberFormat::Sscaled: return std::format("vec{}", n_lanes);
+        case NumberFormat::Uint:    return std::format("uvec{}", n_lanes);
+        case NumberFormat::Sint:    return std::format("ivec{}", n_lanes);
         case NumberFormat::Float:   return std::format("vec{}", n_lanes);
         default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
         }
@@ -250,7 +252,7 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     case OperandField::ConstFloatPos_1_0:   src = "f2u(1.0f)";                                                          break;
     case OperandField::ConstFloatPos_2_0:   src = "f2u(2.0f)";                                                          break;
     case OperandField::ConstFloatPos_4_0:   src = "f2u(4.0f)";                                                          break;
-    case OperandField::ExecLo:              src = "f2u(1.0f) /* TODO: ExecLo */";                                       break;
+    case OperandField::ExecLo:              src = "exec";                                                               break;
     case OperandField::VccLo:               src = "vcc";                                                                break;
     case OperandField::VccHi:               src = "f2u(1.0f) /* TODO: VccHi */";                                        break;
     default:    Helpers::panic("Unhandled SRC %d\n", op.code);
@@ -294,7 +296,7 @@ std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
     case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                 break;
     case OperandField::VccHi:               code = "// TODO: Set VccHi\n";                          break;
     case OperandField::M0:                  code = "// TODO: Set M0\n";                             break;
-    case OperandField::ExecLo:              code = "// TODO: Set ExecLo\n";                         break;
+    case OperandField::ExecLo:              code = std::format("exec = {};\n", src);                break;
     case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                         break;
     default:    Helpers::panic("Unhandled DST %d\n", op.code);
     }
@@ -365,6 +367,7 @@ uint s[104];
 uint v[104];
 uint scc;
 uint vcc;
+uint exec;
 
 layout(push_constant, std430) uniform BufferInfo {
     uint stride[24];
@@ -536,6 +539,9 @@ uint getStrideForBinding(uint binding) {
     std::string main;
     main.reserve(32_KB); // Avoid reallocations
     
+    main += "vcc  = 0;\n";
+    main += "scc  = 0;\n";
+    main += "exec = 1;\n";
     if (stage == ShaderStage::Fragment) {
         main += "v[2] = f2u(gl_FragCoord.x);\n";
         main += "v[3] = f2u(gl_FragCoord.y);\n";
@@ -673,6 +679,12 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::S_MOV_B64: {
             main += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_NOT_B64: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("~{}", getSRC<Type::Uint>(instr.src[0])));
+            main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
@@ -993,6 +1005,11 @@ uint getStrideForBinding(uint binding) {
             main += setDST(instr.dst[0], std::format("fract({})", getSRC(instr.src[0])));
             break;
         }
+        
+        case Shader::Opcode::V_TRUNC_F32: {
+            main += setDST(instr.dst[0], std::format("trunc({})", getSRC(instr.src[0])));
+            break;
+        }
 
         case Shader::Opcode::V_RNDNE_F32: {
             main += setDST(instr.dst[0], std::format("roundEven({})", getSRC(instr.src[0])));
@@ -1042,6 +1059,11 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::V_MAD_LEGACY_F32:
         case Shader::Opcode::V_MAD_F32: {
             main += setDST(instr.dst[0], std::format("{} * {} + {}", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+
+        case Shader::Opcode::V_MAD_U32_U24: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff) + {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
             break;
         }
 
@@ -1292,6 +1314,12 @@ uint getStrideForBinding(uint binding) {
         }
 
         case Shader::Opcode::EXP: {
+            //if (stage == ShaderStage::Fragment) {
+            //    if (instr.control.exp.vm) {
+            //        main += "if (exec != 0) discard;\n";
+            //    }
+            //}
+            
             const auto tgt = instr.control.exp.target;
             
             // When compr is enabled, EXP uses four 16bit values packed in VSRC0 and VSRC1 instead of four 32bit values in VSRC0, VSRC1, VSRC2 and VSRC3
@@ -1340,7 +1368,7 @@ uint getStrideForBinding(uint binding) {
     // Declare main function
     addFunc("void main", main);
 
-   //printf("%s\n", shader.c_str());
+    //printf("%s\n", shader.c_str());
     out_data.source = shader;
 
     if (stage == ShaderStage::Vertex) {

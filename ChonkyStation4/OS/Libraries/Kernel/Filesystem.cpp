@@ -28,6 +28,10 @@ s32 PS4_FUNC sceKernelOpen(const char* path, s32 flags, u16 mode) {
     return res;
 }
 
+s32 PS4_FUNC sceKernelCheckReachability(const char* path) {
+    return FS::exists(path) ? SCE_OK : SCE_KERNEL_ERROR_ENOENT;
+}
+
 s32 PS4_FUNC kernel_mkdir(const char* path, u16 mode) {
     log("mkdir(path=\"%s\", mode=%o)\n", path, mode);
 

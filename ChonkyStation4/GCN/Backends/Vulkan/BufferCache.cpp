@@ -167,7 +167,7 @@ void updateBuffer(CachedBuffer* buf) {
         .sharingMode = vk::SharingMode::eExclusive
     };
     VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };
-    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
     VkBuffer raw_buf;
     VmaAllocationInfo info;

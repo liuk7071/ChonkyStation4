@@ -35,10 +35,16 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     }
 
     // Setup graphics pipeline
-    int stage_count = 2;
-    vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex,   .module = vert_shader->vk_shader,  .pName = "main" };
-    vk::PipelineShaderStageCreateInfo frag_stage_info = { .stage = vk::ShaderStageFlagBits::eFragment, .module = pixel_shader->vk_shader, .pName = "main" };
-    vk::PipelineShaderStageCreateInfo shader_stages[4] = { vert_stage_info, frag_stage_info };
+    if (!cfg.has_vs)
+        Helpers::panic("TODO: no vertex shader");
+
+    int stage_count = 1;
+    vk::PipelineShaderStageCreateInfo vert_stage_info = { .stage = vk::ShaderStageFlagBits::eVertex, .module = vert_shader->vk_shader, .pName = "main" };
+    vk::PipelineShaderStageCreateInfo shader_stages[4] = { vert_stage_info };
+
+    if (cfg.has_ps) {
+        shader_stages[stage_count++] = { .stage = vk::ShaderStageFlagBits::eFragment, .module = pixel_shader->vk_shader, .pName = "main"};
+    }
     
     vk::PipelineTessellationStateCreateInfo tess;
     if (cfg.prim_type == (u32)PrimitiveType::RectList || cfg.prim_type == (u32)PrimitiveType::QuadList) {
@@ -58,9 +64,8 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
 
         tess_control_shader = createShaderModule(GCN::compileGLSL(tcs, EShLangTessControl));
         tess_eval_shader    = createShaderModule(GCN::compileGLSL(tes, EShLangTessEvaluation));
-        shader_stages[2] = { .stage = vk::ShaderStageFlagBits::eTessellationControl,    .module = tess_control_shader,  .pName = "main" };
-        shader_stages[3] = { .stage = vk::ShaderStageFlagBits::eTessellationEvaluation, .module = tess_eval_shader,     .pName = "main" };
-        stage_count = 4;
+        shader_stages[stage_count++] = { .stage = vk::ShaderStageFlagBits::eTessellationControl,    .module = tess_control_shader,  .pName = "main" };
+        shader_stages[stage_count++] = { .stage = vk::ShaderStageFlagBits::eTessellationEvaluation, .module = tess_eval_shader,     .pName = "main" };
     }
 
     vk::PipelineVertexInputStateCreateInfo vertex_input_info = { .vertexBindingDescriptionCount = (u32)bindings.size(), .pVertexBindingDescriptions = bindings.data(), .vertexAttributeDescriptionCount = (u32)attribs.size(), .pVertexAttributeDescriptions = attribs.data() };
@@ -124,7 +129,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     vk::PipelineMultisampleStateCreateInfo multisampling = { .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
     
     
-    auto depth_op = [](u32 func) -> vk::CompareOp {
+    auto compare_op = [](u32 func) -> vk::CompareOp {
         switch ((CompareFunc)func) {
         case CompareFunc::Never:        return vk::CompareOp::eNever;
         case CompareFunc::Less:         return vk::CompareOp::eLess;
@@ -137,25 +142,60 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         }
     };
 
-    bool enable_depth = cfg.depth_control.depth_enable;
-    auto vk_depth_op = depth_op(cfg.depth_control.depth_func);
-    
-    // HACK: skip stencil-only draws
-    if (cfg.depth_control.stencil_enable && !cfg.depth_control.depth_enable) {
-        enable_depth = true;
-        vk_depth_op = vk::CompareOp::eNever;
+    auto stencil_op = [](u32 op, StencilRefMask refmask) -> vk::StencilOp {
+        auto assert_opval = [&]() {
+            if (refmask.stencil_ref != refmask.stencil_op_val) {
+                //Helpers::panic("Stencil: ref != op_val");
+                printf("Stencil: ref != op_val\n");
+            }
+        };
+
+        switch ((StencilOp)op) {
+        case StencilOp::Keep:                               return vk::StencilOp::eKeep;
+        case StencilOp::Zero:                               return vk::StencilOp::eZero;
+        case StencilOp::ReplaceTest:                        return vk::StencilOp::eReplace;
+        case StencilOp::ReplaceOpVal:   assert_opval();     return vk::StencilOp::eReplace;
+        case StencilOp::AddOpValClamp:  assert_opval();     return vk::StencilOp::eIncrementAndClamp;
+        case StencilOp::SubOpValClamp:  assert_opval();     return vk::StencilOp::eDecrementAndClamp;
+        case StencilOp::Invert:                             return vk::StencilOp::eInvert;
+        case StencilOp::AddOpValWrap:   assert_opval();     return vk::StencilOp::eIncrementAndWrap;
+        case StencilOp::SubOpValWrap:   assert_opval();     return vk::StencilOp::eDecrementAndWrap;
+        default: Helpers::panic("Unimplemented stencil op %d\n", op);
+        }
+    };
+
+    vk::StencilOpState stencil_front;
+    vk::StencilOpState stencil_back;
+    stencil_front.failOp      = stencil_op(cfg.stencil_control.front_fail_op,       cfg.stencil_refmask_front);
+    stencil_front.passOp      = stencil_op(cfg.stencil_control.front_pass_op,       cfg.stencil_refmask_front);
+    stencil_front.depthFailOp = stencil_op(cfg.stencil_control.front_depth_fail_op, cfg.stencil_refmask_front);
+    stencil_front.compareOp   = compare_op(cfg.depth_control.stencil_func_front);
+    stencil_front.compareMask = cfg.stencil_refmask_front.stencil_compare_mask;
+    stencil_front.writeMask   = cfg.stencil_refmask_front.stencil_write_mask;
+    stencil_front.reference   = cfg.stencil_refmask_front.stencil_ref;
+    if (cfg.depth_control.stencil_backface_enable) {
+        stencil_back.failOp         = stencil_op(cfg.stencil_control.back_fail_op,       cfg.stencil_refmask_back);
+        stencil_back.passOp         = stencil_op(cfg.stencil_control.back_pass_op,       cfg.stencil_refmask_back);
+        stencil_back.depthFailOp    = stencil_op(cfg.stencil_control.back_depth_fail_op, cfg.stencil_refmask_back);
+        stencil_back.compareOp      = compare_op(cfg.depth_control.stencil_func_back);
+        stencil_back.compareMask    = cfg.stencil_refmask_back.stencil_compare_mask;
+        stencil_back.writeMask      = cfg.stencil_refmask_back.stencil_write_mask;
+        stencil_back.reference      = cfg.stencil_refmask_back.stencil_ref;
+    }
+    else {
+        stencil_back = stencil_front;
     }
 
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
-        .depthTestEnable = enable_depth,
-        .depthWriteEnable = cfg.depth_control.depth_write_enable,
-        .depthCompareOp = vk_depth_op,
-        .depthBoundsTestEnable = cfg.depth_control.depth_bounds_enable,
-        .maxDepthBounds = cfg.max_depth_bounds,
-        .minDepthBounds = cfg.min_depth_bounds,
-        .stencilTestEnable = cfg.depth_control.stencil_enable,
-        .front.compareOp = vk::CompareOp::eNever,
-        .back.compareOp = vk::CompareOp::eNever,
+        .depthTestEnable        = cfg.depth_control.depth_enable,
+        .depthWriteEnable       = cfg.depth_control.depth_write_enable,
+        .depthCompareOp         = compare_op(cfg.depth_control.depth_func),
+        .depthBoundsTestEnable  = cfg.depth_control.depth_bounds_enable,
+        .maxDepthBounds         = cfg.max_depth_bounds,
+        .minDepthBounds         = cfg.min_depth_bounds,
+        .stencilTestEnable      = cfg.depth_control.stencil_enable,
+        .front                  = stencil_front,
+        .back                   = stencil_back
     };
 
     auto blend_factor = [](u32 factor) -> vk::BlendFactor {
@@ -242,7 +282,9 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     };
 
     create_layout_bindings(vert_shader->data);
-    create_layout_bindings(pixel_shader->data);
+    
+    if (cfg.has_ps)
+        create_layout_bindings(pixel_shader->data);
 
     // Create the descriptor set layout
     vk::DescriptorSetLayoutCreateInfo layout_info = {
@@ -282,7 +324,8 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     vk::PipelineRenderingCreateInfo rendering_info = {};
     rendering_info.colorAttachmentCount = 1;
     rendering_info.pColorAttachmentFormats = &swapchain_surface_format.format;
-    rendering_info.depthAttachmentFormat = vk::Format::eD32Sfloat;
+    rendering_info.depthAttachmentFormat = vk::Format::eD32SfloatS8Uint;
+    rendering_info.stencilAttachmentFormat = vk::Format::eD32SfloatS8Uint;
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipeline_create_info_chain(gpci, rendering_info);
     graphics_pipeline = vk::raii::Pipeline(device, nullptr, pipeline_create_info_chain.get());
@@ -386,7 +429,9 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
         };
 
     create_buffers(vert_shader->data);
-    create_buffers(pixel_shader->data);
+    
+    if (cfg.has_ps)
+        create_buffers(pixel_shader->data);
 
     *push_constants_ptr = &push_constants;
     return descriptor_writes;

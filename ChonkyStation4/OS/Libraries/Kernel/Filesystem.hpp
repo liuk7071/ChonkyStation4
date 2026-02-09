@@ -36,6 +36,7 @@ struct SceKernelIovec {
 
 s32 PS4_FUNC kernel_open(const char* path, s32 flags, u16 mode);
 s32 PS4_FUNC sceKernelOpen(const char* path, s32 flags, u16 mode);
+s32 PS4_FUNC sceKernelCheckReachability(const char* path);
 s32 PS4_FUNC kernel_mkdir(const char* path, u16 mode);
 s32 PS4_FUNC sceKernelMkdir(const char* path, u16 mode);
 s64 PS4_FUNC kernel_lseek(s32 fd, s64 offset, s32 whence);

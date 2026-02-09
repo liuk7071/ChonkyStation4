@@ -23,7 +23,6 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool* save) {
     const auto pitch = (pitch_tile_max + 1) * 8;
     //const u32 slice_tile_max = rt->slice_tile_max & 0x3fffff;
     //tsharp.height = ((slice_tile_max + 1) * 64) / tsharp.width;
-    
 
     tsharp.width  = rt->width - 1;
     tsharp.height = rt->height - 1;
@@ -82,22 +81,33 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool* save) {
     return attachment;
 }
 
-Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
+Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stencil, bool* save) {
     auto get_dfmt_nfmt = [&]() -> std::pair<DataFormat, NumberFormat> {
         switch (depth->z_info.format) {
         case 1: return { DataFormat::Format16, NumberFormat::Unorm };
         case 3: return { DataFormat::Format32, NumberFormat::Float };
-        //default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
-        default: return { DataFormat::Format32, NumberFormat::Float };
+        default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+        //default: return { DataFormat::Format32, NumberFormat::Float };
         }
     };
     
     auto get_vk_fmt = [&]() -> vk::Format {
-        switch (depth->z_info.format) {
-        case 1: return vk::Format::eD16Unorm;
-        case 3: return vk::Format::eD32Sfloat;
-        //default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
-        default: return vk::Format::eD32Sfloat;
+        if (!has_stencil) {
+            switch (depth->z_info.format) {
+            case 1: return vk::Format::eD16Unorm;
+            case 3: return vk::Format::eD32SfloatS8Uint;
+            default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+            }
+        }
+        else {
+            Helpers::debugAssert(depth->stencil_info.format == 1, "Invalid stencil format %d\n", (u32)depth->stencil_info.format);
+
+            switch (depth->z_info.format) {
+            //case 1: return vk::Format::eD16UnormS8Uint; // TODO: This format is not widely supported
+            case 1: return vk::Format::eD16Unorm;
+            case 3: return vk::Format::eD32SfloatS8Uint;
+            default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+            }
         }
     };
 
@@ -105,6 +115,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
 
     auto [dfmt, nfmt] = get_dfmt_nfmt();
     auto vk_fmt       = get_vk_fmt();
+    const auto image_layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
     // Build a texture descriptor with the depth target info
     // TODO: It's best to adapt our texture cache to be a more generic "Vulkan image cache" in the future
@@ -112,7 +123,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
     tsharp.width    = depth->width - 1;
     tsharp.height   = depth->height - 1;
     tsharp.pitch    = tsharp.width;
-    tsharp.base_address = (uptr)depth->base >> 8;
+    tsharp.base_address = (uptr)depth->depth_base >> 8;
     tsharp.data_format  = (u32)dfmt;
     tsharp.num_format   = (u32)nfmt;
     tsharp.dst_sel_x = DSEL_R;
@@ -125,7 +136,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
     TrackedTexture* out_info;
     endRendering();
     getVulkanImageInfoForTSharp(&tsharp, &out_info, true, vk_fmt);
-    out_info->transition(vk::ImageLayout::eDepthAttachmentOptimal);
+    out_info->transition(image_layout);
     out_info->was_targeted = true;
 
     attachment.tex = out_info;
@@ -141,7 +152,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save) {
 
     attachment.vk_attachment = vk::RenderingAttachmentInfo {
         .imageView = out_info->image_info.imageView,
-        .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+        .imageLayout = image_layout,
         .loadOp = load_op,
         //.loadOp = vk::AttachmentLoadOp::eClear,
         .storeOp = vk::AttachmentStoreOp::eStore,

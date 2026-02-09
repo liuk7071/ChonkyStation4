@@ -27,7 +27,7 @@ struct Attachment {
 };
 
 Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool* save);
-Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool* save);
+Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stencil, bool* save);
 void reset();
 
 }   // End namespace PS4::GCN::Vulkan::RenderTarget

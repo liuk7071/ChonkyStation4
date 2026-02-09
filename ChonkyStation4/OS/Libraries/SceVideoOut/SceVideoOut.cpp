@@ -29,6 +29,7 @@ void init(Module& module) {
 
 static int vblank = 100;
 void SceVideoOutPort::signalFlip(u64 flip_arg) {
+    const std::unique_lock<std::mutex>(flip_mtx);
     flip_ev_source.trigger(flip_arg);
     flip_status.count++;
     //vblank_status.count++;

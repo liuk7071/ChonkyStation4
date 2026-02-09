@@ -19,14 +19,26 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     // Compile shaders
     GCN::FetchShader fetch_shader = FetchShader(fetch_shader_code);
 
-    ShaderCache::CachedShader* vert_shader;
-    ShaderCache::CachedShader* pixel_shader;
-    vert_shader  = ShaderCache::getShader(vert_shader_code,  Shader::ShaderStage::Vertex,   &fetch_shader);
-    pixel_shader = ShaderCache::getShader(pixel_shader_code, Shader::ShaderStage::Fragment, &fetch_shader);
-
     PipelineConfig cfg;
-    cfg.vertex_hash = vert_shader->data.hash;
-    cfg.pixel_hash  = pixel_shader->data.hash;
+    const bool has_vs = vert_shader_code  != nullptr;
+    const bool has_ps = pixel_shader_code != nullptr;
+    cfg.has_vs = has_vs;
+    cfg.has_ps = has_ps;
+
+    ShaderCache::CachedShader* vert_shader  = nullptr;
+    ShaderCache::CachedShader* pixel_shader = nullptr;
+    
+    if (!has_vs)
+        Helpers::panic("TODO: no vertex shader");
+
+    if (has_vs) {
+        vert_shader = ShaderCache::getShader(vert_shader_code, Shader::ShaderStage::Vertex, &fetch_shader);
+        cfg.vertex_hash = vert_shader->data.hash;
+    }
+    if (has_ps) {
+        pixel_shader = ShaderCache::getShader(pixel_shader_code, Shader::ShaderStage::Fragment, &fetch_shader);
+        cfg.pixel_hash  = pixel_shader->data.hash;
+    }
 
     // Hash fetch shader V#s
     XXH3_state_t* state = XXH3_createState();
@@ -54,9 +66,14 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     }
 
     // Depth control
-    cfg.depth_control.raw = regs[Reg::mmDB_DEPTH_CONTROL];
-    cfg.max_depth_bounds = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MAX]);
-    cfg.min_depth_bounds = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MIN]);
+    cfg.depth_control.raw   = regs[Reg::mmDB_DEPTH_CONTROL];
+    cfg.max_depth_bounds    = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MAX]);
+    cfg.min_depth_bounds    = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MIN]);
+
+    // Stencil control
+    cfg.stencil_control.raw         = regs[Reg::mmDB_STENCIL_CONTROL];
+    cfg.stencil_refmask_front.raw   = regs[Reg::mmDB_STENCILREFMASK];
+    cfg.stencil_refmask_back.raw    = regs[Reg::mmDB_STENCILREFMASK_BF];
 
     // Depth clamp
     cfg.enable_depth_clamp = (regs[Reg::mmDB_RENDER_OVERRIDE] >> 16) != 1;   // DISABLE_VIEWPORT_CLAMP

@@ -20,7 +20,9 @@ inline  bool initialized = false;
 static s32 next_tid = 1;
 class Thread {
 public:
-    Thread() {}
+    Thread() {
+        tid = next_tid++;
+    }
     Thread(const std::string& name) : name(name) {
         tid = next_tid++;
     }

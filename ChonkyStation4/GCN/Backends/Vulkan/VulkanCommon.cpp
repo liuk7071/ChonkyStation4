@@ -34,11 +34,14 @@ void endRendering() {
 }
 
 void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::raii::CommandBuffer* cmd_buf) {
-    auto get_aspect = [](const vk::Format fmt) -> vk::ImageAspectFlagBits {
+    auto get_aspect = [](const vk::Format fmt) -> vk::Flags<vk::ImageAspectFlagBits> {
         switch (fmt) {
         case vk::Format::eD16Unorm:
         case vk::Format::eD32Sfloat:
             return vk::ImageAspectFlagBits::eDepth;
+        case vk::Format::eD16UnormS8Uint:
+        case vk::Format::eD32SfloatS8Uint:
+            return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
         default:
             return vk::ImageAspectFlagBits::eColor;
         }
@@ -81,6 +84,7 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
                 vk::PipelineStageFlagBits::eColorAttachmentOutput
             };
         
+        case vk::ImageLayout::eDepthStencilAttachmentOptimal:
         case vk::ImageLayout::eDepthAttachmentOptimal:  
             return { 
                 vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite, 
@@ -189,6 +193,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         case NumberFormat::Unorm:   return { vk::Format::eR16G16Unorm, sizeof(u16) * 2 };
         case NumberFormat::Snorm:   return { vk::Format::eR16G16Snorm, sizeof(u16) * 2 };
         case NumberFormat::Sscaled: return { vk::Format::eR16G16Sscaled, sizeof(u16) * 2 };
+        case NumberFormat::Sint:    return { vk::Format::eR16G16Sint, sizeof(u16) * 2 };
         case NumberFormat::Float:   return { vk::Format::eR16G16Sfloat, sizeof(u16) * 2 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -212,6 +217,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         case NumberFormat::Unorm:   return { vk::Format::eR8G8B8A8Unorm, sizeof(u32) };
         case NumberFormat::Snorm:   return { vk::Format::eR8G8B8A8Snorm, sizeof(u32) };
         case NumberFormat::Uscaled: return { vk::Format::eR8G8B8A8Uscaled, sizeof(u32) };
+        case NumberFormat::Uint:    return { vk::Format::eR8G8B8A8Uint, sizeof(u32) };
         case NumberFormat::SnormNz: return { vk::Format::eR8G8B8A8Srgb, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);

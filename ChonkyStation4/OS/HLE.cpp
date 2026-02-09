@@ -74,6 +74,7 @@ Module buildHLEModule() {
 
     // libSceCommonDialog
     module.addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
+    module.addSymbolStub("BQ3tey0JmQM", "sceCommonDialogIsUsed", "libSceCommonDialog", "libSceCommonDialog", false);
     
     // libSceNpScore
     module.addSymbolStub("KnNA1TEgtBI", "sceNpScoreCreateNpTitleCtx", "libSceNpScore", "libSceNpScore", 1);
@@ -101,6 +102,12 @@ Module buildHLEModule() {
     
     // libSceNpProfileDialog
     module.addSymbolStub("Lg+NCE6pTwQ", "sceNpProfileDialogInitialize", "libSceNpProfileDialog", "libSceNpProfileDialog", 0);
+    
+    // libSceInvitationDialog
+    module.addSymbolStub("9+g9iOq+7kg", "sceInvitationDialogUpdateStatus", "libSceInvitationDialog", "libSceInvitationDialog", 0);
+    
+    // libSceImeDialog
+    module.addSymbolStub("IADmD4tScBY", "sceImeDialogGetStatus", "libSceImeDialog", "libSceImeDialog", 0);
     
     // libSceNpAuth
     module.addSymbolStub("N+mr7GjTvr8", "sceNpAuthCreateAsyncRequest", "libSceNpAuth", "libSceNpAuth", 1);
@@ -186,6 +193,14 @@ Module buildHLEModule() {
     
     // libSceAvPlayer
     module.addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
+    
+    // libSceRudp
+    module.addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");
+    
+    // libSceCompanionUtil
+    module.addSymbolStub("xb1xlIhf0QY", "sceCompanionUtilInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
+    module.addSymbolStub("IPN-FRSrafk", "sceCompanionUtilOptParamInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
+    module.addSymbolStub("cE5Msy11WhU", "sceCompanionUtilGetEvent", "libSceCompanionUtil", "libSceCompanionUtil", 0x80AD0008 /* No event */);
     
     // ulobjmgr (TODO: What is this?)
     module.addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
