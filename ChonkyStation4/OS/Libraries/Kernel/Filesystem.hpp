@@ -54,6 +54,8 @@ s32 PS4_FUNC kernel_fstat(s32 fd, SceKernelStat* stat);
 s32 PS4_FUNC sceKernelFstat(s32 fd, SceKernelStat* stat);
 s32 PS4_FUNC kernel_getdents(s32 fd, char* buf, s32 n_bytes);
 s32 PS4_FUNC sceKernelGetdents(s32 fd, char* buf, s32 n_bytes);
+s32 PS4_FUNC kernel_getdirentries(s32 fd, char* buf, s32 n_bytes, s64* basep);
+s32 PS4_FUNC sceKernelGetdirentries(s32 fd, char* buf, s32 n_bytes, s64* basep);
 s32 PS4_FUNC kernel_close(s32 fd);
 s32 PS4_FUNC sceKernelClose(s32 fd);
 

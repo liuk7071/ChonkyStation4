@@ -152,7 +152,13 @@ s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, 
             result->n_dir_names_set = 0;
         }
     }
-    else Helpers::panic("TODO: sceSaveDataDirNameSearch with empty dir_name");
+    else {
+        printf("TODO: sceSaveDataDirNameSearch with empty dir_name\n");
+        result->n_hits = 0;
+        result->n_dir_names_set = 0;
+        return SCE_OK;
+    }
+    //else Helpers::panic("TODO: sceSaveDataDirNameSearch with empty dir_name");
 
     return SCE_OK;
 }

@@ -97,6 +97,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
             case 1: return vk::Format::eD16Unorm;
             case 3: return vk::Format::eD32SfloatS8Uint;
             default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+            //default: return vk::Format::eD32SfloatS8Uint;
             }
         }
         else {
@@ -107,6 +108,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
             case 1: return vk::Format::eD16Unorm;
             case 3: return vk::Format::eD32SfloatS8Uint;
             default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+            //default: return vk::Format::eD32SfloatS8Uint;
             }
         }
     };

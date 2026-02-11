@@ -26,4 +26,9 @@ s32 PS4_FUNC kernel_pthread_rwlock_unlock(pthread_rwlock_t* lock) {
     return pthread_rwlock_unlock(lock);
 }
 
+s32 PS4_FUNC kernel_pthread_rwlockattr_init(pthread_rwlockattr_t* attr) {
+    log("pthread_rwlockattr_init(attr=*%p)\n", attr);
+    return pthread_rwlockattr_init(attr);
+}
+
 }   // End namespace PS4::OS::Libs::Kernel

@@ -13,6 +13,7 @@ void init(Module& module) {
     module.addSymbolExport("zO9UL3qIINQ", "sceRtcGetCurrentNetworkTick", "libSceRtc", "libSceRtc", (void*)&sceRtcGetCurrentNetworkTick);
     module.addSymbolExport("8w-H19ip48I", "sceRtcGetTick", "libSceRtc", "libSceRtc", (void*)&sceRtcGetTick);
     module.addSymbolExport("ueega6v3GUw", "sceRtcSetTick", "libSceRtc", "libSceRtc", (void*)&sceRtcSetTick);
+    module.addSymbolExport("mn-tf4QiFzk", "sceRtcTickAddMinutes", "libSceRtc", "libSceRtc", (void*)&sceRtcTickAddMinutes);
     module.addSymbolExport("BtqmpTRXHgk", "sceRtcGetTime_t", "libSceRtc", "libSceRtc", (void*)&sceRtcGetTime_t);
     module.addSymbolExport("ZPD1YOKI+Kw", "sceRtcGetCurrentClockLocalTime", "libSceRtc", "libSceRtc", (void*)&sceRtcGetCurrentClockLocalTime);
 }
@@ -77,6 +78,16 @@ s32 PS4_FUNC sceRtcSetTick(SceRtcDateTime* time, const SceRtcTick* tick) {
     time->minute        = tm_time.tm_min;  
     time->second        = tm_time.tm_sec;
     time->microsecond   = microseconds;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceRtcTickAddMinutes(SceRtcTick* out_tick, const SceRtcTick* in_tick, s64 min) {
+    log("sceRtcTickAddMinutes(out_tick=*%p, in_tick=*%p, min=%lld)\n", out_tick, in_tick, min);
+
+    // Convert minutes to ticks (microseconds)
+    using namespace std::chrono;
+    const u64 us = duration_cast<microseconds>(minutes(min)).count();
+    out_tick->tick = in_tick->tick + us;
     return SCE_OK;
 }
 

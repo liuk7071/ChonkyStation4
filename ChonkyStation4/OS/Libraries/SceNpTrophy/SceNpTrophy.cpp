@@ -13,6 +13,7 @@ void init(Module& module) {
     module.addSymbolStub("TJCAxto9SEU", "sceNpTrophyRegisterContext", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("LHuSmO3SLd8", "sceNpTrophyGetTrophyUnlockState", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("qqUVGDgQBm0", "sceNpTrophyGetTrophyInfo", "libSceNpTrophy", "libSceNpTrophy");
+    module.addSymbolStub("YYP3f2W09og", "sceNpTrophyGetGameInfo", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("28xmRUFao68", "sceNpTrophyUnlockTrophy", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("GNcF4oidY0Y", "sceNpTrophyDestroyHandle", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("aTnHs7W-9Uk", "sceNpTrophyAbortHandle", "libSceNpTrophy", "libSceNpTrophy");

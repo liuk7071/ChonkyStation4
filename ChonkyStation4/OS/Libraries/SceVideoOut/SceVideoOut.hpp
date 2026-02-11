@@ -4,6 +4,8 @@
 #include <OS/SceObj.hpp>
 #include <OS/Libraries/Kernel/Equeue.hpp>
 #include <thread>
+#include <atomic>
+#include <mutex>
 
 
 class Module;
@@ -78,7 +80,8 @@ struct SceVideoOutPort : SceObj {
     Libs::Kernel::EventSource vblank_ev_source;
 	SceVideoOutResolutionStatus resolution_status;
     std::thread vblank_thread;
-    std::mutex flip_mtx;
+    std::mutex vblank_mtx;
+    std::atomic<bool> vblank = false;
 
     void signalFlip(u64 flip_arg);
 };
@@ -89,6 +92,7 @@ s32 PS4_FUNC sceVideoOutGetBufferLabelAddress(s32 handle, void** label_addr);
 s32 PS4_FUNC sceVideoOutSetFlipRate(s32 handle, s32 rate);
 s32 PS4_FUNC sceVideoOutAddFlipEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata);
 s32 PS4_FUNC sceVideoOutAddVblankEvent(Kernel::SceKernelEqueue eq, s32 handle, void* udata);
+s32 PS4_FUNC sceVideoOutWaitVblank(s32 handle);
 s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs, s32 n_bufs, SceVideoOutBufferAttribute* attrib);
 s32 PS4_FUNC sceVideoOutSetBufferAttribute(SceVideoOutBufferAttribute* attrib, u32 pixel_format, u32 tiling_mode, u32 aspect_ratio, u32 width, u32 height, u32 pitch_in_pixels);
 s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVideoOutBufferAttribute* attrib);

@@ -53,7 +53,7 @@ public:
 #ifdef CHONKYSTATION4_USER_BUILD
 #define true false
 #else
-#define true false
+//#define true false
 //#define false true
 #endif
 
@@ -93,6 +93,7 @@ static Logger gcn_vulkan_renderer   = Logger<false>("[GCN    ][VulkanRenderer   
 
 // Other
 static Logger filesystem            = Logger<true> ("[Other  ][Filesystem       ] ");
+static Logger force_enable          = Logger<1>    ("[Other  ][Debug            ] ");
 static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented    ] ");
 
 #undef true

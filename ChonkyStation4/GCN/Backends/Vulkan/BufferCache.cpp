@@ -374,6 +374,9 @@ void clear() {
 
     for (auto& buf : cache)
         buf.second->dirty = true;
+
+    for (auto& buf : hash_cache)
+        delete buf.second;
     hash_cache.clear();
 }
 

@@ -51,6 +51,7 @@ void gcnThread();
 void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size);
 void submitCompute(u32* cb, size_t cb_size, OS::Libs::SceGnmDriver::ComputeQueue* queue);
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg);
+bool isCommandProcessorIdle();
 
 inline void initVulkan() {
     renderer = std::make_unique<Vulkan::VulkanRenderer>();

@@ -330,9 +330,9 @@ template TSharp* DescriptorLocation::asPtr<TSharp>();
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
     std::ofstream out;
     ////if (stage == ShaderStage::Fragment) {
-    //    out.open("shader.bin", std::ios::binary);
-    //    out.write((char*)data, 8_KB);
-    //    out.close();
+        out.open("shader.bin", std::ios::binary);
+        out.write((char*)data, 8_KB);
+        out.close();
     ////}
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
@@ -415,11 +415,18 @@ uint getStrideForBinding(uint binding) {
             continue;
         }
 
-        case Shader::Opcode::S_LOAD_DWORDX4:
-        case Shader::Opcode::S_LOAD_DWORDX8: {
+        case Shader::Opcode::S_LOAD_DWORDX4: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
             descs[dest_pair] = { sgpr_pair, instr.control.smrd.offset, true };
+            break;
+        }
+
+        case Shader::Opcode::S_LOAD_DWORDX8: {
+            const auto sgpr_pair = instr.src[0].code * 2;
+            const auto dest_pair = instr.dst[0].code;
+            descs[dest_pair]        = { sgpr_pair, instr.control.smrd.offset, true };
+            descs[dest_pair + 4]    = { sgpr_pair, instr.control.smrd.offset, true };
             break;
         }
 
@@ -430,6 +437,9 @@ uint getStrideForBinding(uint binding) {
             if (descs.contains(src_sgpr)) {
                 backup_descs[(dest_vgpr << 16) | lane] = descs[src_sgpr];
             }
+            else {
+                backup_descs[(dest_vgpr << 16) | lane] = { src_sgpr, 0, false };
+            }
             break;
         }
 
@@ -439,6 +449,7 @@ uint getStrideForBinding(uint binding) {
             const u32 lane = std::stoi(getSRC<Type::Uint>(instr.src[1]));
             const u32 backup_idx = (src_vgpr << 16) | lane;
             if (backup_descs.contains(backup_idx)) {
+                printf("restored %d from %d:%d\n", dest_sgpr, src_vgpr, lane);
                 descs[dest_sgpr] = backup_descs[backup_idx];
             }
             break;
@@ -1022,7 +1033,7 @@ uint getStrideForBinding(uint binding) {
         }
 
         case Shader::Opcode::V_EXP_F32: {
-            main += setDST(instr.dst[0], std::format("pow(2.0f, {})", getSRC(instr.src[0])));
+            main += setDST(instr.dst[0], std::format("exp2({})", getSRC(instr.src[0])));
             break;
         }
 

@@ -2,6 +2,11 @@
 #include <Logger.hpp>
 #include <OS/Thread.hpp>
 #include <OS/SceObj.hpp>
+#ifdef _WIN32
+#define NOMINMAX
+#include <codecvt>
+#include <windows.h>
+#endif
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -114,6 +119,17 @@ s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4
     auto& thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);
     *tid = (void*)&thread.getPThread();
     return 0;
+}
+
+s32 PS4_FUNC scePthreadRename(void* pthread, const char* name) {
+    log("scePthreadRename(pthread=%p, name=\"%s\")\n", pthread, name);
+
+#ifdef _WIN32
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    const std::string new_name = "[PS4] " + std::string(name);
+    SetThreadDescription(GetCurrentThread(), (PCWSTR)converter.from_bytes(new_name.c_str()).c_str());
+#endif
+    return SCE_OK;
 }
 
 s32 PS4_FUNC kernel_pthread_detach(void* tid) {

@@ -1,6 +1,7 @@
 #include "SceVideoOut.hpp"
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
+#include <OS/Libraries/Kernel/Kernel.hpp>
 #include <GCN/GCN.hpp>
 
 
@@ -15,6 +16,7 @@ void init(Module& module) {
     module.addSymbolExport("CBiu4mCE1DA", "sceVideoOutSetFlipRate", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSetFlipRate);
     module.addSymbolExport("HXzjK9yI30k", "sceVideoOutAddFlipEvent", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutAddFlipEvent);
     module.addSymbolExport("Xru92wHJRmg", "sceVideoOutAddVblankEvent", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutAddVblankEvent);
+    module.addSymbolExport("j6RaAUlaLv0", "sceVideoOutWaitVblank", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutWaitVblank);
     module.addSymbolExport("w3BY+tAEiQY", "sceVideoOutRegisterBuffers", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutRegisterBuffers);
     module.addSymbolExport("i6-sR91Wt-4", "sceVideoOutSetBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSetBufferAttribute);
     module.addSymbolExport("IOdgHlCGU-k", "sceVideoOutSubmitChangeBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitChangeBufferAttribute);
@@ -25,9 +27,10 @@ void init(Module& module) {
     
     module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
+    module.addSymbolStub("pjkDsgxli6c", "sceVideoOutModeSetAny_", "libSceVideoOut", "libSceVideoOut");
+    module.addSymbolStub("N1bEoJ4SRw4", "sceVideoOutConfigureOutputMode_", "libSceVideoOut", "libSceVideoOut");
 }
 
-static int vblank = 100;
 void SceVideoOutPort::signalFlip(u64 flip_arg) {
     const std::unique_lock<std::mutex>(flip_mtx);
     flip_ev_source.trigger(flip_arg);
@@ -67,8 +70,17 @@ s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) 
 
     port->vblank_thread = std::thread([=]() {
         while (true) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            port->vblank_ev_source.trigger(port->vblank_status.count++);
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+            {
+                const auto lk = std::unique_lock<std::mutex>(port->vblank_mtx);
+
+                port->vblank_status.count++;
+                port->vblank = true;
+                port->vblank_status.process_time = Kernel::sceKernelGetProcessTime();
+                port->vblank_status.tsc          = Kernel::sceKernelReadTsc();
+                port->vblank_ev_source.trigger(port->vblank_status.count);
+            }
         }
     });
 
@@ -124,6 +136,24 @@ s32 PS4_FUNC sceVideoOutAddVblankEvent(Kernel::SceKernelEqueue eq, s32 handle, v
 
     // TODO: Check if the eq exists?
     port->vblank_ev_source.addToEventQueue(eq, udata);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceVideoOutWaitVblank(s32 handle) {
+    log("sceVideoOutWaitVblank(handle=%d)\n", handle);
+
+    auto port = PS4::OS::find<SceVideoOutPort>(handle);
+    if (!port) {
+        Helpers::panic("sceVideoOutWaitVblank: handle %d does not exist\n", handle);
+    }
+
+    {
+        const auto lk = std::unique_lock<std::mutex>(port->vblank_mtx);
+        port->vblank = false;
+    }
+
+    while (!port->vblank) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
     return SCE_OK;
 }
 
@@ -184,11 +214,7 @@ s32 PS4_FUNC sceVideoOutGetVblankStatus(s32 handle, SceVideoOutVblankStatus* sta
         Helpers::panic("sceVideoOutGetFlipStatus: handle %d does not exist\n", handle);
     }
 
-    // TODO: Stubbed to just increment every time it's polled
-    port->vblank_status.count++;
-    port->vblank_status.process_time = SDL_GetTicks64();
-    port->vblank_status.tsc = SDL_GetTicks64();
-
+    const auto lk = std::unique_lock<std::mutex>(port->vblank_mtx);
     *status = port->vblank_status;
     return SCE_OK;
 }

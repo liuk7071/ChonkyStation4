@@ -116,4 +116,14 @@ void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {
     submitRendererCommand({ CommandType::Flip, .video_out_handle = video_out_handle, .buf_idx = buf_idx, .flip_arg = flip_arg });
 }
 
+bool isCommandProcessorIdle() {
+    size_t size;
+    {
+        // Acquire command queue lock
+        std::scoped_lock lk(mtx);
+        size = commands.size();
+    }
+    return size == 0;
+}
+
 }   // End namespace PS4::GCN

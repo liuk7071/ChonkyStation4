@@ -62,6 +62,7 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("jg33rEKLfVs", "sceGnmIsUserPaEnabled", "libSceGnmDriver", "libSceGnmDriver");
     
     module.addSymbolStub("iBt3Oe00Kvc", "sceGnmFlushGarlic", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("PVT+fuoS9gU", "sceGnmDeleteEqEvent", "libSceGnmDriver", "libSceGnmDriver");
 }
 
 ComputeQueue compute_queues[MAX_COMPUTE_QUEUES];
@@ -87,6 +88,9 @@ s32 PS4_FUNC sceGnmSubmitCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_s
 s32 PS4_FUNC sceGnmSubmitDone() {
     log("sceGnmSubmitDone()\n");
     
+    while (!GCN::isCommandProcessorIdle())
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+
     return SCE_OK;
 }
 

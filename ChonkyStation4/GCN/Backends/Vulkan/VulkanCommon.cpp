@@ -94,7 +94,8 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
         case vk::ImageLayout::eShaderReadOnlyOptimal:         
             return {
                 vk::AccessFlagBits::eShaderRead,
-                vk::PipelineStageFlagBits::eAllGraphics
+                vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eComputeShader | vk::PipelineStageFlagBits::eTessellationControlShader | vk::PipelineStageFlagBits::eTessellationEvaluationShader
+                | vk::PipelineStageFlagBits::eGeometryShader | vk::PipelineStageFlagBits::eMeshShaderEXT
             };
         
         case vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT:   
@@ -117,13 +118,6 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
 
     auto [src_access_mask, src_stage] = get_access_and_stage_bits(old_layout);
     auto [dst_access_mask, dst_stage] = get_access_and_stage_bits(new_layout);
-
-    if (   new_layout == vk::ImageLayout::eColorAttachmentOptimal
-        //|| new_layout == vk::ImageLayout::eDepthAttachmentOptimal
-        || new_layout == vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT
-        ) {
-        src_access_mask |= vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-    }
 
     barrier.srcAccessMask = src_access_mask;
     barrier.dstAccessMask = dst_access_mask;

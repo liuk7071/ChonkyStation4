@@ -57,6 +57,8 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     }
     cfg.binding_hash = XXH3_64bits_digest(state);
 
+    XXH3_freeState(state);
+
     // Primitive info
     cfg.prim_type = regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI];
 
@@ -87,6 +89,34 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     cfg.dx_clip_space_enable = (regs[Reg::mmPA_CL_CLIP_CNTL] >> 19) & 1;
 
     // Calculate final pipeline hash
+    state = XXH3_createState();
+    XXH3_64bits_reset(state);
+
+    XXH3_64bits_update(state, &cfg.has_vs, sizeof(cfg.has_vs));
+    XXH3_64bits_update(state, &cfg.has_ps, sizeof(cfg.has_ps));
+    if (cfg.has_vs) XXH3_64bits_update(state, &cfg.vertex_hash, sizeof(cfg.vertex_hash));
+    if (cfg.has_ps) XXH3_64bits_update(state, &cfg.pixel_hash, sizeof(cfg.pixel_hash));
+    XXH3_64bits_update(state, &cfg.prim_type, sizeof(cfg.prim_type));
+    XXH3_64bits_update(state, &cfg.blend_control, sizeof(BlendControl) * 8);
+    XXH3_64bits_update(state, &cfg.depth_control, sizeof(cfg.depth_control));
+    if (cfg.depth_control.depth_bounds_enable) {
+        XXH3_64bits_update(state, &cfg.max_depth_bounds, sizeof(cfg.max_depth_bounds));
+        XXH3_64bits_update(state, &cfg.min_depth_bounds, sizeof(cfg.min_depth_bounds));
+    }
+    if (cfg.depth_control.depth_enable)   XXH3_64bits_update(state, &cfg.enable_depth_clamp, sizeof(cfg.enable_depth_clamp));
+    if (cfg.depth_control.stencil_enable) {
+        XXH3_64bits_update(state, &cfg.stencil_control, sizeof(cfg.stencil_control));
+        XXH3_64bits_update(state, &cfg.stencil_refmask_front, sizeof(cfg.stencil_refmask_front));
+        XXH3_64bits_update(state, &cfg.stencil_refmask_back,  sizeof(cfg.stencil_refmask_back));
+    }
+    XXH3_64bits_update(state, &cfg.viewport_control, sizeof(cfg.viewport_control));
+    if (cfg.viewport_control.z_offset_enable) XXH3_64bits_update(state, &cfg.z_offset, sizeof(cfg.z_offset));
+    if (cfg.viewport_control.z_scale_enable)  XXH3_64bits_update(state, &cfg.z_scale,  sizeof(cfg.z_scale));
+    XXH3_64bits_update(state, &cfg.dx_clip_space_enable, sizeof(cfg.dx_clip_space_enable));
+    XXH3_64bits_update(state, &cfg.binding_hash, sizeof(cfg.binding_hash));
+
+    XXH3_freeState(state);
+
     const u64 pipeline_hash = XXH3_64bits(&cfg, sizeof(PipelineConfig));
     if (pipelines.contains(pipeline_hash))
         return *pipelines[pipeline_hash];

@@ -62,6 +62,12 @@ Module buildHLEModule() {
     module.addSymbolStub("2xxUtuC-RzE", "sceScreenShotEnable", "libSceScreenShot", "libSceScreenShot");
     module.addSymbolStub("73WQ4Jj0nJI", "sceScreenShotSetOverlayImageWithOrigin", "libSceScreenShot", "libSceScreenShot");
     module.addSymbolStub("G7KlmIYFIZc", "sceScreenShotSetParam", "libSceScreenShot", "libSceScreenShot");
+    module.addSymbolStub("ahHhOf+QNkQ", "sceScreenShotSetOverlayImage", "libSceScreenShot", "libSceScreenShot");
+    module.addSymbolStub("tIYf0W5VTi8", "sceScreenShotDisable", "libSceScreenShot", "libSceScreenShot");
+    
+    // libSceSharePlay
+    module.addSymbolStub("isruqthpYcw", "sceSharePlayInitialize", "libSceSharePlay", "libSceSharePlay");
+    module.addSymbolStub("co2NCj--pnc", "sceSharePlaySetProhibition", "libSceSharePlay", "libSceSharePlay");
     
     // libSceMsgDialog
     module.addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
@@ -167,6 +173,11 @@ Module buildHLEModule() {
     module.addSymbolStub("j1ITE-EoJmE", "sceMoveInit", "libSceMove", "libSceMove");
     module.addSymbolStub("HzC60MfjJxU", "sceMoveOpen", "libSceMove", "libSceMove", 1);
     module.addSymbolStub("f2bcpK6kJfg", "sceMoveReadStateRecent", "libSceMove", "libSceMove");
+    
+    // libSceMouse
+    module.addSymbolStub("Qs0wWulgl7U", "sceMouseInit", "libSceMouse", "libSceMouse");
+    module.addSymbolStub("RaqxZIf6DvE", "sceMouseOpen", "libSceMouse", "libSceMouse", 1);
+    module.addSymbolStub("x8qnXqh-tiM", "sceMouseRead", "libSceMouse", "libSceMouse");
 
     // libSceMoveTracker
     module.addSymbolStub("F4w2atwG428", "sceMoveTrackerInit", "libSceMoveTracker", "libSceMoveTracker");

@@ -188,6 +188,13 @@ s32 PS4_FUNC sceKernelStat(const char* path, SceKernelStat* stat) {
 
 s32 PS4_FUNC kernel_fstat(s32 fd, SceKernelStat* stat) {
     log("fstat(fd=%d, stat=*%p)\n", fd, stat);
+    
+    if (!FS::exists(fd)) {
+        log("File ID does not exist\n");
+        *Kernel::kernel_error() = POSIX_EBADF;
+        return -1;
+    }
+
     auto lock = FS::getFileLock(fd);
 
     // TODO: Avoid duplicated code from stat
@@ -215,22 +222,38 @@ s32 PS4_FUNC kernel_getdents(s32 fd, char* buf, s32 n_bytes) {
     auto lock = FS::getFileLock(fd);
     auto& file = FS::getFileFromID(fd);
 
-    if (n_bytes != 512) {
-        Helpers::panic("TODO: getdents n_bytes != st_blksize");
-    }
+    size_t written_size = 0;
+    const int n_records = n_bytes / sizeof(FS::SceKernelDirent);
+    for (int i = 0; i < n_records; i++) {
+        if (file.cur_dirent >= file.dirents.size()) break;
 
-    // TODO: Should this also return "." and ".."? Verify.
-    if (file.cur_dirent < file.dirents.size()) {
         std::memcpy(buf, &file.dirents[file.cur_dirent], sizeof(FS::SceKernelDirent));
         file.cur_dirent++;
-        return sizeof(FS::SceKernelDirent);
+        written_size += sizeof(FS::SceKernelDirent);
     }
 
-    return 0;
+    return written_size;
 }
 
 s32 PS4_FUNC sceKernelGetdents(s32 fd, char* buf, s32 n_bytes) {
     const auto res = kernel_getdents(fd, buf, n_bytes);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
+}
+
+s32 PS4_FUNC kernel_getdirentries(s32 fd, char* buf, s32 n_bytes, s64* basep) {
+    log("getdirentries(fd=%d, buf=%p, n_bytes=%d, basep=*%p)\n", fd, buf, n_bytes, basep);
+
+    if (basep) {
+        Helpers::panic("TODO: getdirentries basep\n");
+    }
+
+    kernel_getdents(fd, buf, n_bytes);
+    return 0;
+}
+
+s32 PS4_FUNC sceKernelGetdirentries(s32 fd, char* buf, s32 n_bytes, s64* basep) {
+    const auto res = kernel_getdirentries(fd, buf, n_bytes, basep);
     if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
     return res;
 }

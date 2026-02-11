@@ -17,6 +17,7 @@ void init(Module& module) {
     module.addSymbolExport("QOQtbeDqsT4", "sceAudioOutOutput", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutput);
     module.addSymbolExport("w3PdaSTSwGE", "sceAudioOutOutputs", "libSceAudioOut", "libSceAudioOut", (void*)&sceAudioOutOutputs);
 
+    module.addSymbolStub("s1--uE9mBFw", "sceAudioOutClose", "libSceAudioOut", "libSceAudioOut");
     module.addSymbolStub("b+uAV89IlxE", "sceAudioOutSetVolume", "libSceAudioOut", "libSceAudioOut");
     module.addSymbolStub("wVwPU50pS1c", "sceAudioOutSetMixLevelPadSpk", "libSceAudioOut", "libSceAudioOut");
 }
@@ -102,14 +103,17 @@ s32 PS4_FUNC sceAudioOutOutput(s32 handle, const void* ptr) {
     auto* port = PS4::OS::find<SceAudioOutPort>(handle);
     if (handle != opened_handle) return SCE_OK;
 
-    const size_t sample_size = port->sdl_format == AUDIO_F32 ? sizeof(float) : sizeof(s16);
-    const auto size = port->len * sample_size * port->n_channels;
-    SDL_QueueAudio(dev, ptr, size);
-    
-    while (SDL_GetQueuedAudioSize(dev) >= 4096 * 8 * port->n_channels) {
-        SDL_Delay(1);
+    if (ptr) {
+        const size_t sample_size = port->sdl_format == AUDIO_F32 ? sizeof(float) : sizeof(s16);
+        const auto size = port->len * sample_size * port->n_channels;
+        SDL_QueueAudio(dev, ptr, size);
+
+        while (SDL_GetQueuedAudioSize(dev) >= 4096 * 8 * port->n_channels) {
+            SDL_Delay(1);
+        }
+        return port->len * port->n_channels;
     }
-    return port->len * port->n_channels;
+    else return 0;  // TODO: Should this return an error?
 }
 
 s32 PS4_FUNC sceAudioOutOutputs(SceAudioOutOutputParam* param, u32 num) {

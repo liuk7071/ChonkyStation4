@@ -143,11 +143,13 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     };
 
     auto stencil_op = [](u32 op, StencilRefMask refmask) -> vk::StencilOp {
-        auto assert_opval = [&]() {
+        auto assert_opval = [&]() -> bool {
             if (refmask.stencil_ref != refmask.stencil_op_val) {
                 //Helpers::panic("Stencil: ref != op_val");
                 printf("Stencil: ref != op_val\n");
+                return true;
             }
+            return false;
         };
 
         switch ((StencilOp)op) {
@@ -193,7 +195,8 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         .depthBoundsTestEnable  = cfg.depth_control.depth_bounds_enable,
         .maxDepthBounds         = cfg.max_depth_bounds,
         .minDepthBounds         = cfg.min_depth_bounds,
-        .stencilTestEnable      = cfg.depth_control.stencil_enable,
+        //.stencilTestEnable      = cfg.depth_control.stencil_enable,
+        .stencilTestEnable      = false,
         .front                  = stencil_front,
         .back                   = stencil_back
     };

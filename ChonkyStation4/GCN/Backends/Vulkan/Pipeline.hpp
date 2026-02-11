@@ -158,18 +158,20 @@ struct PipelineConfig {
     // Shader
     bool has_vs = false;
     bool has_ps = false;
+    u64 vertex_hash = 0;
+    u64 pixel_hash = 0;
 
     // Draw primitive
     u32 prim_type = 0;
 
     // Blending
     BlendControl blend_control[8];
-    float max_depth_bounds = 0.0f;
-    float min_depth_bounds = 0.0f;
 
     // Depth / Stencil
     DepthControl   depth_control;
     StencilControl stencil_control;
+    float max_depth_bounds = 0.0f;
+    float min_depth_bounds = 0.0f;
     bool enable_depth_clamp = false;
     StencilRefMask stencil_refmask_front;
     StencilRefMask stencil_refmask_back;
@@ -183,8 +185,6 @@ struct PipelineConfig {
     bool dx_clip_space_enable = false;
 
     // Other hashes
-    u64 vertex_hash = 0;
-    u64 pixel_hash = 0;
     u64 binding_hash = 0;   // Hash calculated on the fetch shader binding info
 };
 

@@ -139,7 +139,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                     currently_tracking.push_back(tex);
                 }
 
-                tex->image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
                 *out_info = tex;
                 return;
             }
