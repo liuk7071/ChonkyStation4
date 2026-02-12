@@ -20,6 +20,13 @@ static constexpr s32 SCE_VIDEO_OUT_BUS_TYPE_MAIN = 0;
 
 static constexpr s32 SCE_VIDEO_OUT_FLIP_EVENT_ID = 0x6;
 
+static constexpr s32 SCE_VIDEO_OUT_PIXEL_FORMAT_A8R8G8B8_SRGB           = 0x80000000;
+static constexpr s32 SCE_VIDEO_OUT_PIXEL_FORMAT_A8B8G8R8_SRGB           = 0x80002200;
+static constexpr s32 SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10             = 0x88060000;
+static constexpr s32 SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB        = 0x88000000;
+static constexpr s32 SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_BT2020_PQ   = 0x88740000;
+static constexpr s32 SCE_VIDEO_OUT_PIXEL_FORMAT_A16R16G16B16_FLOAT      = 0xC1060000;
+
 struct SceVideoOutBufferAttribute {
 	s32 pixel_format;
 	s32 tiling_mode;

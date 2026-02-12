@@ -475,7 +475,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
 
                 if (last_color_rt[i] != new_rt[i]) {
                     bool save = false;
-                    color_attachments[i] = RenderTarget::getVulkanAttachmentForColorTarget(&new_rt[i], &save);
+                    color_attachments[i] = RenderTarget::getVulkanAttachmentForColorTarget(&new_rt[i], pipeline.cfg.degamma_enable, &save);
                     if (save)
                         last_color_rt[i] = new_rt[i];
                     else
@@ -606,6 +606,16 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
     last_depth_rt = {};
 
+    auto is_srgb = [](OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
+        using namespace OS::Libs::SceVideoOut;
+        if (   buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A8R8G8B8_SRGB
+            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A8B8G8R8_SRGB
+            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB
+           )
+            return true;
+        else return false;
+    };
+
     // Get the SceVideoOut output buffer
     TSharp tsharp;
     tsharp.width    = buf->attrib.width - 1;
@@ -613,7 +623,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     tsharp.pitch    = buf->attrib.pitch_in_pixels - 1;
     tsharp.base_address = (uptr)buf->base >> 8;
     tsharp.data_format  = (u32)DataFormat::Format8_8_8_8; // TODO
-    tsharp.num_format   = (u32)NumberFormat::Unorm;
+    tsharp.num_format   = !is_srgb(buf) ? (u32)NumberFormat::Unorm : (u32)NumberFormat::Srgb;
     tsharp.dst_sel_x = DSEL_R;
     tsharp.dst_sel_y = DSEL_G;
     tsharp.dst_sel_z = DSEL_B;
@@ -621,7 +631,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     tsharp.tiling_index = 31;
     
     TrackedTexture* out_tex;
-    getVulkanImageInfoForTSharp(&tsharp, &out_tex);
+    getVulkanImageInfoForTSharp(&tsharp, &out_tex, true);
 
     out_tex->transition(vk::ImageLayout::eTransferSrcOptimal);
     transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferDstOptimal, &cmd_bufs[0]);

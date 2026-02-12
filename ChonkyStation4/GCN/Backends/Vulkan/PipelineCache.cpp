@@ -67,6 +67,9 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
         cfg.blend_control[i].raw = regs[Reg::mmCB_BLEND0_CONTROL + i];
     }
 
+    // Color
+    cfg.degamma_enable = (regs[Reg::mmCB_COLOR_CONTROL] >> 3) & 1;
+
     // Depth control
     cfg.depth_control.raw   = regs[Reg::mmDB_DEPTH_CONTROL];
     cfg.max_depth_bounds    = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MAX]);
@@ -98,6 +101,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     if (cfg.has_ps) XXH3_64bits_update(state, &cfg.pixel_hash, sizeof(cfg.pixel_hash));
     XXH3_64bits_update(state, &cfg.prim_type, sizeof(cfg.prim_type));
     XXH3_64bits_update(state, &cfg.blend_control, sizeof(BlendControl) * 8);
+    XXH3_64bits_update(state, &cfg.degamma_enable, sizeof(cfg.degamma_enable));
     XXH3_64bits_update(state, &cfg.depth_control, sizeof(cfg.depth_control));
     if (cfg.depth_control.depth_bounds_enable) {
         XXH3_64bits_update(state, &cfg.max_depth_bounds, sizeof(cfg.max_depth_bounds));
@@ -115,9 +119,9 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     XXH3_64bits_update(state, &cfg.dx_clip_space_enable, sizeof(cfg.dx_clip_space_enable));
     XXH3_64bits_update(state, &cfg.binding_hash, sizeof(cfg.binding_hash));
 
+    const u64 pipeline_hash = XXH3_64bits_digest(state);
     XXH3_freeState(state);
-
-    const u64 pipeline_hash = XXH3_64bits(&cfg, sizeof(PipelineConfig));
+    
     if (pipelines.contains(pipeline_hash))
         return *pipelines[pipeline_hash];
 

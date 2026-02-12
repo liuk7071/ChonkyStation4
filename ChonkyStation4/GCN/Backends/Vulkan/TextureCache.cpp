@@ -32,7 +32,7 @@ void TrackedTexture::transition(vk::ImageLayout new_layout) {
     curr_layout = new_layout;
 }
 
-void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool is_depth_buffer, vk::Format depth_vk_fmt) {
+void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt) {
     const u32 width = tsharp->width + 1;
     const u32 height = tsharp->height + 1;
     const u32 pitch = tsharp->pitch + 1;
@@ -116,8 +116,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             if (   tracked_tex->width  == width
                 && tracked_tex->height == height
                 && tracked_tex->tsharp.data_format == tsharp->data_format
-                && tracked_tex->tsharp.num_format  == tsharp->num_format
-                ) {
+                && (tracked_tex->tsharp.num_format == tsharp->num_format || dont_match_num_format)
+               ) {
                 auto* tex = tracked_tex;
                 if (is_depth_buffer && !tex->is_depth_buffer) {
                     tex->dead = true;

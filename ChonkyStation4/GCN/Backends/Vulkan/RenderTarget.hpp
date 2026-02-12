@@ -26,7 +26,7 @@ struct Attachment {
     bool has_feedback_loop;
 };
 
-Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool* save);
+Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enable, bool* save);
 Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stencil, bool* save);
 void reset();
 

@@ -404,7 +404,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
             case Shader::DescriptorType::Tsharp: {
                 TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
                 TrackedTexture* tex;
-                Vulkan::getVulkanImageInfoForTSharp(tsharp, &tex);
+                Vulkan::getVulkanImageInfoForTSharp(tsharp, &tex, true);
                 tex->was_bound = true;
 
                 if (tex == rt) {

@@ -167,6 +167,9 @@ struct PipelineConfig {
     // Blending
     BlendControl blend_control[8];
 
+    // Color
+    bool degamma_enable = false;
+
     // Depth / Stencil
     DepthControl   depth_control;
     StencilControl stencil_control;

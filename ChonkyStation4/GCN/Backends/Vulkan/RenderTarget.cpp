@@ -13,7 +13,7 @@ namespace PS4::GCN::Vulkan::RenderTarget {
 // Hack: keep track of the color targets we used within a frame to set LoadOp to clear the first time they're used
 std::unordered_map<TrackedTexture*, bool> used_bufs;
 
-Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool* save) {
+Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enable, bool* save) {
     Attachment attachment;
 
     // Build a texture descriptor with the color target info
@@ -36,12 +36,23 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool* save) {
     tsharp.dst_sel_w = DSEL_A;
     tsharp.tiling_index = 31;
 
+    // If this is enabled, each 8, 8_8 or 8_8_8_8 UNORM format is treated as SRGB.
+    // Disabled for now because I'm not sure it works
+    /*if (degamma_enable) {
+        if (
+               (tsharp.data_format == (u32)DataFormat::Format8 || tsharp.data_format == (u32)DataFormat::Format8_8 || tsharp.data_format == (u32)DataFormat::Format8_8_8_8)
+            && tsharp.num_format == (u32)NumberFormat::Unorm
+           ) {
+            tsharp.num_format = (u32)NumberFormat::Srgb;
+        }
+    }*/
+
     //printf("rt: %p, %dx%d fmt %d,%d\n", tsharp.base_address << 8, renderer->color_rt_dim[rt->idx].width, renderer->color_rt_dim[rt->idx].height, rt->info.format.Value(), rt->info.number_type.Value());
 
     // Get an image from our cache
     TrackedTexture* out_info;
     endRendering();
-    getVulkanImageInfoForTSharp(&tsharp, &out_info);
+    getVulkanImageInfoForTSharp(&tsharp, &out_info, true);
     
     // TODO: This doesn't detect feedback loops that happen in the middle of a renderpass
     const bool was_bound = out_info->was_bound;
@@ -137,7 +148,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
     // Get an image from our cache
     TrackedTexture* out_info;
     endRendering();
-    getVulkanImageInfoForTSharp(&tsharp, &out_info, true, vk_fmt);
+    getVulkanImageInfoForTSharp(&tsharp, &out_info, false, true, vk_fmt);
     out_info->transition(image_layout);
     out_info->was_targeted = true;
 
