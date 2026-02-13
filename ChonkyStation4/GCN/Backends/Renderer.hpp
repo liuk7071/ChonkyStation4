@@ -114,6 +114,11 @@ union RenderTargetDimensions {
     };
 };
 
+enum class IndexType : u32 {
+    Uint16,
+    Uint32
+};
+
 class Renderer {
 public:
     Renderer() {
@@ -127,6 +132,7 @@ public:
     virtual void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) = 0;
 
     u32 regs[0xd000];
+    IndexType index_type = IndexType::Uint16;
     RenderTargetDimensions color_rt_dim[8];
     RenderTargetDimensions depth_rt_dim;
     

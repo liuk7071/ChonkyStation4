@@ -133,6 +133,9 @@ Module buildHLEModule() {
     module.addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
     module.addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
 
+    module.addSymbolStub("wIsKy+TfeLs", "sceNetCtlRegisterCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
+    module.addSymbolStub("u5oqtlIP+Fw", "sceNetCtlCheckCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
+
     // libSceSsl
     module.addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
     module.addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl", 1);

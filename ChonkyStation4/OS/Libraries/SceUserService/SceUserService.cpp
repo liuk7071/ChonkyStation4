@@ -16,6 +16,8 @@ void init(Module& module) {
     
     module.addSymbolStub("j3YMu1MVNNo", "sceUserServiceInitialize", "libSceUserService", "libSceUserService");
     module.addSymbolStub("az-0R6eviZ0", "sceUserServiceInitialize2", "libSceUserService", "libSceUserService");
+
+    module.addSymbolStub("wuI7c7UNk0A", "sceUserServiceRegisterEventCallback", "libSceUserServiceForNpToolkit", "libSceUserService");
 }
 
 bool is_logged_in = false;

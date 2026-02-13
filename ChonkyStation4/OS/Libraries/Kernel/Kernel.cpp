@@ -71,6 +71,7 @@ void init(Module& module) {
     module.addSymbolExport("dQHWEsJtoE4", "pthread_mutexattr_init", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_init);
     module.addSymbolExport("dQHWEsJtoE4", "pthread_mutexattr_init", "libScePosix", "libkernel", (void*)&kernel_pthread_mutexattr_init);
     module.addSymbolExport("F8bUHwAG284", "scePthreadMutexattrInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_init);
+    module.addSymbolExport("n2MMpvU8igI", "scePthreadMutexattrInitForInternalLibc", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_init);
     module.addSymbolExport("smWEktiyyG0", "scePthreadMutexattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_destroy);
     module.addSymbolExport("mDmgMOGVUqg", "pthread_mutexattr_settype", "libkernel", "libkernel", (void*)&kernel_pthread_mutexattr_settype);
     module.addSymbolExport("mDmgMOGVUqg", "pthread_mutexattr_settype", "libScePosix", "libkernel", (void*)&kernel_pthread_mutexattr_settype);
@@ -78,6 +79,7 @@ void init(Module& module) {
     module.addSymbolExport("ttHNfU+qDBU", "pthread_mutex_init", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("ttHNfU+qDBU", "pthread_mutex_init", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("cmo1RIYva9o", "scePthreadMutexInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
+    module.addSymbolExport("qH1gXoq71RY", "scePthreadMutexInitForInternalLibc", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("2Of0f+3mhhE", "scePthreadMutexDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_destroy);
 
     module.addSymbolExport("mKoTx03HRWA", "pthread_condattr_init", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_init);

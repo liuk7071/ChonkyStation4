@@ -482,6 +482,11 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             break;
         }
 
+        case PM4ItOpcode::IndexType: {
+            renderer->index_type = (*args & 1) == 0 ? IndexType::Uint16 : IndexType::Uint32;
+            break;
+        }
+
         case PM4ItOpcode::IncrementDeCounter: {
             de_count++;
             break;

@@ -444,7 +444,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     vk::Buffer vk_idx_buf = nullptr;
     size_t idx_buf_offs = 0;
     if (idx_buf_ptr) {
-        vk::DeviceSize idx_buf_size = cnt * sizeof(u16); // TODO: index type is stubbed
+        vk::DeviceSize idx_buf_size = cnt * (index_type == IndexType::Uint16 ? sizeof(u16) : sizeof(u32));
         auto [idx_buf, offs, was_dirty] = Cache::getBuffer((void*)idx_buf_ptr, idx_buf_size);
         vk_idx_buf = idx_buf;
         idx_buf_offs = offs;
@@ -590,7 +590,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
     
     if (idx_buf_ptr) {
-        cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, vk::IndexType::eUint16);
+        cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
         cmd_bufs[0].drawIndexed(cnt, 1, 0, 0, 0);
     }
     else {

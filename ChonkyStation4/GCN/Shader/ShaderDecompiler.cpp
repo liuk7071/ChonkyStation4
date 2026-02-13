@@ -1116,6 +1116,11 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_MIN3_F32: {
+            main += setDST(instr.dst[0], std::format("min(min({}, {}), {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
+
         case Shader::Opcode::V_MED3_F32: {
             const auto src0 = getSRC(instr.src[0]);
             const auto src1 = getSRC(instr.src[1]);
@@ -1365,9 +1370,9 @@ uint getStrideForBinding(uint binding) {
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            main += "// TODO\n";
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //main += "// TODO\n";
         }
         }
     }
