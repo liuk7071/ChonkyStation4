@@ -237,8 +237,11 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     case OperandField::LiteralConst: {
         if constexpr (is_float)
             src = std::format("f2u({:#g}f)", reinterpret_cast<const float&>(op.code));
-        else
+        else {
             src = std::format("{}", op.code);
+            if (type == Type::Uint)
+                src += "u";
+        }
         break;
     }
     case OperandField::SignedConstIntPos:   src = std::format("{}", (s32)op.code - SignedConstIntPosMin + 1);           break;
@@ -359,6 +362,8 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 #define u2f(x) uintBitsToFloat(x)
 #define f2u(x) floatBitsToUint(x)
 
+#define PI 3.14159265358979323846
+
 vec4 tmp;
 float tmp2[4];
 uint tmp_u;
@@ -460,6 +465,7 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::IMAGE_SAMPLE:
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
+        case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
@@ -663,7 +669,7 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::S_BFE_U32: {
             const auto src0 = getSRC<Type::Uint>(instr.src[0]);
-            const auto src1 = getSRC<Type::Uint>(instr.src[1]);
+            const auto src1 = getSRC<Type::Int>(instr.src[1]);
             main += setDST<Type::Uint>(instr.dst[0], std::format("bitfieldExtract({}, {} & 0x1f, bitfieldExtract({}, 16, 7))", src0, src1, src1));
             main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
@@ -746,6 +752,12 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::S_NOP: break;
 
+        case Shader::Opcode::S_TTRACEDATA: {
+            main += "// S_TTRACEDATA\n";
+            break;
+        }
+
+        case Shader::Opcode::V_CMP_NGE_F32:
         case Shader::Opcode::V_CMP_LT_F32: {
             main += v_cmp_f32(instr, "<");
             break;
@@ -767,6 +779,7 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_CMP_NLT_F32:
         case Shader::Opcode::V_CMP_GE_F32: {
             main += v_cmp_f32(instr, ">=");
             break;
@@ -776,7 +789,7 @@ uint getStrideForBinding(uint binding) {
             main += v_cmp_f32(instr, "!=");
             break;
         }
-
+        
         case Shader::Opcode::S_CBRANCH_SCC0: {
             main += "// TODO: S_CBRANCH_SCC0\n";
             break;
@@ -915,6 +928,11 @@ uint getStrideForBinding(uint binding) {
             main += setDST(instr.dst[0], std::format("{} * {}", getSRC(instr.src[0]), getSRC(instr.src[1])));
             break;
         }
+        
+        case Shader::Opcode::V_MUL_I32_I24: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff)", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            break;
+        }
 
         case Shader::Opcode::V_MIN_LEGACY_F32:
         case Shader::Opcode::V_MIN_F32: {
@@ -930,6 +948,11 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::V_LSHRREV_B32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+        
+        case Shader::Opcode::V_ASHRREV_I32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<Type::Int>(instr.src[1]), getSRC<Type::Int>(instr.src[0])));
             break;
         }
         
@@ -1058,12 +1081,12 @@ uint getStrideForBinding(uint binding) {
         }
 
         case Shader::Opcode::V_SIN_F32: {
-            main += setDST(instr.dst[0], std::format("sin({})", getSRC(instr.src[0])));
+            main += setDST(instr.dst[0], std::format("sin({} * 2 * PI)", getSRC(instr.src[0])));
             break;
         }
 
         case Shader::Opcode::V_COS_F32: {
-            main += setDST(instr.dst[0], std::format("cos({})", getSRC(instr.src[0])));
+            main += setDST(instr.dst[0], std::format("cos({} * 2 * PI)", getSRC(instr.src[0])));
             break;
         }
 
@@ -1120,6 +1143,11 @@ uint getStrideForBinding(uint binding) {
             main += setDST(instr.dst[0], std::format("min(min({}, {}), {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
             break;
         }
+        
+        case Shader::Opcode::V_MAX3_F32: {
+            main += setDST(instr.dst[0], std::format("max(max({}, {}), {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+            break;
+        }
 
         case Shader::Opcode::V_MED3_F32: {
             const auto src0 = getSRC(instr.src[0]);
@@ -1127,6 +1155,11 @@ uint getStrideForBinding(uint binding) {
             const auto src2 = getSRC(instr.src[2]);
             // med3(a, b, c) = max(min(a, b), min(max(a, b), c))
             main += setDST(instr.dst[0], std::format("max(min({}, {}), min(max({}, {}), {}))", src0, src1, src0, src1, src2));
+            break;
+        }
+
+        case Shader::Opcode::V_SAD_U32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("uint(abs({} - {})) + {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
             break;
         }
 
@@ -1281,6 +1314,7 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
+        case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
             main += "// IMAGE_SAMPLE_*\n";
@@ -1370,9 +1404,9 @@ uint getStrideForBinding(uint binding) {
         }
 
         default: {
-            printf("Shader so far:\n%s\n", main.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            //main += "// TODO\n";
+            //printf("Shader so far:\n%s\n", main.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            main += "// TODO\n";
         }
         }
     }

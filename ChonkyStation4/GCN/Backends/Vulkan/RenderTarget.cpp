@@ -170,7 +170,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
         //.loadOp = vk::AttachmentLoadOp::eClear,
         .storeOp = vk::AttachmentStoreOp::eStore,
         .clearValue = vk::ClearValue {
-            vk::ClearDepthStencilValue { 0.0f, 0 }
+            vk::ClearDepthStencilValue { reinterpret_cast<float&>(GCN::renderer->regs[Reg::mmDB_DEPTH_CLEAR]), 0}
         }
     };
 

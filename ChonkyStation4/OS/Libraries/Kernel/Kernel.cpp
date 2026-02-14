@@ -158,6 +158,9 @@ void init(Module& module) {
     module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     module.addSymbolExport("4wSze92BhLI", "sceKernelWrite", "libkernel", "libkernel", (void*)&sceKernelWrite);
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
+    module.addSymbolExport("ih4CD9-gghM", "ftruncate", "libkernel", "libkernel", (void*)&kernel_ftruncate);
+    module.addSymbolExport("ih4CD9-gghM", "ftruncate", "libScePosix", "libkernel", (void*)&kernel_ftruncate);
+    module.addSymbolExport("VW3TVZiM4-E", "sceKernelFtruncate", "libkernel", "libkernel", (void*)&sceKernelFtruncate);
     module.addSymbolExport("E6ao34wPw+U", "stat", "libkernel", "libkernel", (void*)&kernel_stat);
     module.addSymbolExport("E6ao34wPw+U", "stat", "libScePosix", "libkernel", (void*)&kernel_stat);
     module.addSymbolExport("eV9wAD2riIA", "sceKernelStat", "libkernel", "libkernel", (void*)&sceKernelStat);
@@ -257,10 +260,21 @@ void init(Module& module) {
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
     
     module.addSymbolStub("VHCS3rCd0PM", "sceKernelAddReadEvent", "libkernel", "libkernel"); // TODO: Important if not used for sockets
+    module.addSymbolStub("qBDmpCyGssE", "scePthreadCancel", "libkernel", "libkernel");
+    module.addSymbolStub("sCJd99Phct0", "scePthreadSetcanceltype", "libkernel", "libkernel");
+    module.addSymbolStub("AUXVxWeJU-A", "sceKernelUnlink", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
+    module.addSymbolStub("5txKfcMUAok", "pthread_mutexattr_setprotocol", "libkernel", "libkernel");
+    module.addSymbolStub("5txKfcMUAok", "pthread_mutexattr_setprotocol", "libScePosix", "libkernel");
+    module.addSymbolStub("EXv3ztGqtDM", "pthread_mutexattr_setpshared", "libkernel", "libkernel");
+    module.addSymbolStub("EXv3ztGqtDM", "pthread_mutexattr_setpshared", "libScePosix", "libkernel");
     module.addSymbolStub("HF7lK46xzjY", "pthread_mutexattr_destroy", "libkernel", "libkernel");
     module.addSymbolStub("HF7lK46xzjY", "pthread_mutexattr_destroy", "libScePosix", "libkernel");
+    module.addSymbolStub("3BpP850hBT4", "pthread_condattr_setpshared", "libkernel", "libkernel");
+    module.addSymbolStub("3BpP850hBT4", "pthread_condattr_setpshared", "libScePosix", "libkernel");
+    module.addSymbolStub("EjllaAqAPZo", "pthread_condattr_setclock", "libkernel", "libkernel");
+    module.addSymbolStub("EjllaAqAPZo", "pthread_condattr_setclock", "libScePosix", "libkernel");
     module.addSymbolStub("i2ifZ3fS2fo", "scePthreadRwlockattrDestroy", "libkernel", "libkernel");
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libkernel", "libkernel");
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libScePosix", "libkernel");
@@ -308,6 +322,7 @@ void init(Module& module) {
     module.addSymbolStub("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel");  // TODO: Important
     
     module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
+    module.addSymbolStub("EfqmKkirJF0", "sceKernelMlockall", "libkernel", "libkernel");
 
     proc_counter_start = SDL_GetPerformanceCounter();
 }

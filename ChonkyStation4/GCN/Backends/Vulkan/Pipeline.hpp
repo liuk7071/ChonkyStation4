@@ -172,6 +172,7 @@ struct PipelineConfig {
 
     // Depth / Stencil
     DepthControl   depth_control;
+    bool depth_clear_enable = false;
     StencilControl stencil_control;
     float max_depth_bounds = 0.0f;
     float min_depth_bounds = 0.0f;

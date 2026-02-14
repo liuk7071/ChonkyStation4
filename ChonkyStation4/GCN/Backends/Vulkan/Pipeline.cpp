@@ -190,7 +190,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
 
     vk::PipelineDepthStencilStateCreateInfo depth_stencil = {
         .depthTestEnable        = cfg.depth_control.depth_enable,
-        .depthWriteEnable       = cfg.depth_control.depth_write_enable,
+        .depthWriteEnable       = cfg.depth_control.depth_write_enable && !cfg.depth_clear_enable,  // If depth clear is enabled, ignore writes from draws
         .depthCompareOp         = compare_op(cfg.depth_control.depth_func),
         .depthBoundsTestEnable  = cfg.depth_control.depth_bounds_enable,
         .maxDepthBounds         = cfg.max_depth_bounds,

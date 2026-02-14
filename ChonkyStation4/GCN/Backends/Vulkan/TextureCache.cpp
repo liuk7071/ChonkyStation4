@@ -43,13 +43,24 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     vk_fmt = is_depth_buffer ? depth_vk_fmt : vk_fmt;
 
     size_t img_size;
-    if (vk_fmt == vk::Format::eBc3UnormBlock || vk_fmt == vk::Format::eBc1RgbaUnormBlock) {
-        const auto blk_width = (width + 3) / 4;
+    switch (vk_fmt) {
+    case vk::Format::eBc1RgbaUnormBlock: {
+        const auto blk_width  = (width + 3)  / 4;
+        const auto blk_height = (height + 3) / 4;
+        img_size = blk_width * blk_height * 8;
+        break;
+    }
+    
+    case vk::Format::eBc7UnormBlock:
+    case vk::Format::eBc3UnormBlock: {
+        const auto blk_width  = (width + 3)  / 4;
         const auto blk_height = (height + 3) / 4;
         img_size = blk_width * blk_height * 16;
-
+        break;
     }
-    else img_size = pitch * height * pixel_size;
+
+    default: img_size = pitch * height * pixel_size; break;
+    }
 
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
@@ -171,9 +182,14 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     auto& mem = tex->mem;
 
     const bool is_compressed = [&]() -> bool {
-        switch (Vulkan::getBufFormatAndSize(tex->tsharp.data_format, tex->tsharp.num_format).first) {
-        case vk::Format::eBc1RgbaUnormBlock:
-        case vk::Format::eBc3UnormBlock:
+        switch ((DataFormat)tex->tsharp.data_format) {
+        case DataFormat::FormatBc1:
+        case DataFormat::FormatBc2:
+        case DataFormat::FormatBc3:
+        case DataFormat::FormatBc4:
+        case DataFormat::FormatBc5:
+        case DataFormat::FormatBc6:
+        case DataFormat::FormatBc7:
             return true;
         default:
             return false;

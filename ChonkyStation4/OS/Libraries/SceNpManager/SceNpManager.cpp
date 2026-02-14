@@ -22,7 +22,14 @@ void init(Module& module) {
     module.addSymbolStub("cRILAEvn+9M", "sceNpUnregisterNpReachabilityStateCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GImICnh+boA", "sceNpRegisterPlusEventCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("3Zl8BePTh9Y", "sceNpCheckCallback", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("r6MyYJkryz8", "sceNpCheckPlus", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("uFJpaKNBAj4", "sceNpRegisterGamePresenceCallback", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("KswxLxk4c1Y", "sceNpRegisterGamePresenceCallbackA", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("GpLQDNKICac", "sceNpCreateRequest", "libSceNpManager", "libSceNpManager", 1);
+    module.addSymbolStub("eiqMCt9UshI", "sceNpCreateAsyncRequest", "libSceNpManager", "libSceNpManager", 1);
+    module.addSymbolStub("2rsFmlGWleQ", "sceNpCheckNpAvailability", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("ilwLM4zOmu4", "sceNpGetParentalControlInfo", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("uqcPJLWL08M", "sceNpPollAsync", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("S7QTn72PrDw", "sceNpDeleteRequest", "libSceNpManager", "libSceNpManager");
     
     module.addSymbolStub("0c7HbXRKUt4", "sceNpRegisterStateCallbackForToolkit", "libSceNpManagerForToolkit", "libSceNpManager");

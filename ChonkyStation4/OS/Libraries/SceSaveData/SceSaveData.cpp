@@ -28,6 +28,9 @@ void init(Module& module) {
     module.addSymbolStub("oQySEUfgXRA", "sceSaveDataSetupSaveDataMemory2", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("QwOO7vegnV8", "sceSaveDataGetSaveDataMemory2", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("BMR4F-Uek3E", "sceSaveDataUmount", "libSceSaveData", "libSceSaveData");
+    module.addSymbolStub("VwadwBBBJ80", "sceSaveDataUmountWithBackup", "libSceSaveData", "libSceSaveData");
+    module.addSymbolStub("j8xKtiFj0SY", "sceSaveDataGetEventResult", "libSceSaveData", "libSceSaveData");
+    module.addSymbolStub("yKDy8S5yLA0", "sceSaveDataTerminate", "libSceSaveData", "libSceSaveData");
 }
 
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result) {

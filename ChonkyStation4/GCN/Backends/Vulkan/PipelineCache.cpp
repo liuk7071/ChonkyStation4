@@ -72,6 +72,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
 
     // Depth control
     cfg.depth_control.raw   = regs[Reg::mmDB_DEPTH_CONTROL];
+    cfg.depth_clear_enable  = regs[Reg::mmDB_RENDER_CONTROL] & 1;
     cfg.max_depth_bounds    = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MAX]);
     cfg.min_depth_bounds    = reinterpret_cast<const float&>(regs[Reg::mmDB_DEPTH_BOUNDS_MIN]);
 
@@ -103,6 +104,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     XXH3_64bits_update(state, &cfg.blend_control, sizeof(BlendControl) * 8);
     XXH3_64bits_update(state, &cfg.degamma_enable, sizeof(cfg.degamma_enable));
     XXH3_64bits_update(state, &cfg.depth_control, sizeof(cfg.depth_control));
+    XXH3_64bits_update(state, &cfg.depth_clear_enable, sizeof(cfg.depth_clear_enable));
     if (cfg.depth_control.depth_bounds_enable) {
         XXH3_64bits_update(state, &cfg.max_depth_bounds, sizeof(cfg.max_depth_bounds));
         XXH3_64bits_update(state, &cfg.min_depth_bounds, sizeof(cfg.min_depth_bounds));

@@ -13,6 +13,12 @@ s32 PS4_FUNC kernel_open(const char* path, s32 flags, u16 mode) {
     log("_open(path=\"%s\", flags=%d, mode=%o)\n", path, flags, mode);
     // TODO: mode
 
+    if (!FS::isDeviceMounted(path)) {
+        log("WARNING: Device not mounted\n");
+        *Kernel::kernel_error() = POSIX_ENOENT;
+        return -1;
+    }
+
     u32 err = 0;
     const auto ret = FS::open(path, err, flags);
     if (!ret) {
@@ -144,6 +150,22 @@ s64 PS4_FUNC kernel_writev(s32 fd, SceKernelIovec* iov, int iovcnt) {
     }
 
     return written;
+}
+
+s32 PS4_FUNC kernel_ftruncate(s32 fd, s64 len) {
+    log("ftruncate(fd=%d, len=0x%llx)\n", fd, len);
+    
+    auto lock = FS::getFileLock(fd);
+    auto& file = FS::getFileFromID(fd);
+    fs::resize_file(file.path, len);
+    return 0;
+}
+
+s32 PS4_FUNC sceKernelFtruncate(s32 fd, s64 len) {
+    log("sceKernelFtruncate(fd=%d, len=0x%llx)\n", fd, len);
+    const auto res = kernel_ftruncate(fd, len);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
 }
 
 s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
