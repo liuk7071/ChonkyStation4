@@ -10,7 +10,6 @@
 ChonkyStation4 is a work-in-progress emulator for the PlayStation 4 system.<br>
 It can currently boot a few simple commercial games.<br>
 This is a hobby project I'm developing for fun and to learn.<br>
-<b>You should not use this to actually play games.</b> At least not for now.<br>
 </p>
 
 ---
@@ -24,7 +23,24 @@ This is a hobby project I'm developing for fun and to learn.<br>
 <br>
 
 <div align="center">
+    <h1>Usage</h1>
+    To use the emulator, you must first place your decrypted firmware modules in <strong>%appdata%/ChonkyStation/ChonkyStation4/sysmodules</strong>.<br>
+    Next, simply run the game as follows: <code>ChonkyStation4.exe [path-to-game-folder]</code>.
+</div>
+
+---
+<br>
+
+<div align="center">
+    <h1>Compatibility</h1>
+    <p>A compatibility list is available <a href=https://github.com/ChonkyStation/ChonkyStation4-Compatibility>here</a>.</p>
+</div>
+
+---
+<br>
+
+<div align="center">
     <h1>Showcase</h1>
+    <img src="Resources/tomb-raider.png">
     <img src="Resources/we-are-doomed.png">
-    <img src="Resources/sonic-mania.png">
 </div>

@@ -14,7 +14,7 @@ add_compile_definitions(SDL_MAIN_HANDLED)
 add_executable(ChonkyStation4)
 add_compile_definitions("_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 
-set(VERSION_STRING "alpha 1")
+set(VERSION_STRING "alpha-1")
 
 option(ENABLE_USER_BUILD "Enable user build" OFF)
 option(ENABLE_RELEASE_BUILD "Create a release build (do not use this)" OFF)
