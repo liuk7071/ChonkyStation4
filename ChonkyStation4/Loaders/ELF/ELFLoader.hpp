@@ -118,10 +118,10 @@ public:
         { PT_SCE_RELRO,      "PT_SCE_RELRO      " },
     };
 
-    Module load(const fs::path& path, bool is_partial_lle_module = false, Module* hle_module = nullptr);
+    std::shared_ptr<Module> load(const fs::path& path, bool is_partial_lle_module = false, std::shared_ptr<Module> hle_module = nullptr);
 
 private: 
     MAKE_LOG_FUNCTION(log, loader_elf);
     
-    void* loadSegment(ELFIO::segment& seg, Module& module, u8* ptr = nullptr, bool do_patch = true, bool zero_fill = true);
+    void* loadSegment(ELFIO::segment& seg, std::shared_ptr<Module> module, u8* ptr = nullptr, bool do_patch = true, bool zero_fill = true);
 };

@@ -56,7 +56,8 @@ s32 PS4_FUNC kernel_pthread_mutexattr_settype(pthread_mutexattr_t* attr, int kin
     case 1: kind = PTHREAD_MUTEX_ERRORCHECK;    break;
     case 2: kind = PTHREAD_MUTEX_RECURSIVE;     break;
     case 3: kind = PTHREAD_MUTEX_NORMAL;        break;
-    case 4: kind = PTHREAD_MUTEX_ADAPTIVE_NP;   break;
+    //case 4: kind = PTHREAD_MUTEX_ADAPTIVE_NP;   break;
+    case 4: kind = PTHREAD_MUTEX_ERRORCHECK;    break;
     default:    Helpers::panic("pthread_mutexattr_settype: invalid type");
     }
     

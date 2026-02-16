@@ -72,8 +72,10 @@ template <class... Args>
     error.resize(512_KB);
     std::sprintf(error.data(), fmt, args...);
     //throw std::runtime_error(error);
-    printf(error.c_str());
-    exit(0);
+    std::printf("FATAL: ");
+    std::printf(error.c_str());
+    std::putc('\n', stdout);
+    std::_Exit(0);
 }
 
 template <class... Args>

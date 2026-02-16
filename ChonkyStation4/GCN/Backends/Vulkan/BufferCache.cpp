@@ -225,7 +225,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
 
     // The buffer is new - create and cache it
     CachedBuffer* buf = new CachedBuffer();
-    if (size >= page_size) {
+    if (size >= page_size / 2) {
         buf->base = (void*)aligned_base;
         buf->page = page;
         buf->page_end = page_end;

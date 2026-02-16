@@ -333,9 +333,9 @@ template TSharp* DescriptorLocation::asPtr<TSharp>();
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
     std::ofstream out;
     ////if (stage == ShaderStage::Fragment) {
-        out.open("shader.bin", std::ios::binary);
-        out.write((char*)data, 8_KB);
-        out.close();
+    //    out.open("shader.bin", std::ios::binary);
+    //    out.write((char*)data, 8_KB);
+    //    out.close();
     ////}
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
@@ -454,7 +454,6 @@ uint getStrideForBinding(uint binding) {
             const u32 lane = std::stoi(getSRC<Type::Uint>(instr.src[1]));
             const u32 backup_idx = (src_vgpr << 16) | lane;
             if (backup_descs.contains(backup_idx)) {
-                printf("restored %d from %d:%d\n", dest_sgpr, src_vgpr, lane);
                 descs[dest_sgpr] = backup_descs[backup_idx];
             }
             break;

@@ -32,196 +32,215 @@ s32 PS4_FUNC sceNetCtlGetState(s32* state) {
 namespace PS4::OS::HLE {
 
 // Create a dummy HLE module that only contains the symbol exports for HLE functions
-Module buildHLEModule() {
-    Module module;
-    module.filename = "HLE";
+std::shared_ptr<Module> buildHLEModule() {
+    std::shared_ptr<Module> module = std::make_shared<Module>();
+    module->filename = "HLE";
 
-    PS4::OS::Libs::Kernel::init(module);
-    PS4::OS::Libs::SceVideoOut::init(module);
-    PS4::OS::Libs::SceGnmDriver::init(module);
-    PS4::OS::Libs::SceSystemService::init(module);
-    PS4::OS::Libs::SceUserService::init(module);
-    PS4::OS::Libs::SceNpManager::init(module);
-    PS4::OS::Libs::SceSysmodule::init(module);
-    PS4::OS::Libs::SceSaveData::init(module);
-    PS4::OS::Libs::SceSaveDataDialog::init(module);
-    PS4::OS::Libs::SceNpTrophy::init(module);
-    PS4::OS::Libs::ScePad::init(module);
-    PS4::OS::Libs::SceAudioOut::init(module);
-    PS4::OS::Libs::ScePlayGo::init(module);
-    PS4::OS::Libs::SceRtc::init(module);
-    PS4::OS::Libs::SceNet::init(module);
-    PS4::OS::Libs::SceRandom::init(module);
+    PS4::OS::Libs::Kernel::init(*module);
+    PS4::OS::Libs::SceVideoOut::init(*module);
+    PS4::OS::Libs::SceGnmDriver::init(*module);
+    PS4::OS::Libs::SceSystemService::init(*module);
+    PS4::OS::Libs::SceUserService::init(*module);
+    PS4::OS::Libs::SceNpManager::init(*module);
+    PS4::OS::Libs::SceSysmodule::init(*module);
+    PS4::OS::Libs::SceSaveData::init(*module);
+    PS4::OS::Libs::SceSaveDataDialog::init(*module);
+    PS4::OS::Libs::SceNpTrophy::init(*module);
+    PS4::OS::Libs::ScePad::init(*module);
+    PS4::OS::Libs::SceAudioOut::init(*module);
+    PS4::OS::Libs::ScePlayGo::init(*module);
+    PS4::OS::Libs::SceRtc::init(*module);
+    PS4::OS::Libs::SceNet::init(*module);
+    PS4::OS::Libs::SceRandom::init(*module);
 
     // libSceAppContent
-    module.addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
-    module.addSymbolStub("xnd8BJzAxmk", "sceAppContentGetAddcontInfoList", "libSceAppContent", "libSceAppContentUtil");
-    module.addSymbolStub("99b82IKXpH4", "sceAppContentAppParamGetInt", "libSceAppContent", "libSceAppContentUtil"); // TODO: Important
+    module->addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
+    module->addSymbolStub("xnd8BJzAxmk", "sceAppContentGetAddcontInfoList", "libSceAppContent", "libSceAppContentUtil");
+    module->addSymbolStub("99b82IKXpH4", "sceAppContentAppParamGetInt", "libSceAppContent", "libSceAppContentUtil"); // TODO: Important
 
     // libSceScreenShot
-    module.addSymbolStub("2xxUtuC-RzE", "sceScreenShotEnable", "libSceScreenShot", "libSceScreenShot");
-    module.addSymbolStub("73WQ4Jj0nJI", "sceScreenShotSetOverlayImageWithOrigin", "libSceScreenShot", "libSceScreenShot");
-    module.addSymbolStub("G7KlmIYFIZc", "sceScreenShotSetParam", "libSceScreenShot", "libSceScreenShot");
-    module.addSymbolStub("ahHhOf+QNkQ", "sceScreenShotSetOverlayImage", "libSceScreenShot", "libSceScreenShot");
-    module.addSymbolStub("tIYf0W5VTi8", "sceScreenShotDisable", "libSceScreenShot", "libSceScreenShot");
+    module->addSymbolStub("2xxUtuC-RzE", "sceScreenShotEnable", "libSceScreenShot", "libSceScreenShot");
+    module->addSymbolStub("73WQ4Jj0nJI", "sceScreenShotSetOverlayImageWithOrigin", "libSceScreenShot", "libSceScreenShot");
+    module->addSymbolStub("G7KlmIYFIZc", "sceScreenShotSetParam", "libSceScreenShot", "libSceScreenShot");
+    module->addSymbolStub("ahHhOf+QNkQ", "sceScreenShotSetOverlayImage", "libSceScreenShot", "libSceScreenShot");
+    module->addSymbolStub("tIYf0W5VTi8", "sceScreenShotDisable", "libSceScreenShot", "libSceScreenShot");
     
     // libSceSharePlay
-    module.addSymbolStub("isruqthpYcw", "sceSharePlayInitialize", "libSceSharePlay", "libSceSharePlay");
-    module.addSymbolStub("co2NCj--pnc", "sceSharePlaySetProhibition", "libSceSharePlay", "libSceSharePlay");
+    module->addSymbolStub("isruqthpYcw", "sceSharePlayInitialize", "libSceSharePlay", "libSceSharePlay");
+    module->addSymbolStub("co2NCj--pnc", "sceSharePlaySetProhibition", "libSceSharePlay", "libSceSharePlay");
     
     // libSceMsgDialog
-    module.addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
-    module.addSymbolStub("b06Hh0DPEaE", "sceMsgDialogOpen", "libSceMsgDialog", "libSceMsgDialog");
-    module.addSymbolStub("6fIC3XKt2k0", "sceMsgDialogUpdateStatus", "libSceMsgDialog", "libSceMsgDialog", 3);
-    module.addSymbolStub("CWVW78Qc3fI", "sceMsgDialogGetStatus", "libSceMsgDialog", "libSceMsgDialog");
-    module.addSymbolStub("Lr8ovHH9l6A", "sceMsgDialogGetResult", "libSceMsgDialog", "libSceMsgDialog");
-    module.addSymbolStub("HTrcDKlFKuM", "sceMsgDialogClose", "libSceMsgDialog", "libSceMsgDialog");
-    module.addSymbolStub("ePw-kqZmelo", "sceMsgDialogTerminate", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("b06Hh0DPEaE", "sceMsgDialogOpen", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("6fIC3XKt2k0", "sceMsgDialogUpdateStatus", "libSceMsgDialog", "libSceMsgDialog", 3);
+    module->addSymbolStub("CWVW78Qc3fI", "sceMsgDialogGetStatus", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("Lr8ovHH9l6A", "sceMsgDialogGetResult", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("HTrcDKlFKuM", "sceMsgDialogClose", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("ePw-kqZmelo", "sceMsgDialogTerminate", "libSceMsgDialog", "libSceMsgDialog");
 
     // libSceCommonDialog
-    module.addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
-    module.addSymbolStub("BQ3tey0JmQM", "sceCommonDialogIsUsed", "libSceCommonDialog", "libSceCommonDialog", false);
+    module->addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
+    module->addSymbolStub("BQ3tey0JmQM", "sceCommonDialogIsUsed", "libSceCommonDialog", "libSceCommonDialog", false);
     
     // libSceNpScore
-    module.addSymbolStub("KnNA1TEgtBI", "sceNpScoreCreateNpTitleCtx", "libSceNpScore", "libSceNpScore", 1);
-    module.addSymbolStub("GWnWQNXZH5M", "sceNpScoreCreateNpTitleCtxA", "libSceNpScore", "libSceNpScore", 1);
-    module.addSymbolStub("gW8qyjYrUbk", "sceNpScoreCreateRequest", "libSceNpScore", "libSceNpScore", 1);
-    module.addSymbolStub("ANJssPz3mY0", "sceNpScoreRecordScoreAsync", "libSceNpScore", "libSceNpScore", 0);
-    module.addSymbolStub("8kuIzUw6utQ", "sceNpScoreGetFriendsRanking", "libSceNpScore", "libSceNpScore", 0);
-    module.addSymbolStub("9mZEgoiEq6Y", "sceNpScoreGetRankingByNpId", "libSceNpScore", "libSceNpScore", 0);
-    module.addSymbolStub("KBHxDjyk-jA", "sceNpScoreGetRankingByRange", "libSceNpScore", "libSceNpScore", 0);
-    module.addSymbolStub("dK8-SgYf6r4", "sceNpScoreDeleteRequest", "libSceNpScore", "libSceNpScore", 0);
-    module.addSymbolStub("m1DfNRstkSQ", "sceNpScorePollAsync", "libSceNpScore", "libSceNpScore", 0);
+    module->addSymbolStub("KnNA1TEgtBI", "sceNpScoreCreateNpTitleCtx", "libSceNpScore", "libSceNpScore", 1);
+    module->addSymbolStub("GWnWQNXZH5M", "sceNpScoreCreateNpTitleCtxA", "libSceNpScore", "libSceNpScore", 1);
+    module->addSymbolStub("gW8qyjYrUbk", "sceNpScoreCreateRequest", "libSceNpScore", "libSceNpScore", 1);
+    module->addSymbolStub("ANJssPz3mY0", "sceNpScoreRecordScoreAsync", "libSceNpScore", "libSceNpScore", 0);
+    module->addSymbolStub("8kuIzUw6utQ", "sceNpScoreGetFriendsRanking", "libSceNpScore", "libSceNpScore", 0);
+    module->addSymbolStub("9mZEgoiEq6Y", "sceNpScoreGetRankingByNpId", "libSceNpScore", "libSceNpScore", 0);
+    module->addSymbolStub("KBHxDjyk-jA", "sceNpScoreGetRankingByRange", "libSceNpScore", "libSceNpScore", 0);
+    module->addSymbolStub("dK8-SgYf6r4", "sceNpScoreDeleteRequest", "libSceNpScore", "libSceNpScore", 0);
+    module->addSymbolStub("m1DfNRstkSQ", "sceNpScorePollAsync", "libSceNpScore", "libSceNpScore", 0);
     
     // libSceNpMatching2
-    module.addSymbolStub("10t3e5+JPnU", "sceNpMatching2Initialize", "libSceNpMatching2", "libSceNpMatching2");
-    module.addSymbolStub("fQQfP87I7hs", "sceNpMatching2RegisterContextCallback", "libSceNpMatching2", "libSceNpMatching2");
+    module->addSymbolStub("10t3e5+JPnU", "sceNpMatching2Initialize", "libSceNpMatching2", "libSceNpMatching2");
+    module->addSymbolStub("fQQfP87I7hs", "sceNpMatching2RegisterContextCallback", "libSceNpMatching2", "libSceNpMatching2");
     
     // libSceNpParty
-    module.addSymbolStub("lhYCTQmBkds", "sceNpPartyInitialize", "libSceNpParty", "libSceNpParty");
-    module.addSymbolStub("kA88gbv71ao", "sceNpPartyRegisterHandler", "libSceNpParty", "libSceNpParty");
-    module.addSymbolStub("3e4k2mzLkmc", "sceNpPartyCheckCallback", "libSceNpParty", "libSceNpParty");
+    module->addSymbolStub("lhYCTQmBkds", "sceNpPartyInitialize", "libSceNpParty", "libSceNpParty");
+    module->addSymbolStub("kA88gbv71ao", "sceNpPartyRegisterHandler", "libSceNpParty", "libSceNpParty");
+    module->addSymbolStub("3e4k2mzLkmc", "sceNpPartyCheckCallback", "libSceNpParty", "libSceNpParty");
     
     // libSceErrorDialog
-    module.addSymbolStub("I88KChlynSs", "sceErrorDialogInitialize", "libSceErrorDialog", "libSceErrorDialog", 0);
-    module.addSymbolStub("M2ZF-ClLhgY", "sceErrorDialogOpen", "libSceErrorDialog", "libSceErrorDialog", 0);
-    module.addSymbolStub("WWiGuh9XfgQ", "sceErrorDialogUpdateStatus", "libSceErrorDialog", "libSceErrorDialog", 0);
+    module->addSymbolStub("I88KChlynSs", "sceErrorDialogInitialize", "libSceErrorDialog", "libSceErrorDialog", 0);
+    module->addSymbolStub("M2ZF-ClLhgY", "sceErrorDialogOpen", "libSceErrorDialog", "libSceErrorDialog", 0);
+    module->addSymbolStub("WWiGuh9XfgQ", "sceErrorDialogUpdateStatus", "libSceErrorDialog", "libSceErrorDialog", 0);
     
     // libSceNpProfileDialog
-    module.addSymbolStub("Lg+NCE6pTwQ", "sceNpProfileDialogInitialize", "libSceNpProfileDialog", "libSceNpProfileDialog", 0);
+    module->addSymbolStub("Lg+NCE6pTwQ", "sceNpProfileDialogInitialize", "libSceNpProfileDialog", "libSceNpProfileDialog", 0);
     
     // libSceInvitationDialog
-    module.addSymbolStub("9+g9iOq+7kg", "sceInvitationDialogUpdateStatus", "libSceInvitationDialog", "libSceInvitationDialog", 0);
+    module->addSymbolStub("9+g9iOq+7kg", "sceInvitationDialogUpdateStatus", "libSceInvitationDialog", "libSceInvitationDialog", 0);
     
     // libSceImeDialog
-    module.addSymbolStub("IADmD4tScBY", "sceImeDialogGetStatus", "libSceImeDialog", "libSceImeDialog", 0);
+    module->addSymbolStub("IADmD4tScBY", "sceImeDialogGetStatus", "libSceImeDialog", "libSceImeDialog", 0);
     
     // libSceNpAuth
-    module.addSymbolStub("N+mr7GjTvr8", "sceNpAuthCreateAsyncRequest", "libSceNpAuth", "libSceNpAuth", 1);
-    module.addSymbolStub("KxGkOrQJTqY", "sceNpAuthGetAuthorizationCode", "libSceNpAuth", "libSceNpAuth");   // TODO: At least store a dummy value in auth_code ptr
-    module.addSymbolStub("gjSyfzSsDcE", "sceNpAuthPollAsync", "libSceNpAuth", "libSceNpAuth");              // TODO: At least store a dummy value in result ptr
-    module.addSymbolStub("H8wG9Bk-nPc", "sceNpAuthDeleteRequest", "libSceNpAuth", "libSceNpAuth");
+    module->addSymbolStub("N+mr7GjTvr8", "sceNpAuthCreateAsyncRequest", "libSceNpAuth", "libSceNpAuth", 1);
+    module->addSymbolStub("KxGkOrQJTqY", "sceNpAuthGetAuthorizationCode", "libSceNpAuth", "libSceNpAuth");   // TODO: At least store a dummy value in auth_code ptr
+    module->addSymbolStub("gjSyfzSsDcE", "sceNpAuthPollAsync", "libSceNpAuth", "libSceNpAuth");              // TODO: At least store a dummy value in result ptr
+    module->addSymbolStub("H8wG9Bk-nPc", "sceNpAuthDeleteRequest", "libSceNpAuth", "libSceNpAuth");
     
     // libSceNpSignaling
-    module.addSymbolStub("3KOuC4RmZZU", "sceNpSignalingInitialize", "libSceNpSignaling", "libSceNpSignaling");
+    module->addSymbolStub("3KOuC4RmZZU", "sceNpSignalingInitialize", "libSceNpSignaling", "libSceNpSignaling");
     
     // libSceNetCtl
-    module.addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
-    module.addSymbolStub("gky0+oaNM4k", "sceNetCtlInit", "libSceNetCtl", "libSceNetCtl");
-    module.addSymbolStub("obuxdTiwkF8", "sceNetCtlGetInfo", "libSceNetCtl", "libSceNetCtl");
-    module.addSymbolStub("UJ+Z7Q+4ck0", "sceNetCtlRegisterCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
-    module.addSymbolStub("Rqm2OnZMCz0", "sceNetCtlUnregisterCallback", "libSceNetCtl", "libSceNetCtl");
-    module.addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
-    module.addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
+    module->addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
+    module->addSymbolStub("gky0+oaNM4k", "sceNetCtlInit", "libSceNetCtl", "libSceNetCtl");
+    module->addSymbolStub("obuxdTiwkF8", "sceNetCtlGetInfo", "libSceNetCtl", "libSceNetCtl");
+    module->addSymbolStub("UJ+Z7Q+4ck0", "sceNetCtlRegisterCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
+    module->addSymbolStub("Rqm2OnZMCz0", "sceNetCtlUnregisterCallback", "libSceNetCtl", "libSceNetCtl");
+    module->addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
+    module->addSymbolStub("JO4yuTuMoKI", "sceNetCtlGetNatInfo", "libSceNetCtl", "libSceNetCtl");
+    module->addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
 
-    module.addSymbolStub("wIsKy+TfeLs", "sceNetCtlRegisterCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
-    module.addSymbolStub("u5oqtlIP+Fw", "sceNetCtlCheckCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
+    module->addSymbolStub("wIsKy+TfeLs", "sceNetCtlRegisterCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
+    module->addSymbolStub("u5oqtlIP+Fw", "sceNetCtlCheckCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
 
     // libSceSsl
-    module.addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
-    module.addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl", 1);
+    module->addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
+    module->addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl", 1);
     
     // libSceHttp
-    module.addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
-    module.addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
-    module.addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
-    module.addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
+    module->addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
+    module->addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("s2-NPIvz+iA", "sceHttpSetNonblock", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("6381dWF+xsQ", "sceHttpCreateEpoll", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("qgxDBjorUxs", "sceHttpCreateConnectionWithURL", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("Cnp77podkCU", "sceHttpCreateRequestWithURL2", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("EY28T2bkN7k", "sceHttpAddRequestHeader", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("-xm7kZQNpHI", "sceHttpSetEpoll", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("1e2BNwI-XzE", "sceHttpSendRequest", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("0a2TBNfE3BU", "sceHttpGetStatusCode", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("aCYPMSUIaP8", "sceHttpGetAllResponseHeaders", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("yuO2H2Uvnos", "sceHttpGetResponseContentLength", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("P5pdoykPYTk", "sceHttpReadData", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("4I8vEpuEhZ8", "sceHttpDeleteTemplate", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
     
     // libSceNpWebApi
-    module.addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module.addSymbolStub("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
-    module.addSymbolStub("PfSTDCgNMgc", "sceNpWebApiRegisterPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
+    module->addSymbolStub("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("PfSTDCgNMgc", "sceNpWebApiRegisterPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
     
     // libSceAudioIn
-    module.addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
-    module.addSymbolExport("LozEOU8+anM", "sceAudioInInput", "libSceAudioIn", "libSceAudioIn", (void*)&sceAudioInInput);
+    module->addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
+    module->addSymbolExport("LozEOU8+anM", "sceAudioInInput", "libSceAudioIn", "libSceAudioIn", (void*)&sceAudioInInput);
+    
+    // libSceVoice
+    module->addSymbolStub("9TrhuGzberQ", "sceVoiceInit", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("nXpje5yNpaE", "sceVoiceCreatePort", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("54phPH2LZls", "sceVoiceStart", "libSceVoice", "libSceVoice");
 
     // libSceDiscMap
-    module.addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
-    module.addSymbolStub("ioKMruft1ek", "sceDiscMap_ioKMruft1ek", "libSceDiscMap", "libSceDiscMap");
-    module.addSymbolStub("fJgP+wqifno", "sceDiscMap_fJgP+wqifno", "libSceDiscMap", "libSceDiscMap");
+    module->addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
+    module->addSymbolStub("ioKMruft1ek", "sceDiscMap_ioKMruft1ek", "libSceDiscMap", "libSceDiscMap");
+    module->addSymbolStub("fJgP+wqifno", "sceDiscMap_fJgP+wqifno", "libSceDiscMap", "libSceDiscMap");
     
     // libSceGameLiveStreaming
-    module.addSymbolStub("kvYEw2lBndk", "sceGameLiveStreamingInitialize", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
-    module.addSymbolStub("q-kxuaF7URU", "sceGameLiveStreamingSetMaxBitrate", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
-    module.addSymbolStub("K0QxEbD7q+c", "sceGameLiveStreamingPermitLiveStreaming", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
-    module.addSymbolStub("dWM80AX39o4", "sceGameLiveStreamingEnableLiveStreaming", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
-    module.addSymbolStub("-EHnU68gExU", "sceGameLiveStreamingPermitServerSideRecording", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
-    module.addSymbolStub("wBOQWjbWMfU", "sceGameLiveStreamingEnableSocialFeedback", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
-    module.addSymbolStub("ycodiP2I0xo", "sceGameLiveStreamingSetPresetSocialFeedbackCommands", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("kvYEw2lBndk", "sceGameLiveStreamingInitialize", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("q-kxuaF7URU", "sceGameLiveStreamingSetMaxBitrate", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("K0QxEbD7q+c", "sceGameLiveStreamingPermitLiveStreaming", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("dWM80AX39o4", "sceGameLiveStreamingEnableLiveStreaming", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("-EHnU68gExU", "sceGameLiveStreamingPermitServerSideRecording", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("wBOQWjbWMfU", "sceGameLiveStreamingEnableSocialFeedback", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("ycodiP2I0xo", "sceGameLiveStreamingSetPresetSocialFeedbackCommands", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     
     // libSceCamera
-    module.addSymbolStub("p6n3Npi3YY4", "sceCameraIsAttached", "libSceCamera", "libSceCamera");
+    module->addSymbolStub("p6n3Npi3YY4", "sceCameraIsAttached", "libSceCamera", "libSceCamera");
     
     // libSceMove
-    module.addSymbolStub("j1ITE-EoJmE", "sceMoveInit", "libSceMove", "libSceMove");
-    module.addSymbolStub("HzC60MfjJxU", "sceMoveOpen", "libSceMove", "libSceMove", 1);
-    module.addSymbolStub("f2bcpK6kJfg", "sceMoveReadStateRecent", "libSceMove", "libSceMove");
+    module->addSymbolStub("j1ITE-EoJmE", "sceMoveInit", "libSceMove", "libSceMove");
+    module->addSymbolStub("HzC60MfjJxU", "sceMoveOpen", "libSceMove", "libSceMove", 1);
+    module->addSymbolStub("f2bcpK6kJfg", "sceMoveReadStateRecent", "libSceMove", "libSceMove");
     
     // libSceMouse
-    module.addSymbolStub("Qs0wWulgl7U", "sceMouseInit", "libSceMouse", "libSceMouse");
-    module.addSymbolStub("RaqxZIf6DvE", "sceMouseOpen", "libSceMouse", "libSceMouse", 1);
-    module.addSymbolStub("x8qnXqh-tiM", "sceMouseRead", "libSceMouse", "libSceMouse");
+    module->addSymbolStub("Qs0wWulgl7U", "sceMouseInit", "libSceMouse", "libSceMouse");
+    module->addSymbolStub("RaqxZIf6DvE", "sceMouseOpen", "libSceMouse", "libSceMouse", 1);
+    module->addSymbolStub("x8qnXqh-tiM", "sceMouseRead", "libSceMouse", "libSceMouse");
 
     // libSceMoveTracker
-    module.addSymbolStub("F4w2atwG428", "sceMoveTrackerInit", "libSceMoveTracker", "libSceMoveTracker");
-    module.addSymbolStub("gg1d4KsyVVs", "sceMoveTrackerGetWorkingMemorySize", "libSceMoveTracker", "libSceMoveTracker");
-    module.addSymbolStub("-Y8hlMgBsr4", "sceMoveTrackerControllersUpdate", "libSceMoveTracker", "libSceMoveTracker");
-    module.addSymbolStub("YV2CtE7qX8M", "sceMoveTrackerGetState", "libSceMoveTracker", "libSceMoveTracker");
+    module->addSymbolStub("F4w2atwG428", "sceMoveTrackerInit", "libSceMoveTracker", "libSceMoveTracker");
+    module->addSymbolStub("gg1d4KsyVVs", "sceMoveTrackerGetWorkingMemorySize", "libSceMoveTracker", "libSceMoveTracker");
+    module->addSymbolStub("-Y8hlMgBsr4", "sceMoveTrackerControllersUpdate", "libSceMoveTracker", "libSceMoveTracker");
+    module->addSymbolStub("YV2CtE7qX8M", "sceMoveTrackerGetState", "libSceMoveTracker", "libSceMoveTracker");
     
     // libSceVideoRecording
-    module.addSymbolStub("Fc8qxlKINYQ", "sceVideoRecordingSetInfo", "libSceVideoRecording", "libSceVideoRecording");
+    module->addSymbolStub("Fc8qxlKINYQ", "sceVideoRecordingSetInfo", "libSceVideoRecording", "libSceVideoRecording");
     
     // libSceRemoteplay
-    module.addSymbolStub("k1SwgkMSOM8", "sceRemoteplayInitialize", "libSceRemoteplay", "libSceRemoteplay");
-    module.addSymbolStub("xQeIryTX7dY", "sceRemoteplayApprove", "libSceRemoteplay", "libSceRemoteplay");
-    module.addSymbolStub("g3PNjYKWqnQ", "sceRemoteplayGetConnectionStatus", "libSceRemoteplay", "libSceRemoteplay");
+    module->addSymbolStub("k1SwgkMSOM8", "sceRemoteplayInitialize", "libSceRemoteplay", "libSceRemoteplay");
+    module->addSymbolStub("xQeIryTX7dY", "sceRemoteplayApprove", "libSceRemoteplay", "libSceRemoteplay");
+    module->addSymbolStub("g3PNjYKWqnQ", "sceRemoteplayGetConnectionStatus", "libSceRemoteplay", "libSceRemoteplay");
     
     // libSceAjm
-    module.addSymbolStub("dl+4eHSzUu4", "sceAjmInitialize", "libSceAjm", "libSceAjm");
-    module.addSymbolStub("Q3dyFuwGn64", "sceAjmModuleRegister", "libSceAjm", "libSceAjm");
-    module.addSymbolStub("AxoDrINp4J8", "sceAjmInstanceCreate", "libSceAjm", "libSceAjm");
-    module.addSymbolStub("dmDybN--Fn8", "sceAjmBatchJobControlBufferRa", "libSceAjm", "libSceAjm");
-    module.addSymbolStub("7jdAXK+2fMo", "sceAjmBatchJobRunSplitBufferRa", "libSceAjm", "libSceAjm");
-    module.addSymbolStub("fFFkk0xfGWs", "sceAjmBatchStartBuffer", "libSceAjm", "libSceAjm");
-    module.addSymbolStub("-qLsfDAywIY", "sceAjmBatchWait", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("dl+4eHSzUu4", "sceAjmInitialize", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("Q3dyFuwGn64", "sceAjmModuleRegister", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("AxoDrINp4J8", "sceAjmInstanceCreate", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("dmDybN--Fn8", "sceAjmBatchJobControlBufferRa", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("7jdAXK+2fMo", "sceAjmBatchJobRunSplitBufferRa", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("fFFkk0xfGWs", "sceAjmBatchStartBuffer", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("-qLsfDAywIY", "sceAjmBatchWait", "libSceAjm", "libSceAjm");
     
     // libSceAvPlayer
-    module.addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
     
     // libSceRudp
-    module.addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");
+    module->addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");
+    module->addSymbolStub("6PBNpsgyaxw", "sceRudpEnableInternalIOThread", "libSceRudp", "libSceRudp");
     
     // libSceCompanionUtil
-    module.addSymbolStub("xb1xlIhf0QY", "sceCompanionUtilInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
-    module.addSymbolStub("IPN-FRSrafk", "sceCompanionUtilOptParamInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
-    module.addSymbolStub("cE5Msy11WhU", "sceCompanionUtilGetEvent", "libSceCompanionUtil", "libSceCompanionUtil", 0x80AD0008 /* No event */);
+    module->addSymbolStub("xb1xlIhf0QY", "sceCompanionUtilInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
+    module->addSymbolStub("IPN-FRSrafk", "sceCompanionUtilOptParamInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
+    module->addSymbolStub("cE5Msy11WhU", "sceCompanionUtilGetEvent", "libSceCompanionUtil", "libSceCompanionUtil", 0x80AD0008 /* No event */);
     
     // ulobjmgr (TODO: What is this?)
-    module.addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
+    module->addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
     
     // dlcldr (TODO: What is this?)
-    module.addSymbolStub("4qL3yyKEXoM", "dlcldr_4qL3yyKEXoM", "dlcldr", "dlcldr");
+    module->addSymbolStub("4qL3yyKEXoM", "dlcldr_4qL3yyKEXoM", "dlcldr", "dlcldr");
 
     return module;
 }

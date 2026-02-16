@@ -13,6 +13,22 @@ add_compile_definitions(SDL_MAIN_HANDLED)
 
 add_executable(ChonkyStation4)
 add_compile_definitions("_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
+
+set(VERSION_STRING "alpha 1")
+
+option(ENABLE_USER_BUILD "Enable user build" OFF)
+option(ENABLE_RELEASE_BUILD "Create a release build (do not use this)" OFF)
+
+if (ENABLE_USER_BUILD)
+    target_compile_definitions(ChonkyStation4 PRIVATE CHONKYSTATION4_USER_BUILD)
+endif()
+
+if (ENABLE_RELEASE_BUILD)
+    target_compile_definitions(ChonkyStation4 PRIVATE CHONKYSTATION4_VERSION="${VERSION_STRING}")
+else()
+    target_compile_definitions(ChonkyStation4 PRIVATE CHONKYSTATION4_VERSION="dev")
+endif()
+
 target_sources(ChonkyStation4 PRIVATE
 "ChonkyStation4/ChonkyStation4.cpp" "ChonkyStation4/PlayStation4.cpp" "ChonkyStation4/PlayStation4.hpp" "ChonkyStation4/Common/Common.hpp" "ChonkyStation4/Common/Logger.hpp" "ChonkyStation4/Loaders/ELF/ELFLoader.cpp"
 "ChonkyStation4/OS/Filesystem.cpp" "ChonkyStation4/OS/Filesystem.hpp"

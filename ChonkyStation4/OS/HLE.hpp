@@ -6,6 +6,6 @@
 
 namespace PS4::OS::HLE {
 
-Module buildHLEModule();
+std::shared_ptr<Module> buildHLEModule();
 
 }   // End namespace PS4::OS::HLE

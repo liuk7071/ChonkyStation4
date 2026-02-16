@@ -15,6 +15,8 @@ void init(Module& module) {
     module.addSymbolStub("Vo5V8KAwCmk", "sceSystemServiceHideSplashScreen", "libSceSystemService", "libSceSystemService");
     module.addSymbolStub("9kPCz7Or+1Y", "sceSystemServiceReenableMusicPlayer", "libSceSystemService", "libSceSystemService");
     module.addSymbolStub("x1UB9bwDSOw", "sceSystemServiceDisableMusicPlayer", "libSceSystemService", "libSceSystemService");
+    
+    module.addSymbolStub("nT-7-iG55M8", "sceSystemServiceSetPowerSaveLevel", "libSceSystemServicePowerSaveLevel", "libSceSystemService");
 }
 
 s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* val) {

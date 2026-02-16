@@ -26,6 +26,9 @@ MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 constexpr bool enable_validation_layers = false;
 
+// Keep track of the pipelines we used this frame to cleanup state after flipping
+std::vector<Pipeline*> curr_frame_pipelines;
+
 const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
 };
@@ -56,7 +59,7 @@ static vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::Surfac
 }
 
 static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& available_present_modes) {
-    return vk::PresentModeKHR::eImmediate;
+    return vk::PresentModeKHR::eMailbox;
 }
 
 static vk::Extent2D chooseSwapExtent(SDL_Window* window, const vk::SurfaceCapabilitiesKHR& capabilities) {
@@ -128,7 +131,7 @@ void VulkanRenderer::init() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0)
         Helpers::panic("Failed to initialize SDL\n");
 
-    window = SDL_CreateWindow(std::format("ChonkyStation4 | {}", g_app.name).c_str(), 100, 100, 1920, 1080, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
+    window = SDL_CreateWindow(std::format("ChonkyStation4 | {} | {}", CHONKYSTATION4_VERSION, g_app.name).c_str(), 100, 100, 1920, 1080, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
     if (window == nullptr) {
         Helpers::panic("Failed to create SDL window: %s\n", SDL_GetError());
     }
@@ -383,12 +386,12 @@ void VulkanRenderer::init() {
     // Initialize the buffer cache
     Cache::init();
 
+    curr_frame_pipelines.reserve(1024);
+
     log("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
 }
 
-// Keep track of the pipelines we used this frame to cleanup state after flipping
-std::vector<Pipeline*> curr_frame_pipelines;
 Pipeline*   last_draw_pipeline = nullptr;
 ColorTarget last_color_rt[8] = {};
 DepthTarget last_depth_rt = {};
@@ -461,9 +464,12 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     getColorTargets(new_rt);
 
     const bool stencil_only = !pipeline.cfg.depth_control.depth_enable && pipeline.cfg.depth_control.stencil_enable;
+
     DepthTarget new_depth_rt;
     getDepthTarget(&new_depth_rt, stencil_only);
 
+    const bool depth_enabled = pipeline.cfg.depth_control.depth_enable && new_depth_rt.z_info.format != (u32)DataFormat::FormatInvalid;
+    
     // Check if any color or depth target was changed
     bool has_feedback_loop = false;
     vk::Extent2D extent = { 0xffffffff, 0xffffffff };
@@ -506,7 +512,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
     }
 
-    if (pipeline.cfg.depth_control.depth_enable) {
+    if (depth_enabled) {
         if (depth_rt_dim.width  < extent.width)  extent.width  = depth_rt_dim.width;
         if (depth_rt_dim.height < extent.height) extent.height = depth_rt_dim.height;
 
@@ -733,7 +739,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     const u64 curr_ticks = SDL_GetTicks64();
     const double curr_time = curr_ticks / 1000.0;
     if (curr_time - last_time > 1.0) {
-        SDL_SetWindowTitle(window, std::format("ChonkyStation4 | {} | {} FPS", g_app.name, frame_count).c_str());
+        SDL_SetWindowTitle(window, std::format("ChonkyStation4 | {} | {} | {} FPS", CHONKYSTATION4_VERSION, g_app.name, frame_count).c_str());
         last_time = curr_time;
         frame_count = 0;
     }

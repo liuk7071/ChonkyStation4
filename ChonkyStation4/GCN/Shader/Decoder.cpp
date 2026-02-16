@@ -805,7 +805,8 @@ void GcnDecodeContext::decodeInstructionMTBUF(uint64_t hexInstruction) {
 }
 
 u32 GcnDecodeContext::getMimgModifier(Opcode opcode) {
-    printf("TODO: FIX getMimgModifier\n");
+    // TODO: Remember this when I actually implement image modifiers
+    //printf("TODO: FIX getMimgModifier\n");
     return 0;
     /*
     MimgModifierFlags flags = {};

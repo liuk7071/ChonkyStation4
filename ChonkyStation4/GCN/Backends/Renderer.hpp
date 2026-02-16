@@ -209,7 +209,7 @@ public:
 
     void getDepthTarget(DepthTarget* depth, bool stencil_only) {
         if (regs[Reg::mmDB_Z_READ_BASE] != regs[Reg::mmDB_Z_WRITE_BASE]) {
-            Helpers::panic("TODO: DB_Z_READ_BASE != DB_Z_WRITE_BASE");
+            //Helpers::panic("TODO: DB_Z_READ_BASE (0x%x) != DB_Z_WRITE_BASE (0x%x)", regs[Reg::mmDB_Z_READ_BASE], regs[Reg::mmDB_Z_WRITE_BASE]);
         }
 
         if (regs[Reg::mmDB_STENCIL_READ_BASE] != regs[Reg::mmDB_STENCIL_WRITE_BASE]) {

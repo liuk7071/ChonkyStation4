@@ -20,11 +20,11 @@ std::vector<ELFLoader::SELFSegment> self_segments;
 std::vector<Elf64_Phdr> elf_phdrs;
 bool is_self = true;
 
-Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
+std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_lle_module, std::shared_ptr<Module> hle_module) {
     elfio elf;
-    Module module;
-    module.filename = path.filename().generic_string();
-    module.modid = modid++;
+    std::shared_ptr<Module> module = std::make_unique<Module>();
+    module->filename = path.filename().generic_string();
+    module->modid = modid++;
 
     // Try to load SELF header
     auto str = path.generic_string();
@@ -96,22 +96,22 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
         MEMORY_BASIC_INFORMATION mbi;
         VirtualQuery(last_load_addr, &mbi, sizeof(mbi));
         if (mbi.State == MEM_RESERVE && mbi.RegionSize > total_size) {
-            module.base_address = VirtualAlloc(mbi.BaseAddress, total_size, MEM_COMMIT, PAGE_READWRITE);
-            last_load_addr = (void*)((u64)module.base_address + total_size);
+            module->base_address = VirtualAlloc(mbi.BaseAddress, total_size, MEM_COMMIT, PAGE_READWRITE);
+            last_load_addr = (void*)((u64)module->base_address + total_size);
             break;
         }
         last_load_addr = (void*)((u64)mbi.BaseAddress + mbi.RegionSize);
     }
-    Helpers::debugAssert(module.base_address, "ELFLoader: VirtualAlloc failed");
+    Helpers::debugAssert(module->base_address, "ELFLoader: VirtualAlloc failed");
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
 
-    log("* Base address of ELF: 0x%016llx\n", (u64)module.base_address);
-    log("* Mapped area: %p - %p (%p - %p)\n", module.base_address, (u64)module.base_address + total_size, 0, total_size);
+    log("* Base address of ELF: 0x%016llx\n", (u64)module->base_address);
+    log("* Mapped area: %p - %p (%p - %p)\n", module->base_address, (u64)module->base_address + total_size, 0, total_size);
 
-    module.entry = (void*)((u8*)module.base_address + elf.get_entry());
-    log("* Entry: 0x%016llx\n", (u64)module.entry);
+    module->entry = (void*)((u8*)module->base_address + elf.get_entry());
+    log("* Entry: 0x%016llx\n", (u64)module->entry);
 
     for (int i = 0; i < elf.segments.size(); i++) {
         auto seg = elf.segments[i];
@@ -131,114 +131,114 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
         }
 
         case PT_DYNAMIC: {
-            module.dynamic_tags.resize(seg->get_file_size());
-            loadSegment(*seg, module, (u8*)module.dynamic_tags.data(), false, false);
+            module->dynamic_tags.resize(seg->get_file_size());
+            loadSegment(*seg, module, (u8*)module->dynamic_tags.data(), false, false);
             break;
         }
 
         // Contains data for dynamic linking (PT_DYNAMIC) (i.e. string tables and symbol info)
         case PT_SCE_DYNLIBDATA: {
-            module.dynamic_data.resize(seg->get_file_size());
-            loadSegment(*seg, module, (u8*)module.dynamic_data.data(), false, false);
+            module->dynamic_data.resize(seg->get_file_size());
+            loadSegment(*seg, module, (u8*)module->dynamic_data.data(), false, false);
             break;
         }
 
         case PT_SCE_PROCPARAM: {
-            module.proc_param_ptr = seg->get_virtual_address() + (u64)module.base_address;
+            module->proc_param_ptr = seg->get_virtual_address() + (u64)module->base_address;
             break;
         }
 
         // TLS info
         case PT_TLS: {
-            module.tls_vaddr = seg->get_virtual_address() + (u64)module.base_address;
-            module.tls_filesz = seg->get_file_size();
-            module.tls_memsz = seg->get_memory_size();
-            module.tls_modid = tls_modid++;
+            module->tls_vaddr = seg->get_virtual_address() + (u64)module->base_address;
+            module->tls_filesz = seg->get_file_size();
+            module->tls_memsz = seg->get_memory_size();
+            module->tls_modid = tls_modid++;
             break;
         }
         }
     }
 
     // Load dynamic linking data
-    for (Elf64_Dyn* dyn = (Elf64_Dyn*)module.dynamic_tags.data(); dyn->d_tag != DT_NULL; dyn++) {
+    for (Elf64_Dyn* dyn = (Elf64_Dyn*)module->dynamic_tags.data(); dyn->d_tag != DT_NULL; dyn++) {
         log("%s\n", dump::str_dynamic_tag(dyn->d_tag).c_str());
 
         switch (dyn->d_tag) {
         case DT_INIT: {
-            module.init_func = (PS4::Loader::InitFunc)(dyn->d_un.d_ptr + (u64)module.base_address);
+            module->init_func = (PS4::Loader::InitFunc)(dyn->d_un.d_ptr + (u64)module->base_address);
             break;
         }
 
         case DT_SCE_MODULE_INFO: {
-            auto& module_info = module.exported_modules.emplace_back();
-            module_info.load(dyn->d_un.d_val, module.dyn_str_table);
+            auto& module_info = module->exported_modules.emplace_back();
+            module_info.load(dyn->d_un.d_val, module->dyn_str_table);
             log("Exported module %s\n", module_info.name.c_str());
             break;
         }
 
         case DT_SCE_NEEDED_MODULE: {
-            auto& module_info = module.required_modules.emplace_back();
-            module_info.load(dyn->d_un.d_val, module.dyn_str_table);
+            auto& module_info = module->required_modules.emplace_back();
+            module_info.load(dyn->d_un.d_val, module->dyn_str_table);
             log("Required module %s\n", module_info.name.c_str());
             break;
         }
 
         case DT_SCE_EXPORT_LIB: {
-            auto& lib = module.exported_libs.emplace_back();
-            lib.load(dyn->d_un.d_val, module.dyn_str_table);
+            auto& lib = module->exported_libs.emplace_back();
+            lib.load(dyn->d_un.d_val, module->dyn_str_table);
             log("Exported library %s\n", lib.name.c_str());
             break;
         }
 
         case DT_SCE_IMPORT_LIB: {
-            auto& lib = module.required_libs.emplace_back();
-            lib.load(dyn->d_un.d_val, module.dyn_str_table);
+            auto& lib = module->required_libs.emplace_back();
+            lib.load(dyn->d_un.d_val, module->dyn_str_table);
             log("Imported library %s\n", lib.name.c_str());
             break;
         }
 
         case DT_SCE_JMPREL: {
-            module.jmp_reloc_table = (Elf64_Rela*)(module.dynamic_data.data() + dyn->d_un.d_ptr);
+            module->jmp_reloc_table = (Elf64_Rela*)(module->dynamic_data.data() + dyn->d_un.d_ptr);
             break;
         }
 
         case DT_SCE_PLTRELSZ: {
-            module.jmp_reloc_table_size = dyn->d_un.d_val;
+            module->jmp_reloc_table_size = dyn->d_un.d_val;
             break;
         }
 
         case DT_SCE_RELA: {
-            module.reloc_table = (Elf64_Rela*)(module.dynamic_data.data() + dyn->d_un.d_ptr);
+            module->reloc_table = (Elf64_Rela*)(module->dynamic_data.data() + dyn->d_un.d_ptr);
             break;
         }
 
         case DT_SCE_RELASZ: {
-            module.reloc_table_size = dyn->d_un.d_val;
+            module->reloc_table_size = dyn->d_un.d_val;
             break;
         }
 
         case DT_SCE_STRTAB: {   // Sets the pointer of the string table
-            module.dyn_str_table = (char*)module.dynamic_data.data() + dyn->d_un.d_ptr;
+            module->dyn_str_table = (char*)module->dynamic_data.data() + dyn->d_un.d_ptr;
             break;
         }
 
         case DT_SCE_SYMTAB: {
-            module.sym_table = (Elf64_Sym*)(module.dynamic_data.data() + dyn->d_un.d_ptr);
+            module->sym_table = (Elf64_Sym*)(module->dynamic_data.data() + dyn->d_un.d_ptr);
             break;
         }
 
         case DT_SCE_SYMTABSZ: {
-            module.sym_table_size = dyn->d_un.d_val;
+            module->sym_table_size = dyn->d_un.d_val;
             break;
         }
         }
     }
 
     // Export symbols
-    if (!module.sym_table) log("WARNING: NO SYMBOL TABLE!\n");
-    for (Elf64_Sym* sym = module.sym_table; (u8*)sym < (u8*)module.sym_table + module.sym_table_size; sym++) {
+    if (!module->sym_table) log("WARNING: NO SYMBOL TABLE!\n");
+    for (Elf64_Sym* sym = module->sym_table; (u8*)sym < (u8*)module->sym_table + module->sym_table_size; sym++) {
         auto bind = ELF_ST_BIND(sym->st_info);
-        const std::string sym_name = module.dyn_str_table + sym->st_name;
+        const std::string sym_name = module->dyn_str_table + sym->st_name;
 
         // Export STB_GLOBAL and STB_WEAK symbols (not local symbols) that have st_value != 0
         if (bind == STB_LOCAL || sym->st_value == 0) {
@@ -257,13 +257,13 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
         // Find library and module
         auto tokens = Helpers::split(sym_name, "#");
         Helpers::debugAssert(tokens.size() == 3, "Linker: invalid symbol %s\n", sym_name.c_str());
-        auto* lib = module.findLibrary(tokens[1]);
-        auto* mod = module.findModule(tokens[2]);
+        auto* lib = module->findLibrary(tokens[1]);
+        auto* mod = module->findModule(tokens[2]);
         Helpers::debugAssert(lib, "Linker: could not find library for symbol %s\n", sym_name.c_str());
         Helpers::debugAssert(mod, "Linker: could not find module for symbol %s\n", sym_name.c_str());
 
         auto export_symbol = [&]() {
-            module.addSymbolExport(tokens[0], tokens[0], lib->name, mod->name, (void*)((u64)module.base_address + sym->st_value));
+            module->addSymbolExport(tokens[0], tokens[0], lib->name, mod->name, (void*)((u64)module->base_address + sym->st_value));
             log("* Exported symbol %s (%s)\n", tokens[0].c_str(), lib->name.c_str());
         };
 
@@ -277,21 +277,21 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
 
     // Print modules
     log("Loaded modules:\n");
-    for (auto& module : module.required_modules) {
+    for (auto& module : module->required_modules) {
         log("* %s: %s\n", module.id.c_str(), module.name.c_str());
     }
     log("Exported modules:\n");
-    for (auto& module : module.exported_modules) {
+    for (auto& module : module->exported_modules) {
         log("* %s: %s\n", module.id.c_str(), module.name.c_str());
     }
 
     // Print libraries
     log("Loaded libraries:\n");
-    for (auto& lib : module.required_libs) {
+    for (auto& lib : module->required_libs) {
         log("* %s: %s\n", lib.id.c_str(), lib.name.c_str());
     }
     log("Exported libraries:\n");
-    for (auto& lib : module.exported_libs) {
+    for (auto& lib : module->exported_libs) {
         log("* %s: %s\n", lib.id.c_str(), lib.name.c_str());
     }
 
@@ -312,7 +312,7 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
             else Helpers::panic("ELFLoader: invalid flags 0x%08x\n", flags);
         };
 
-        const u8* ptr = (u8*)module.base_address + seg->get_virtual_address();
+        const u8* ptr = (u8*)module->base_address + seg->get_virtual_address();
 
         // TODO: To apply permissions properly (get_perms(seg->get_flags())) we need to apply them AFTER relocations happen.
         //       Doing that requires restructuring some code. Stub to RWX.
@@ -329,10 +329,10 @@ Module ELFLoader::load(const fs::path& path, bool is_partial_lle_module, Module*
     return module;
 }
 
-void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module, u8* ptr, bool do_patch, bool zero_fill) {
+void* ELFLoader::loadSegment(ELFIO::segment& seg, std::shared_ptr<Module> module, u8* ptr, bool do_patch, bool zero_fill) {
     // Load segment in host memory if no explicit pointer is specified
     if (!ptr) {
-        ptr = (u8*)module.base_address + seg.get_virtual_address();
+        ptr = (u8*)module->base_address + seg.get_virtual_address();
     }
     
     if (!is_self) {
@@ -368,7 +368,7 @@ void* ELFLoader::loadSegment(ELFIO::segment& seg, Module& module, u8* ptr, bool 
         // Apply patches if the segment is executable
         const bool x = seg.get_flags() & PF_X;
         const u64 size = seg.get_memory_size();
-        if (x) PS4::Loader::ELF::patchCode(module, (u8*)ptr, size);
+        if (x) PS4::Loader::ELF::patchCode(*module, (u8*)ptr, size);
     }
 
     return (void*)((u8*)ptr);

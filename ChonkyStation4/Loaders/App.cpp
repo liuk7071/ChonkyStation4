@@ -15,7 +15,7 @@ struct Params {
     void* entry;
 };
 
-void* PS4_FUNC initAndJumpToEntry(std::deque<Module>* modules) {
+void* PS4_FUNC initAndJumpToEntry(std::deque<std::shared_ptr<Module>>* modules) {
     PS4::init();
 
     printf("Initializing modules:\n", modules->size() - 1);
@@ -23,9 +23,9 @@ void* PS4_FUNC initAndJumpToEntry(std::deque<Module>* modules) {
         if (i == 0) continue;
 
         auto& mod = (*modules)[i];
-        if (mod.init_func) {
-            if (mod.exported_modules.size())
-                printf("- %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
+        if (mod->init_func) {
+            if (mod->exported_modules.size())
+                printf("- %s\n", mod->exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
             else printf("- unnamed module\n");   // Probably won't ever happen?
         }
     }
@@ -36,11 +36,11 @@ void* PS4_FUNC initAndJumpToEntry(std::deque<Module>* modules) {
         if (i == 0) continue;
 
         auto& mod = (*modules)[i];
-        if (mod.init_func) {
-            printf("Calling start func for module %s @ %p\n", mod.exported_modules[0].name.c_str(), mod.init_func);
-            mod.init_func(0, nullptr, nullptr);
-            if (mod.exported_modules.size())
-                printf("Initialized module %s\n", mod.exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
+        if (mod->init_func) {
+            printf("Calling start func for module %s @ %p\n", mod->exported_modules[0].name.c_str(), mod->init_func);
+            mod->init_func(0, nullptr, nullptr);
+            if (mod->exported_modules.size())
+                printf("Initialized module %s\n", mod->exported_modules[0].name.c_str());   // Use the name of the first exported module just to print something
             else printf("Initialized unnamed module\n");   // Probably won't ever happen?
         }
     }
@@ -50,7 +50,7 @@ void* PS4_FUNC initAndJumpToEntry(std::deque<Module>* modules) {
     params.argc = 0;
     std::memset(params.argv, 0, 33 * sizeof(char*));
     params.argv[0] = nullptr;
-    params.entry = (*modules)[0].entry;
+    params.entry = (*modules)[0]->entry;
 
     asm volatile(R"(
         # Align stack
@@ -91,18 +91,18 @@ std::tuple<u8*, size_t, size_t> App::getTLSImage(u32 modid) {
     Helpers::debugAssert(modules.size(), "App::getTLSImage: no modules loaded\n");
     // Find module that contains the TLS block with id == modid
     for (auto& mod : modules) {
-        if (mod.tls_modid == modid) {
-            return { (u8*)mod.tls_vaddr, (size_t)mod.tls_filesz, (size_t)mod.tls_memsz };
+        if (mod->tls_modid == modid) {
+            return { (u8*)mod->tls_vaddr, (size_t)mod->tls_filesz, (size_t)mod->tls_memsz };
         }
     }
 
     Helpers::panic("Could not find TLS image with id %d\n", modid);    
 }
 
-Module* App::getHLEModule() {
+std::shared_ptr<Module> App::getHLEModule() {
     for (auto& m : modules) {
-        if (m.filename == "HLE")
-            return &m;
+        if (m->filename == "HLE")
+            return m;
     }
     Helpers::panic("App::getHLEModule: no HLE module found\n");
 }

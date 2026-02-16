@@ -105,7 +105,7 @@ void doRelocations(App& app) {
 
                     // Iterate over the list of exported symbols in the app to try to find it
                     for (auto& m : app.modules) {
-                        Symbol* exported_sym = m.findSymbolExport(tokens[0], lib->name, mod->name);
+                        Symbol* exported_sym = m->findSymbolExport(tokens[0], lib->name, mod->name);
                         if (exported_sym) {
                             log("* Resolved symbol %s as %s (%s)\n", sym_name.c_str(), exported_sym->name.c_str(), exported_sym->lib.c_str());
                             ptr = exported_sym->ptr;
@@ -142,16 +142,16 @@ void doRelocations(App& app) {
     };
 
     for (auto& module : app.modules) {
-        relocate(app, module, module.reloc_table, module.reloc_table_size);
-        relocate(app, module, module.jmp_reloc_table, module.jmp_reloc_table_size);
+        relocate(app, *module, module->reloc_table,     module->reloc_table_size);
+        relocate(app, *module, module->jmp_reloc_table, module->jmp_reloc_table_size);
     }
 }
 
-Module* loadAndLinkLib(App& app, const fs::path& path, bool is_partial_lle_module, Module* hle_module) {
+std::shared_ptr<Module> loadAndLinkLib(App& app, const fs::path& path, bool is_partial_lle_module, std::shared_ptr<Module> hle_module) {
     ELFLoader loader;
     app.modules.push_back(loader.load(path, is_partial_lle_module, hle_module));
     doRelocations(app);
-    return &app.modules.back(); // We can do this because std::deque is guaranteed to not reallocate
+    return app.modules.back(); // We can do this because std::deque is guaranteed to not reallocate
 }
 
 } // End namespace Loader::Linker

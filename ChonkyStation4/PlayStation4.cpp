@@ -55,7 +55,7 @@ void loadAndRun(const fs::path& path) {
         std::ofstream log_out;
         log_out.open("log_baseaddress.txt");
         for (auto& mod : g_app.modules) {
-            const auto base_address_str = std::format("{:016p}:\t{}\n", mod.base_address, mod.filename);
+            const auto base_address_str = std::format("{:016p}:\t{}\n", mod->base_address, mod->filename);
             log_out.write(base_address_str.c_str(), base_address_str.length());
         }
         log_out.close();

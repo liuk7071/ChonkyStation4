@@ -31,6 +31,7 @@ void init(Module& module) {
     module.addSymbolStub("ilwLM4zOmu4", "sceNpGetParentalControlInfo", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("uqcPJLWL08M", "sceNpPollAsync", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("S7QTn72PrDw", "sceNpDeleteRequest", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("GFhVUpRmbHE", "sceNpInGameMessageInitialize", "libSceNpManager", "libSceNpManager");
     
     module.addSymbolStub("0c7HbXRKUt4", "sceNpRegisterStateCallbackForToolkit", "libSceNpManagerForToolkit", "libSceNpManager");
     module.addSymbolStub("YIvqqvJyjEc", "sceNpUnregisterStateCallbackForToolkit", "libSceNpManagerForToolkit", "libSceNpManager");

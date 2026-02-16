@@ -16,13 +16,13 @@ public:
 
     std::string name;
     std::string title_id;
-    std::deque<Module> modules;
+    std::deque<std::shared_ptr<Module>> modules;
     std::deque<std::string> unresolved_symbols;
     std::vector<std::unique_ptr<Xbyak::CodeGenerator>> unresolved_symbol_handlers;
 
     void run();
     std::tuple<u8*, size_t, size_t> getTLSImage(u32 modid);
-    Module* getHLEModule();
+    std::shared_ptr<Module> getHLEModule();
 
 private:
     MAKE_LOG_FUNCTION(log, loader_app);

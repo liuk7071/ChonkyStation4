@@ -134,6 +134,7 @@ void init(Module& module) {
     module.addSymbolExport("EI-5-jlq2dE", "scePthreadGetthreadid", "libkernel", "libkernel", (void*)&kernel_pthread_getthreadid_np);
     
     module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
+    module.addSymbolExport("k+AXqu2-eBc", "getpagesize", "libkernel", "libkernel", (void*)&kernel_getpagesize);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
     module.addSymbolExport("vNe1w4diLCs", "__tls_get_addr", "libkernel", "libkernel", (void*)&__tls_get_addr);
 
@@ -176,6 +177,7 @@ void init(Module& module) {
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libScePosix", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
+    module.addSymbolStub("fTx66l5iWIA", "sceKernelFsync", "libkernel", "libkernel");
     
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libkernel", "libkernel", (void*)&kernel_getpid);
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libScePosix", "libkernel", (void*)&kernel_getpid);
@@ -286,10 +288,14 @@ void init(Module& module) {
     module.addSymbolStub("oIRFTjoILbg", "scePthreadSetschedparam", "libkernel", "libkernel");
     module.addSymbolStub("8mql9OcQnd4", "sceKernelDeleteEventFlag", "libkernel", "libkernel");
     module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
+    module.addSymbolStub("tZY4+SZNFhA", "msync", "libkernel", "libkernel");
+    module.addSymbolStub("RpQJJVKTiFM", "sceKernelGetModuleInfoForUnwind", "libkernel", "libkernel"); // TODO: Important
+    module.addSymbolStub("crb5j7mkk1c", "_is_signal_return", "libkernel", "libkernel"); // TODO: Important
     module.addSymbolStub("WB66evu8bsU", "sceKernelGetCompiledSdkVersion", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("vSMAm3cxYTY", "sceKernelMprotect", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("-o5uEDpN+oY", "sceKernelConvertUtcToLocaltime", "libkernel", "libkernel"); // TODO: Probably important
     module.addSymbolStub("0NTHN1NKONI", "sceKernelConvertLocaltimeToUtc", "libkernel", "libkernel"); // TODO: Probably important
+    module.addSymbolStub("aPcyptbOiZs", "sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("6xVpy0Fdq+I", "_sigprocmask", "libkernel", "libkernel");
     module.addSymbolStub("jh+8XiK4LeE", "sceKernelIsAddressSanitizerEnabled", "libkernel", "libkernel", false);
     module.addSymbolStub("bnZxYgAFeA0", "sceKernelGetSanitizerNewReplaceExternal", "libkernel", "libkernel");
@@ -320,6 +326,8 @@ void init(Module& module) {
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
     module.addSymbolStub("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel");  // TODO: Important
+    
+    module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
     
     module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
     module.addSymbolStub("EfqmKkirJF0", "sceKernelMlockall", "libkernel", "libkernel");
@@ -380,6 +388,10 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
 
 s32* PS4_FUNC kernel_error() {
     return &posix_errno;
+}
+
+s32 PS4_FUNC kernel_getpagesize() {
+    return 16_KB;
 }
 
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx) {
@@ -509,7 +521,7 @@ s32 PS4_FUNC sceKernelIsNeoMode() {
 
 void* PS4_FUNC sceKernelGetProcParam() {
     log("sceKernelGetProcParam()\n");
-    return (void*)g_app.modules[0].proc_param_ptr;
+    return (void*)g_app.modules[0]->proc_param_ptr;
 }
 
 s32 PS4_FUNC sceKernelGetProcessType() {
@@ -740,7 +752,7 @@ SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_
     log("sceKernelLoadStartModule(module_path=\"%s\", args=%d, argp=%p, flags=0x%x, opt=*%p, res=*%p)\n", module_path, args, argp, flags, opt, res);
 
     const fs::path host_module_path = FS::guestPathToHost(module_path);
-    auto* module = PS4::Loader::Linker::loadAndLinkLib(g_app, host_module_path);
+    auto module = PS4::Loader::Linker::loadAndLinkLib(g_app, host_module_path);
     s32 ret = module->init_func(args, argp, nullptr);   // TODO: libkernel.sprx seems to pass the address of the module_start (nid=0xBaOKcng8g88) symbol as parameter
     
     if (res) *res = ret;
