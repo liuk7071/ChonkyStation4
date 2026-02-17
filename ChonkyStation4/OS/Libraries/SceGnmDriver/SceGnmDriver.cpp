@@ -46,8 +46,10 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("X9Omw9dwv5M", "sceGnmSetEmbeddedPsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("GGsn7jMTxw4", "sceGnmDrawIndexAuto", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("HlTPoZ-oY7Y", "sceGnmDrawIndex", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("ED9-Fjr8Ta4", "sceGnmDrawIndexIndirect", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("oYM+YzfCm2Y", "sceGnmDrawIndexOffset", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("0BzLGljcwBo", "sceGnmDispatchDirect", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("Z43vKp5k7r0", "sceGnmDispatchIndirect", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("gAhCn6UiU4Y", "sceGnmSetVsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("V31V01UiScY", "sceGnmUpdateVsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("bQVd5YzCal0", "sceGnmSetPsShader", "libSceGnmDriver", "libSceGnmDriver");
@@ -60,6 +62,7 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("jg33rEKLfVs", "sceGnmIsUserPaEnabled", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("cFCp0NX8wf0", "sceGnmSetVgtControl", "libSceGnmDriver", "libSceGnmDriver");
     
     module.addSymbolStub("iBt3Oe00Kvc", "sceGnmFlushGarlic", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("PVT+fuoS9gU", "sceGnmDeleteEqEvent", "libSceGnmDriver", "libSceGnmDriver");

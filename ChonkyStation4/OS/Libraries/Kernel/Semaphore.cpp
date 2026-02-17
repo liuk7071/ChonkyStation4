@@ -69,7 +69,7 @@ s32 PS4_FUNC sceKernelSignalSema(SceKernelSema sem, s32 count) {
     log("sceKernelSignalSema(sem=%p, count=%d)\n", sem, count);
 
     if (sem == nullptr) {
-        printf("WARNING: semapore is nullptr\n");
+        printf("WARNING: semaphore is nullptr\n");
         return SCE_KERNEL_ERROR_ESRCH;
     }
 

@@ -8,7 +8,9 @@ MAKE_LOG_FUNCTION(log, lib_kernel);
 
 s32 PS4_FUNC scePthreadRwlockInit(pthread_rwlock_t* lock, const pthread_rwlockattr_t* attr, const char* name) {
     log("scePthreadRwlockInit(lock=*%p, attr=*%p, name=\"%s\")\n", lock, attr, name);
-    return pthread_rwlock_init(lock, attr);
+    //s32 ret = pthread_rwlock_init(lock, attr);
+    s32 ret = pthread_rwlock_init(lock, nullptr); // TODO: attr
+    return ret;
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_rdlock(pthread_rwlock_t* lock) {

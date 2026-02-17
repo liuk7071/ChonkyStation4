@@ -117,7 +117,7 @@ s32 PS4_FUNC sceAudioOutOutput(s32 handle, const void* ptr) {
 }
 
 s32 PS4_FUNC sceAudioOutOutputs(SceAudioOutOutputParam* param, u32 num) {
-    log("sceAudioOutOutputs(param=*%p, num=%d)\n", param, num);
+    //log("sceAudioOutOutputs(param=*%p, num=%d)\n", param, num);
 
     u32 samples = 0;
     for (int i = 0; i < num; i++) {

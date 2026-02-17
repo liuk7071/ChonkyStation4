@@ -16,6 +16,8 @@ void init(Module& module) {
     module.addSymbolExport("mn-tf4QiFzk", "sceRtcTickAddMinutes", "libSceRtc", "libSceRtc", (void*)&sceRtcTickAddMinutes);
     module.addSymbolExport("BtqmpTRXHgk", "sceRtcGetTime_t", "libSceRtc", "libSceRtc", (void*)&sceRtcGetTime_t);
     module.addSymbolExport("ZPD1YOKI+Kw", "sceRtcGetCurrentClockLocalTime", "libSceRtc", "libSceRtc", (void*)&sceRtcGetCurrentClockLocalTime);
+    
+    module.addSymbolStub("CyIK-i4XdgQ", "sceRtcGetDayOfWeek", "libSceRtc", "libSceRtc");
 }
 
 s32 PS4_FUNC sceRtcGetCurrentTick(SceRtcTick* tick) {

@@ -403,6 +403,98 @@ bool last_depth_enable = false;
 bool last_stencil_enable = false;
 vk::Extent2D last_extent = vk::Extent2D { 0xffffffff, 0xffffffff };
 
+std::vector<vk::RenderingAttachmentInfo> curr_attachments;
+bool has_feedback_loop = false;
+bool needs_new_render_pass = false;
+vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline) {
+    // ---- Setup render targets ----
+    // We need to do this BEFORE uploading textures below, because that function relies on
+    // getVulkanAttachmentForColorTarget to set a flag to detect feedback loops.
+    curr_attachments.clear();
+    curr_attachments.reserve(8);
+
+    ColorTarget new_rt[8];
+    getColorTargets(new_rt);
+
+    const bool stencil_only = !pipeline->cfg.depth_control.depth_enable && pipeline->cfg.depth_control.stencil_enable;
+
+    DepthTarget new_depth_rt;
+    getDepthTarget(&new_depth_rt, stencil_only);
+
+    const bool depth_enabled = pipeline->cfg.depth_control.depth_enable && new_depth_rt.z_info.format != (u32)DataFormat::FormatInvalid;
+
+    // Check if any color or depth target was changed
+    vk::Extent2D extent = { 0xffffffff, 0xffffffff };
+    if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {
+        for (int i = 0; i < 1; i++) {
+            if (new_rt[i].enabled) {
+                if (color_rt_dim[i].width < extent.width)   extent.width = color_rt_dim[i].width;
+                if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;
+
+                if (last_color_rt[i] != new_rt[i]) {
+                    bool save = false;
+                    color_attachments[i] = RenderTarget::getVulkanAttachmentForColorTarget(&new_rt[i], pipeline->cfg.degamma_enable, &save);
+                    if (save)
+                        last_color_rt[i] = new_rt[i];
+                    else
+                        last_color_rt[i] = {};
+                    needs_new_render_pass = true;
+                }
+
+                curr_attachments.push_back(color_attachments[i].vk_attachment);
+                if (color_attachments[i].has_feedback_loop) {
+                    has_feedback_loop = true;
+                    last_color_rt[i] = {};  // Next time we draw we need to check again if we are in a feedback loop, because it could keep the same color target but change input texture
+                    if (color_attachments[i].tex->curr_layout != vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT) {
+                        endRendering();
+                        color_attachments[i].tex->transition(vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT);
+                    }
+                }
+            }
+            else {
+                if (last_color_rt[i].enabled) {
+                    needs_new_render_pass = true;
+                    last_color_rt[i].enabled = false;
+                }
+            }
+        }
+    }
+    else {
+        needs_new_render_pass = true;
+        std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
+    }
+
+    if (depth_enabled) {
+        if (depth_rt_dim.width < extent.width)  extent.width = depth_rt_dim.width;
+        if (depth_rt_dim.height < extent.height) extent.height = depth_rt_dim.height;
+
+        if (last_depth_rt != new_depth_rt
+            || last_depth_enable != pipeline->cfg.depth_control.depth_enable
+            || last_stencil_enable != pipeline->cfg.depth_control.stencil_enable
+            ) {
+            bool save = false;
+            depth_attachment = RenderTarget::getVulkanAttachmentForDepthTarget(&new_depth_rt, pipeline->cfg.depth_control.stencil_enable, &save);
+
+            if (save)
+                last_depth_rt = new_depth_rt;
+            else
+                last_depth_rt = {};
+
+            last_depth_enable = pipeline->cfg.depth_control.depth_enable;
+            last_stencil_enable = pipeline->cfg.depth_control.stencil_enable;
+            needs_new_render_pass = true;
+        }
+    }
+    else {
+        if (last_depth_rt.depth_base) {
+            last_depth_rt = {};
+            needs_new_render_pass = true;
+        }
+    }
+
+    return extent;
+}
+
 void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* vs_ptr = getVSPtr();
     const auto* ps_ptr = getPSPtr();
@@ -453,92 +545,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         idx_buf_offs = offs;
     }
 
-    // ---- Setup render targets ----
-    // We need to do this BEFORE uploading textures below, because that function relies on
-    // getVulkanAttachmentForColorTarget to set a flag to detect feedback loops.
-    bool needs_new_render_pass = false;
-    std::vector<vk::RenderingAttachmentInfo> curr_attachments;
-    curr_attachments.reserve(8);
-
-    ColorTarget new_rt[8];
-    getColorTargets(new_rt);
-
-    const bool stencil_only = !pipeline.cfg.depth_control.depth_enable && pipeline.cfg.depth_control.stencil_enable;
-
-    DepthTarget new_depth_rt;
-    getDepthTarget(&new_depth_rt, stencil_only);
-
-    const bool depth_enabled = pipeline.cfg.depth_control.depth_enable && new_depth_rt.z_info.format != (u32)DataFormat::FormatInvalid;
-    
-    // Check if any color or depth target was changed
-    bool has_feedback_loop = false;
-    vk::Extent2D extent = { 0xffffffff, 0xffffffff };
-    if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {
-        for (int i = 0; i < 1; i++) {
-            if (new_rt[i].enabled) {
-                if (color_rt_dim[i].width < extent.width)   extent.width  = color_rt_dim[i].width;
-                if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;
-
-                if (last_color_rt[i] != new_rt[i]) {
-                    bool save = false;
-                    color_attachments[i] = RenderTarget::getVulkanAttachmentForColorTarget(&new_rt[i], pipeline.cfg.degamma_enable, &save);
-                    if (save)
-                        last_color_rt[i] = new_rt[i];
-                    else
-                        last_color_rt[i] = {};
-                    needs_new_render_pass = true;
-                }
-
-                curr_attachments.push_back(color_attachments[i].vk_attachment);
-                if (color_attachments[i].has_feedback_loop) {
-                    has_feedback_loop = true;
-                    last_color_rt[i] = {};  // Next time we draw we need to check again if we are in a feedback loop, because it could keep the same color target but change input texture
-                    if (color_attachments[i].tex->curr_layout != vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT) {
-                        endRendering();
-                        color_attachments[i].tex->transition(vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT);
-                    }
-                }
-            }
-            else {
-                if (last_color_rt[i].enabled) {
-                    needs_new_render_pass = true;
-                    last_color_rt[i].enabled = false;
-                }
-            }
-        }
-    }
-    else {
-        needs_new_render_pass = true;
-        std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
-    }
-
-    if (depth_enabled) {
-        if (depth_rt_dim.width  < extent.width)  extent.width  = depth_rt_dim.width;
-        if (depth_rt_dim.height < extent.height) extent.height = depth_rt_dim.height;
-
-        if (   last_depth_rt != new_depth_rt
-            || last_depth_enable != pipeline.cfg.depth_control.depth_enable
-            || last_stencil_enable != pipeline.cfg.depth_control.stencil_enable
-           ) {
-            bool save = false;
-            depth_attachment = RenderTarget::getVulkanAttachmentForDepthTarget(&new_depth_rt, pipeline.cfg.depth_control.stencil_enable, &save);
-
-            if (save)
-                last_depth_rt = new_depth_rt;
-            else
-                last_depth_rt = {};
-            
-            last_depth_enable = pipeline.cfg.depth_control.depth_enable;
-            last_stencil_enable = pipeline.cfg.depth_control.stencil_enable;
-            needs_new_render_pass = true;
-        }
-    }
-    else {
-        if (last_depth_rt.depth_base) {
-            last_depth_rt = {};
-            needs_new_render_pass = true;
-        }
-    }
+    // Setup rendering attachments
+    auto extent = setupRenderingAttachments(&pipeline);
 
     // Gather vertex data
     auto* vtx_bindings = pipeline.gatherVertices();
@@ -547,6 +555,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     Pipeline::PushConstants* push_constants;
     auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants, color_attachments[0].tex, &has_feedback_loop);
 
+    // Check if we need to start a new renderpass
     if (needs_new_render_pass || !is_recording_render_block) {
         endRendering(); // Has a check for if we were recording a render block or not
 
@@ -554,11 +563,11 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
             Helpers::panic("draw: no draw attachments\n");
 
         vk::RenderingInfo render_info = {
-            .renderArea = { .offset = { 0, 0 }, .extent = extent },
+            .renderArea = {.offset = { 0, 0 }, .extent = extent },
             .layerCount = 1,
             .colorAttachmentCount = (u32)curr_attachments.size(),
-            .pColorAttachments  = curr_attachments.size() ? curr_attachments.data() : nullptr,
-            .pDepthAttachment   = pipeline.cfg.depth_control.depth_enable   ? &depth_attachment.vk_attachment : nullptr,
+            .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
+            .pDepthAttachment = pipeline.cfg.depth_control.depth_enable ? &depth_attachment.vk_attachment : nullptr,
             .pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
         };
 
@@ -586,6 +595,16 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         last_extent = extent;
     }
 
+    // Blend constants
+    if (pipeline.has_blend_constants) {
+        float blend_constants[4];
+        blend_constants[0] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_RED]);
+        blend_constants[1] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_GREEN]);
+        blend_constants[2] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_BLUE]);
+        blend_constants[3] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_ALPHA]);
+        cmd_bufs[0].setBlendConstants(blend_constants);
+    }
+
     if (descriptor_writes.size())
         cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
     
@@ -601,6 +620,133 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     }
     else {
         cmd_bufs[0].draw(cnt, 1, 0, 0);
+    }
+}
+
+void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* draw_args, void* idx_buf_ptr, s32 idx_buf_max_size) {
+    const auto* vs_ptr = getVSPtr();
+    const auto* ps_ptr = getPSPtr();
+    log("Vertex Shader address : %p\n", vs_ptr);
+    log("Pixel Shader address  : %p\n", ps_ptr);
+
+    // Temporary hack to skip embedded shaders with no fetch shader
+    u32* ptr = (u32*)vs_ptr;
+    while (*ptr != 0x5362724F) {    // "OrbS"
+        ptr++;
+    }
+    // Get the shader hash from the header
+    u64 hash;
+    ptr += 4;
+    std::memcpy(&hash, ptr, sizeof(u64));
+    //printf("0x%llx <-- hash\n", hash);
+    if (hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
+        || hash == 0xf871bb9d4e8878f8   // Tomb Raider: Definitive Edition
+        || hash == 0xd4f680821d9336a4   // Super Meat Boy
+        || hash == 0x0000000042119848   // Super Meat Boy Forever
+        || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
+        ) return;
+
+
+    // TODO: For now fetch the shader address is hardcoded to user register 0:1.
+    // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
+    const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
+    log("Fetch Shader address : %p\n", fetch_shader_ptr);
+
+    if (!fetch_shader_ptr)
+        return;
+
+    // Get pipeline
+    auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
+    curr_frame_pipelines.push_back(&pipeline);
+
+    // Create index buffer (if needed)
+    vk::Buffer vk_idx_buf = nullptr;
+    size_t idx_buf_offs = 0;
+    if (is_indexed) {
+        vk::DeviceSize idx_buf_size = idx_buf_max_size * (index_type == IndexType::Uint16 ? sizeof(u16) : sizeof(u32));
+        auto [idx_buf, offs, was_dirty] = Cache::getBuffer((void*)idx_buf_ptr, idx_buf_size);
+        vk_idx_buf = idx_buf;
+        idx_buf_offs = offs;
+    }
+
+    // Create draw parameter buffer
+    auto [param_buf, param_buf_offs, was_dirty] = Cache::getBuffer(draw_args, cnt * sizeof(vk::DrawIndexedIndirectCommand));  // TODO: Don't stub to this struct when we implement other types of indirect draws
+
+    // Setup rendering attachments
+    auto extent = setupRenderingAttachments(&pipeline);
+
+    // Gather vertex data
+    auto* vtx_bindings = pipeline.gatherVertices();
+
+    // Upload buffers and get descriptor writes, as well as the push constants
+    Pipeline::PushConstants* push_constants;
+    auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants, color_attachments[0].tex, &has_feedback_loop);
+
+    // Check if we need to start a new renderpass
+    if (needs_new_render_pass || !is_recording_render_block) {
+        endRendering(); // Has a check for if we were recording a render block or not
+
+        if (extent == vk::Extent2D{ 0xffffffff, 0xffffffff })
+            Helpers::panic("draw: no draw attachments\n");
+
+        vk::RenderingInfo render_info = {
+            .renderArea = {.offset = { 0, 0 }, .extent = extent },
+            .layerCount = 1,
+            .colorAttachmentCount = (u32)curr_attachments.size(),
+            .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
+            .pDepthAttachment = pipeline.cfg.depth_control.depth_enable ? &depth_attachment.vk_attachment : nullptr,
+            .pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
+        };
+
+        beginRendering(render_info);
+        cmd_bufs[0].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
+    }
+
+    // HACK: Skip feedback loops
+    if (has_feedback_loop)
+        return;
+
+    // ---- Draw ----
+
+    if (&pipeline != last_draw_pipeline) {
+        cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
+        last_draw_pipeline = &pipeline;
+    }
+
+    // Viewport
+    if (pipeline.min_viewport_depth != last_viewport_min_depth || pipeline.max_viewport_depth != last_viewport_max_depth || extent != last_extent) {
+        cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+        last_viewport_min_depth = pipeline.min_viewport_depth;
+        last_viewport_max_depth = pipeline.max_viewport_depth;
+        last_extent = extent;
+    }
+
+    // Blend constants
+    if (pipeline.has_blend_constants) {
+        float blend_constants[4];
+        blend_constants[0] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_RED]);
+        blend_constants[1] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_GREEN]);
+        blend_constants[2] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_BLUE]);
+        blend_constants[3] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_ALPHA]);
+        cmd_bufs[0].setBlendConstants(blend_constants);
+    }
+
+    if (descriptor_writes.size())
+        cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
+
+    // I couldn't figure out how to use the RAII version of this...
+    vkCmdPushConstants(*cmd_bufs[0], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
+
+    for (int i = 0; i < vtx_bindings->size(); i++)
+        cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
+
+    if (is_indexed) {
+        cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
+        cmd_bufs[0].drawIndexedIndirect(param_buf, param_buf_offs, cnt, sizeof(vk::DrawIndexedIndirectCommand));
+    }
+    else {
+        Helpers::panic("TODO: Non-indexed indirect draw\n");
     }
 }
 

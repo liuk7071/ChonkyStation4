@@ -195,6 +195,16 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         break;
     }
 
+    case DataFormat::Format10_11_11: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Float:   return { vk::Format::eB10G11R11UfloatPack32, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
     case DataFormat::Format2_10_10_10: {
         switch ((NumberFormat)nfmt) {
 
@@ -274,6 +284,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Unorm: return { vk::Format::eBc1RgbaUnormBlock, sizeof(u32) };
+        case NumberFormat::Srgb:  return { vk::Format::eBc1RgbaSrgbBlock, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }
@@ -284,6 +295,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Unorm: return { vk::Format::eBc3UnormBlock, sizeof(u32) };
+        case NumberFormat::Srgb:  return { vk::Format::eBc3SrgbBlock, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }

@@ -163,7 +163,8 @@ void updateBuffer(CachedBuffer* buf) {
         .size = buf->size,
         .usage =   vk::BufferUsageFlagBits::eIndexBuffer   | vk::BufferUsageFlagBits::eVertexBuffer
                  | vk::BufferUsageFlagBits::eTransferSrc   | vk::BufferUsageFlagBits::eTransferDst
-                 | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer,
+                 | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+                 | vk::BufferUsageFlagBits::eIndirectBuffer,
         .sharingMode = vk::SharingMode::eExclusive
     };
     VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };

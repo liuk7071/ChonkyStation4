@@ -103,6 +103,8 @@ void init(Module& module) {
     module.addSymbolExport("dJcuQVn6-Iw", "pthread_condattr_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
     module.addSymbolExport("dJcuQVn6-Iw", "pthread_condattr_destroy", "libScePosix", "libkernel", (void*)&kernel_pthread_condattr_destroy);
     module.addSymbolExport("waPcxYiR3WA", "scePthreadCondattrDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_destroy);
+    module.addSymbolStub("RXXqi4CtF8w", "pthread_cond_destroy", "libkernel", "libkernel");   // TODO
+    module.addSymbolStub("RXXqi4CtF8w", "pthread_cond_destroy", "libScePosix", "libkernel");   // TODO
     module.addSymbolStub("g+PZd2hiacg", "scePthreadCondDestroy", "libkernel", "libkernel");   // TODO
     
     module.addSymbolExport("Z4QosVuAsA0", "pthread_once", "libkernel", "libkernel", (void*)&kernel_pthread_once);
@@ -261,6 +263,7 @@ void init(Module& module) {
     
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
     
+    module.addSymbolStub("VOx8NGmHXTs", "sceKernelGetCpumode", "libkernel", "libkernel", 5 /* normal 7cpu mode */);
     module.addSymbolStub("VHCS3rCd0PM", "sceKernelAddReadEvent", "libkernel", "libkernel"); // TODO: Important if not used for sockets
     module.addSymbolStub("qBDmpCyGssE", "scePthreadCancel", "libkernel", "libkernel");
     module.addSymbolStub("sCJd99Phct0", "scePthreadSetcanceltype", "libkernel", "libkernel");
@@ -278,6 +281,7 @@ void init(Module& module) {
     module.addSymbolStub("EjllaAqAPZo", "pthread_condattr_setclock", "libkernel", "libkernel");
     module.addSymbolStub("EjllaAqAPZo", "pthread_condattr_setclock", "libScePosix", "libkernel");
     module.addSymbolStub("i2ifZ3fS2fo", "scePthreadRwlockattrDestroy", "libkernel", "libkernel");
+    module.addSymbolStub("BB+kb08Tl9A", "scePthreadRwlockDestroy", "libkernel", "libkernel");
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libkernel", "libkernel");
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libScePosix", "libkernel");
     module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libkernel", "libkernel");

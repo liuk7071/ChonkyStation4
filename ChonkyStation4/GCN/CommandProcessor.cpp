@@ -147,6 +147,10 @@ void processCcb(u32* ccb, size_t ccb_size) {
     });
 }
 
+void* index_base = nullptr;
+s32   n_indices = 0;
+void* indirect_args_base = nullptr;
+
 void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     if (ccb) {
         processCcb(ccb, ccb_size);
@@ -187,6 +191,29 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             }
             }
 
+            break;
+        }
+
+        case PM4ItOpcode::SetBase: {
+            const u32 base_idx = *args++;
+            const u32 addr_lo = *args++;
+            const u32 addr_hi = *args++;
+
+            switch (base_idx) {
+            
+            // DrawIndexIndirect
+            case 1: {
+                indirect_args_base = (void*)(addr_lo | ((u64)(addr_hi & 0xffff) << 32));
+                break;
+            }
+
+            default:    log("Encountered SetBase packet with unhandled base_idx %d\n", base_idx);
+            }
+            break;
+        }
+
+        case PM4ItOpcode::IndexBufferSize: {
+            n_indices = *args++;
             break;
         }
 
@@ -265,10 +292,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
                 }
             };
 
-            //while (!check()) {
+            while (!check()) {
                 // TODO: Use poll_interval
                 std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            //}
+            }
             break;
         }
 
@@ -471,6 +498,20 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             break;
         }
         
+        case PM4ItOpcode::DrawIndexIndirect: {
+            const u32 draw_args_offs = *args++;
+            // TODO: BASE_VTX_LOC
+            renderer->drawIndirect(1, true, (void*)((uptr)indirect_args_base + draw_args_offs), index_base, n_indices);
+            break;
+        }
+
+        case PM4ItOpcode::IndexBase: {
+            const u32 index_base_lo = *args++;
+            const u32 index_base_hi = *args++;
+            index_base = (void*)(index_base_lo | ((u64)index_base_hi << 32));
+            break;
+        }
+
         case PM4ItOpcode::DrawIndex2: {
             const u32 max_cnt = *args++;
             const u32 index_base_lo = *args++;

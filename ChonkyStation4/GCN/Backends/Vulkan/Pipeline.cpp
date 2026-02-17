@@ -201,7 +201,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         .back                   = stencil_back
     };
 
-    auto blend_factor = [](u32 factor) -> vk::BlendFactor {
+    auto blend_factor = [&](u32 factor) -> vk::BlendFactor {
         switch ((BlendFactor)factor) {
         case BlendFactor::Zero:                     return vk::BlendFactor::eZero;
         case BlendFactor::One:                      return vk::BlendFactor::eOne;
@@ -214,14 +214,14 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         case BlendFactor::DstColor:                 return vk::BlendFactor::eDstColor;
         case BlendFactor::OneMinusDstColor:         return vk::BlendFactor::eOneMinusDstColor;
         case BlendFactor::SrcAlphaSaturate:         return vk::BlendFactor::eSrcAlphaSaturate;
-        //case BlendFactor::ConstantColor:            return vk::BlendFactor::eConstantColor;
-        //case BlendFactor::OneMinusConstantColor:    return vk::BlendFactor::eOneMinusConstantColor;
+        case BlendFactor::ConstantColor:            has_blend_constants = true; return vk::BlendFactor::eConstantColor;
+        case BlendFactor::OneMinusConstantColor:    has_blend_constants = true; return vk::BlendFactor::eOneMinusConstantColor;
         case BlendFactor::Src1Color:                return vk::BlendFactor::eSrc1Color;
         case BlendFactor::InvSrc1Color:             return vk::BlendFactor::eOneMinusSrc1Color;
         case BlendFactor::Src1Alpha:                return vk::BlendFactor::eSrc1Alpha;
         case BlendFactor::InvSrc1Alpha:             return vk::BlendFactor::eOneMinusSrc1Alpha;
-        //case BlendFactor::ConstantAlpha:            return vk::BlendFactor::eConstantAlpha;
-        //case BlendFactor::OneMinusConstantAlpha:    return vk::BlendFactor::eOneMinusConstantAlpha;
+        case BlendFactor::ConstantAlpha:            has_blend_constants = true; return vk::BlendFactor::eConstantAlpha;
+        case BlendFactor::OneMinusConstantAlpha:    has_blend_constants = true; return vk::BlendFactor::eOneMinusConstantAlpha;
         default:    Helpers::panic("Unimplemented blend factor %d\n", factor);
         }
     };
@@ -264,7 +264,12 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     };
     vk::PipelineColorBlendStateCreateInfo color_blending = { .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &color_blend_attachment };
 
-    std::vector dynamic_states = { vk::DynamicState::eViewport, vk::DynamicState::eScissor, vk::DynamicState::eAttachmentFeedbackLoopEnableEXT };
+    std::vector dynamic_states = {
+        vk::DynamicState::eViewport,
+        vk::DynamicState::eScissor,
+        vk::DynamicState::eBlendConstants,
+        vk::DynamicState::eAttachmentFeedbackLoopEnableEXT
+    };
     vk::PipelineDynamicStateCreateInfo dynamic_state = { .dynamicStateCount = (u32)dynamic_states.size(), .pDynamicStates = dynamic_states.data() };
 
     std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;

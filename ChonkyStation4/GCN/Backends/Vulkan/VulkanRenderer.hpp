@@ -8,12 +8,15 @@
 
 namespace PS4::GCN::Vulkan {
 
+struct Pipeline;
+
 class VulkanRenderer : public Renderer {
 public:
     VulkanRenderer() : Renderer() {}
 
     void init() override;
     void draw(const u64 cnt, const void* idx_buf_ptr = nullptr) override;
+    void drawIndirect(const u64 cnt, const bool is_indexed, void* draw_args, void* idx_buf_ptr = nullptr, s32 idx_buf_max_size = 0) override;
     void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) override;
 
 private:
@@ -53,6 +56,8 @@ private:
 
     void recreateSwapChain();
     void advanceSwapchain();
+
+    vk::Extent2D setupRenderingAttachments(Pipeline* pipeline);
 };
 
 }   // End namespace PS4::GCN::Vulkan

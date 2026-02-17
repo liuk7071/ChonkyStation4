@@ -203,6 +203,7 @@ public:
     PipelineConfig cfg;
     float min_viewport_depth = 0.0f;
     float max_viewport_depth = 0.0f;
+    bool has_blend_constants = false;
 
     struct VertexBinding {
         FetchShaderVertexBinding fetch_shader_binding;

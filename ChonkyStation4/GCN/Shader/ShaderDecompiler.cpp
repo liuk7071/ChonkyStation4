@@ -365,6 +365,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 #define PI 3.14159265358979323846
 
 vec4 tmp;
+ivec4 itmp;
 float tmp2[4];
 uint tmp_u;
 
@@ -464,9 +465,11 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::IMAGE_SAMPLE:
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
+        case Shader::Opcode::IMAGE_SAMPLE_C:
         case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
+        case Shader::Opcode::IMAGE_GET_RESINFO:
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4:
@@ -515,6 +518,7 @@ uint getStrideForBinding(uint binding) {
                     break;
                 }
 
+                case InstClass::VectorMemImgUt:
                 case InstClass::VectorMemImgNoSmp:
                 case InstClass::VectorMemImgSmp: {
                     buf.desc_info.type = DescriptorType::Tsharp;
@@ -530,7 +534,7 @@ uint getStrideForBinding(uint binding) {
                 return buf;
             };
 
-            bool is_img         = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp;
+            bool is_img         = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp || instr.inst_class == InstClass::VectorMemImgUt;
             bool is_vector_mem  = instr.inst_class == InstClass::VectorMemBufFmt;
             const int idx  = is_img || is_vector_mem ? 2 : 0;
             const int mult = is_img || is_vector_mem ? 4 : 2;
@@ -625,6 +629,18 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::S_ADD_U32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Carry out
+            break;
+        }
+
+        case Shader::Opcode::S_SUB_U32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("{} - {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Carry out
+            break;
+        }
+        
         case Shader::Opcode::S_ADD_I32: {
             main += setDST<Type::Int>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             // TODO: Carry out
@@ -663,6 +679,12 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::S_ANDN2_B64: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} & ~{}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_MUL_I32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("{} * {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Carry out
             break;
         }
 
@@ -751,6 +773,11 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::S_NOP: break;
 
+        case Shader::Opcode::S_CBRANCH_VCCNZ: {
+            main += "// TODO: S_CBRANCH_VCCNZ\n";
+            break;
+        }
+
         case Shader::Opcode::S_TTRACEDATA: {
             main += "// S_TTRACEDATA\n";
             break;
@@ -773,6 +800,7 @@ uint getStrideForBinding(uint binding) {
             break;
         }
         
+        case Shader::Opcode::V_CMP_NLE_F32:
         case Shader::Opcode::V_CMP_GT_F32: {
             main += v_cmp_f32(instr, ">");
             break;
@@ -801,6 +829,12 @@ uint getStrideForBinding(uint binding) {
         
         case Shader::Opcode::S_CBRANCH_VCCZ: {
             main += "// TODO: S_CBRANCH_VCCZ\n";
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_NLE_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, ">");
             break;
         }
 
@@ -983,6 +1017,12 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::V_ADD_I32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Carry out
+            break;
+        }
+        
+        case Shader::Opcode::V_SUB_I32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} - {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             // TODO: Carry out
             break;
         }
@@ -1282,6 +1322,11 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::DS_SWIZZLE_B32: {
+            main += setDST(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 */", getSRC(instr.src[0])));
+            break;
+        }
+
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_X:
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY:
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ:
@@ -1313,6 +1358,7 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
+        case Shader::Opcode::IMAGE_SAMPLE_C:
         case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
@@ -1358,6 +1404,33 @@ uint getStrideForBinding(uint binding) {
                     continue;
 
                 main += std::format("v[{}] = f2u(tmp2[{}]);\n", instr.dst[0].code + dest_gpr_offs++, channel);
+            }
+            break;
+        }
+
+        case Shader::Opcode::IMAGE_GET_RESINFO: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_LOAD: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto sampler_name = std::format("tex{}", buf->binding);
+            main += std::format("itmp.xy = textureSize({}, 0);\n", sampler_name);
+
+            u32 dest_gpr_offs = 0;
+            if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Width) & 1) {
+                main += std::format("v[{}] = itmp.x;\n", instr.dst[0].code + dest_gpr_offs++);
+            }
+
+            if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Height) & 1) {
+                main += std::format("v[{}] = itmp.y;\n", instr.dst[0].code + dest_gpr_offs++);
+            }
+
+            if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Depth) & 1) {
+                main += std::format("v[{}] = 1; // TODO: IMAGE_GET_RESINFO depth\n", instr.dst[0].code + dest_gpr_offs++);
+            }
+
+            if ((instr.control.mimg.dmask >> (u32)ImageResComponent::MipCount) & 1) {
+                main += std::format("v[{}] = 1; // TODO: IMAGE_GET_RESINFO mip_count\n", instr.dst[0].code + dest_gpr_offs++);
             }
             break;
         }

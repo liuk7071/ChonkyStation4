@@ -3,6 +3,12 @@
 #include <ErrorCodes.hpp>
 #include <OS/Libraries/Kernel/Kernel.hpp>
 #include <OS/Filesystem.hpp>
+#ifdef _MSC_VER
+#include <intrin.h>
+#define RETURN_ADDRESS() _ReturnAddress()
+#else
+#define RETURN_ADDRESS() _builtin_return_address(0)
+#endif
 
 
 namespace PS4::OS::Libs::Kernel {

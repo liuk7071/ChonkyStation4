@@ -6,6 +6,7 @@
 #define NOMINMAX
 #include <codecvt>
 #include <windows.h>
+#include <WinBase.h>
 #endif
 
 
@@ -113,9 +114,21 @@ s32 PS4_FUNC kernel_pthread_create(void** tid, const pthread_attr_t* attr, void*
 }
 
 s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
-    log("scePthreadCreate(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name);
     // TODO: attr
-    std::string name_str = name ? name : "unnamed";
+
+    std::string name_str;
+    if (name) {
+        // TODO: Switch away from this when we properly keep track of mapped memory
+        if (!IsBadReadPtr(name, 32))
+            name_str = name;
+        else name_str = "unnamed (bad ptr)";
+    }
+    else {
+        name_str = "unnamed";
+    }
+    
+    log("scePthreadCreate(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name_str.c_str());
+    
     auto& thread = PS4::OS::Thread::createThread(name_str, (PS4::OS::Thread::ThreadStartFunc)start, arg);
     *tid = (void*)&thread.getPThread();
     return 0;
