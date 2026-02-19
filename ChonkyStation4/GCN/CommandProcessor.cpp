@@ -292,10 +292,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
                 }
             };
 
-            while (!check()) {
+            //while (!check()) {
                 // TODO: Use poll_interval
                 std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            }
+            //}
             break;
         }
 

@@ -75,7 +75,7 @@ static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver     
 static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService ] ");
 static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService   ] ");
 static Logger lib_sceSysmodule      = Logger<true> ("[Lib    ][SceSysmodule     ] ");
-static Logger lib_sceNpManager      = Logger<true> ("[Lib    ][SceNpManager     ] ");
+static Logger lib_sceNpManager      = Logger<1> ("[Lib    ][SceNpManager     ] ");
 static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData      ] ");
 static Logger lib_sceSaveDataDialog = Logger<true> ("[Lib    ][SceSaveDataDialog] ");
 static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy      ] ");
@@ -83,7 +83,7 @@ static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad           
 static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut      ] ");
 static Logger lib_scePlayGo         = Logger<true> ("[Lib    ][ScePlayGo        ] ");
 static Logger lib_sceRtc            = Logger<true> ("[Lib    ][SceRtc           ] ");
-static Logger lib_sceNet            = Logger<true> ("[Lib    ][SceNet           ] ");
+static Logger lib_sceNet            = Logger<1> ("[Lib    ][SceNet           ] ");
 static Logger lib_sceRandom         = Logger<true> ("[Lib    ][SceRandom        ] ");
 
 // GCN
@@ -94,7 +94,7 @@ static Logger gcn_vulkan_renderer   = Logger<false>("[GCN    ][VulkanRenderer   
 // Other
 static Logger filesystem            = Logger<true> ("[Other  ][Filesystem       ] ");
 static Logger force_enable          = Logger<1>    ("[Other  ][Debug            ] ");
-static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented    ] ");
+static Logger unimplemented         = Logger<1> ("[Other  ][Unimplemented    ] ");
 
 #undef true
 #undef false

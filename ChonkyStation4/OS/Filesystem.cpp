@@ -100,6 +100,20 @@ u64 open(fs::path path, u32& err, u32 flags) {
         }
     }
     else {
+        // Add "." and ".." dirents
+        SceKernelDirent dirent;
+        dirent.d_fileno = fileno++;
+        dirent.d_reclen = sizeof(SceKernelDirent);
+        dirent.d_type   = SCE_KERNEL_DT_DIR;
+        std::strcpy(dirent.d_name, ".");
+        file_desc->dirents.push_back(dirent);
+
+        dirent.d_fileno = fileno++;
+        //dirent.d_reclen = sizeof(SceKernelDirent);
+        //dirent.d_type = SCE_KERNEL_DT_DIR;
+        std::strcpy(dirent.d_name, "..");
+        file_desc->dirents.push_back(dirent);
+
         // Populate dirents
         for (auto& entry : fs::directory_iterator(host_path)) {
             auto name_str = entry.path().filename().generic_string();
