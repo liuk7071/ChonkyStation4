@@ -13,7 +13,14 @@ static constexpr s32 SCE_NP_ONLINEID_MAX_LENGTH = 16;
 
 static constexpr s32 SCE_NP_PLUS_FEATURE_REALTIME_MULTIPLAY = 1;
 
+static constexpr s32 SCE_NP_PLATFORM_TYPE_NONE      = 0;
+static constexpr s32 SCE_NP_PLATFORM_TYPE_PS3       = 1;
+static constexpr s32 SCE_NP_PLATFORM_TYPE_VITA      = 2;
+static constexpr s32 SCE_NP_PLATFORM_TYPE_PS4       = 3;
+
 using SceNpServiceLabel = u32;
+using SceNpAccountId    = u64;
+using SceNpPlatformType = s32;
 
 enum class SceNpState {
     SCE_NP_STATE_UNKNOWN = 0,
@@ -31,6 +38,12 @@ struct SceNpId {
     SceNpOnlineId handle;
     u8 opt[8];
     u8 reserved[8];
+};
+
+struct SceNpPeerAddressA {
+    SceNpAccountId account_id;
+    SceNpPlatformType platform;
+    char padding[4];
 };
 
 struct SceNpParentalControlInfo {
