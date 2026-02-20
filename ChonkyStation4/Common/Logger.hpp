@@ -53,7 +53,7 @@ public:
 #ifdef CHONKYSTATION4_USER_BUILD
 #define true false
 #else
-#define true false
+//#define true false
 //#define false true
 #endif
 
@@ -71,11 +71,12 @@ static Logger lib_kernel_eflag      = Logger<false>("[Lib    ][KernelEflag      
 static Logger lib_kernel_sema       = Logger<true> ("[Lib    ][KernelSemaphore  ] ");
 static Logger lib_kernel_filesystem = Logger<true> ("[Lib    ][KernelFilesys    ] ");
 static Logger lib_sceVideoOut       = Logger<true> ("[Lib    ][SceVideoOut      ] ");
-static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver     ] ");
+static Logger lib_sceGnmDriver      = Logger<0> ("[Lib    ][SceGnmDriver     ] ");
 static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService ] ");
 static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService   ] ");
 static Logger lib_sceSysmodule      = Logger<true> ("[Lib    ][SceSysmodule     ] ");
 static Logger lib_sceNpManager      = Logger<1> ("[Lib    ][SceNpManager     ] ");
+static Logger lib_sceNpMatching     = Logger<1> ("[Lib    ][SceNpMatching    ] ");
 static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData      ] ");
 static Logger lib_sceSaveDataDialog = Logger<true> ("[Lib    ][SceSaveDataDialog] ");
 static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy      ] ");

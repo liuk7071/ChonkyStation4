@@ -9,7 +9,7 @@ namespace PS4::OS {
 inline bool initialized = false;
 
 struct SceObj {
-    SceObj();
+    SceObj(bool handle16bit);
     u64 handle = 0;
 };
 
@@ -17,9 +17,9 @@ inline std::vector<SceObj*> objs;
 inline std::mutex obj_mtx;
 
 template<typename T> requires std::is_base_of_v<SceObj, T>
-T* make() {
+T* make(bool handle16bit = false) {
     auto lk = std::unique_lock<std::mutex>(obj_mtx);
-    auto* obj = (T*)objs.emplace_back(new T());
+    auto* obj = (T*)objs.emplace_back(new T(handle16bit));
     return obj;
 }
 

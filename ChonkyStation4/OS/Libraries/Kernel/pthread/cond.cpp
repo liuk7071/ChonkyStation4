@@ -1,5 +1,6 @@
 #include "cond.hpp"
 #include <Logger.hpp>
+#include <Common/ErrorCodes.hpp>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -34,18 +35,22 @@ s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t
     //time.tv_sec  = abstime->tv_sec;
     //time.tv_nsec = abstime->tv_nsec;
     
+    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+
     auto now = std::chrono::system_clock::now();
     auto timeout = now + std::chrono::milliseconds(100);
     auto secs = std::chrono::time_point_cast<std::chrono::seconds>(timeout);
     auto nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(timeout - secs);
     time.tv_sec = secs.time_since_epoch().count();
     time.tv_nsec = nsec.count();
-
+    
     return pthread_cond_timedwait(cond, mutex, &time);
 }
 
 s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, u64 us) {
     log("scePthreadCondTimedwait(cond=*%p, mutex=*%p, us=%ulld)\n", cond, mutex, us);
+
+    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
 
     auto now = std::chrono::system_clock::now();
     auto timeout = now + std::chrono::microseconds(us);
@@ -55,7 +60,13 @@ s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mute
     timespec time;
     time.tv_sec = secs.time_since_epoch().count();
     time.tv_nsec = nsec.count();
-    return pthread_cond_timedwait(cond, mutex, &time);
+    const auto ret = pthread_cond_timedwait(cond, mutex, &time);
+    if (ret == ETIMEDOUT)
+        return SCE_KERNEL_ERROR_ETIMEDOUT;
+    else if (ret == 0)
+        return 0;
+
+    Helpers::panic("scePthreadCondTimedwait: unexpected error %d\n", ret);
 }
 
 s32 PS4_FUNC kernel_pthread_cond_signal(pthread_cond_t* cond) {

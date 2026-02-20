@@ -5,6 +5,7 @@
 #include <OS/Libraries/SceSystemService/SceSystemService.hpp>
 #include <OS/Libraries/SceUserService/SceUserService.hpp>
 #include <OS/Libraries/SceNpManager/SceNpManager.hpp>
+#include <OS/Libraries/SceNpMatching/SceNpMatching.hpp>
 #include <OS/Libraries/SceSysmodule/SceSysmodule.hpp>
 #include <OS/Libraries/SceSaveData/SceSaveData.hpp>
 #include <OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.hpp>
@@ -42,6 +43,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceSystemService::init(*module);
     PS4::OS::Libs::SceUserService::init(*module);
     PS4::OS::Libs::SceNpManager::init(*module);
+    PS4::OS::Libs::SceNpMatching::init(*module);
     PS4::OS::Libs::SceSysmodule::init(*module);
     PS4::OS::Libs::SceSaveData::init(*module);
     PS4::OS::Libs::SceSaveDataDialog::init(*module);
@@ -93,10 +95,6 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("dK8-SgYf6r4", "sceNpScoreDeleteRequest", "libSceNpScore", "libSceNpScore", 0);
     module->addSymbolStub("m1DfNRstkSQ", "sceNpScorePollAsync", "libSceNpScore", "libSceNpScore", 0);
     
-    // libSceNpMatching2
-    module->addSymbolStub("10t3e5+JPnU", "sceNpMatching2Initialize", "libSceNpMatching2", "libSceNpMatching2");
-    module->addSymbolStub("fQQfP87I7hs", "sceNpMatching2RegisterContextCallback", "libSceNpMatching2", "libSceNpMatching2");
-    
     // libSceNpParty
     module->addSymbolStub("lhYCTQmBkds", "sceNpPartyInitialize", "libSceNpParty", "libSceNpParty");
     module->addSymbolStub("kA88gbv71ao", "sceNpPartyRegisterHandler", "libSceNpParty", "libSceNpParty");
@@ -134,6 +132,12 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
     module->addSymbolStub("JO4yuTuMoKI", "sceNetCtlGetNatInfo", "libSceNetCtl", "libSceNetCtl");
     module->addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
+    
+    // libSceNpTus
+    module->addSymbolStub("BIkMmUfNKWM", "sceNpTusCreateNpTitleCtx", "libSceNpTus", "libSceNpTus", 1);
+    module->addSymbolStub("3bh2aBvvmvM", "sceNpTusCreateRequest", "libSceNpTus", "libSceNpTus", 1);
+    module->addSymbolStub("XOzszO4ONWU", "sceNpTusGetData", "libSceNpTus", "libSceNpTus");
+    module->addSymbolStub("CcIH40dYS88", "sceNpTusDeleteRequest", "libSceNpTus", "libSceNpTus");
 
     module->addSymbolStub("wIsKy+TfeLs", "sceNetCtlRegisterCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
     module->addSymbolStub("u5oqtlIP+Fw", "sceNetCtlCheckCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");

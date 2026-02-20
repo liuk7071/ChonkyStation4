@@ -64,7 +64,7 @@ target_sources(ChonkyStation4 PRIVATE
  "ChonkyStation4/OS/Libraries/SceNet/SceNet.cpp" "ChonkyStation4/OS/Libraries/SceNet/SceNet.hpp"
  "ChonkyStation4/GCN/Backends/Vulkan/RenderTarget.cpp" "ChonkyStation4/GCN/Backends/Vulkan/RenderTarget.hpp" "ChonkyStation4/GCN/Backends/Vulkan/ShaderCache.cpp" "ChonkyStation4/GCN/Backends/Vulkan/ShaderCache.hpp"
  "ChonkyStation4/OS/Libraries/SceRandom/SceRandom.cpp" "ChonkyStation4/OS/Libraries/SceRandom/SceRandom.hpp"
- "ChonkyStation4/GCN/HostTessShaders.cpp" "ChonkyStation4/GCN/HostTessShaders.hpp")
+ "ChonkyStation4/GCN/HostTessShaders.cpp" "ChonkyStation4/GCN/HostTessShaders.hpp" "ChonkyStation4/OS/Libraries/SceNpMatching/SceNpMatching.cpp" "ChonkyStation4/OS/Libraries/SceNpMatching/SceNpMatching.hpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)
