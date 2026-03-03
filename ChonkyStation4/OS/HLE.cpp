@@ -236,6 +236,12 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceAvPlayer
     module->addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
     
+    // libSceVideodec2
+    module->addSymbolStub("RnDibcGCPKw", "sceVideodec2QueryComputeMemoryInfo", "libSceVideodec2", "libSceVideodec2");
+    module->addSymbolStub("eD+X2SmxUt4", "sceVideodec2AllocateComputeQueue", "libSceVideodec2", "libSceVideodec2");
+    module->addSymbolStub("qqMCwlULR+E", "sceVideodec2QueryDecoderMemoryInfo", "libSceVideodec2", "libSceVideodec2");
+    module->addSymbolStub("wJXikG6QFN8", "sceVideodec2Reset", "libSceVideodec2", "libSceVideodec2");
+    
     // libSceRudp
     module->addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");
     module->addSymbolStub("6PBNpsgyaxw", "sceRudpEnableInternalIOThread", "libSceRudp", "libSceRudp");
@@ -245,8 +251,15 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("IPN-FRSrafk", "sceCompanionUtilOptParamInitialize", "libSceCompanionUtil", "libSceCompanionUtil");
     module->addSymbolStub("cE5Msy11WhU", "sceCompanionUtilGetEvent", "libSceCompanionUtil", "libSceCompanionUtil", 0x80AD0008 /* No event */);
     
+    // libSceRazorCpu
+    module->addSymbolStub("PAytDtFGpqY", "sceRazorCpuFiberSwitch", "libSceRazorCpu", "libSceRazorCpu");
+    
+    // libSceCoredump
+    module->addSymbolStub("8zLSfEfW5AU", "sceCoredumpRegisterCoredumpHandler", "libSceCoredump", "libkernel");
+    
     // ulobjmgr (TODO: What is this?)
     module->addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
+    module->addSymbolStub("BG26hBGiNlw", "ulobjmgr_BG26hBGiNlw", "ulobjmgr", "ulobjmgr");
     
     // dlcldr (TODO: What is this?)
     module->addSymbolStub("4qL3yyKEXoM", "dlcldr_4qL3yyKEXoM", "dlcldr", "dlcldr");

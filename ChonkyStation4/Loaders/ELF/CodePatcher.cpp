@@ -89,16 +89,13 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 auto code = std::make_unique<Xbyak::CodeGenerator>(128, patch_code_ptr);
                 //log("Allocated patch at %p\n", patch_code_ptr);
 
-                // This code puts [(gs:[0x58] + _tls_index * 8) + guest_tls_ptr_offs] in the dest register
+                // This code puts [[gs:[0x58] + _tls_index * 8] + guest_tls_ptr_offs] in the dest register
                 // without altering any state other than the dest register.
-                code->mov(dest, _tls_index);                            // TLS index for this module
-                code->shl(dest, 3);                                     // Multiply by sizeof(u64) (pointer)
                 code->putSeg(gs);
-                code->add(dest, ptr[0x58]);                             // Get pointer to TLS array (gs:[0x58]), add it to _tls_index * 8
-                code->mov(dest, ptr[dest]);                             // Get host TLS pointer
-                code->add(dest, PS4::OS::Thread::guest_tls_ptr_offs);   // Add the offset of the guest TLS variable within the host TLS
-                code->mov(dest, ptr[dest]);                             // Load guest TLS pointer
-                code->jmp(instr_addr + instruction.length);             // Jump back to the next instruction
+                code->mov(dest, ptr[0x58]);
+                code->mov(dest, ptr[dest + (_tls_index << 3)]);                     // [gs:[0x58] + _tls_index * 8]
+                code->mov(dest, ptr[dest + PS4::OS::Thread::guest_tls_ptr_offs]);
+                code->jmp(instr_addr + instruction.length);                         // Jump back to the next instruction
 
                 // Patch instruction to jmp to our code
                 code = std::make_unique<Xbyak::CodeGenerator>(instruction.length, instr_addr);

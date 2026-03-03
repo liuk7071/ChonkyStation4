@@ -268,7 +268,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         vk::DynamicState::eViewport,
         vk::DynamicState::eScissor,
         vk::DynamicState::eBlendConstants,
-        vk::DynamicState::eAttachmentFeedbackLoopEnableEXT
+        //vk::DynamicState::eAttachmentFeedbackLoopEnableEXT
     };
     vk::PipelineDynamicStateCreateInfo dynamic_state = { .dynamicStateCount = (u32)dynamic_states.size(), .pDynamicStates = dynamic_states.data() };
 
@@ -377,9 +377,10 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
             case Shader::DescriptorType::Vsharp: {
                 // Get pointer to the V#
                 VSharp* vsharp = buf_info.desc_info.asPtr<VSharp>();
+                if ((u64)vsharp < 0x1000) continue; // Skip bad shaders until I fix them...
 
                 // Upload as SSBO
-                const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * (vsharp->num_records + 16);
+                const auto buf_size = Helpers::alignUp<size_t>((vsharp->stride == 0 ? 1 : vsharp->stride) * (vsharp->num_records + 16), 16);
                 void* guest_buf_data = (void*)vsharp->base;
                 if ((u64)guest_buf_data < 0x10000) continue;
                 auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);

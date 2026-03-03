@@ -151,7 +151,7 @@ void VulkanRenderer::init() {
     std::array validation_enabled = {
         //vk::ValidationFeatureEnableEXT::eGpuAssisted,
         vk::ValidationFeatureEnableEXT::eSynchronizationValidation,
-        vk::ValidationFeatureEnableEXT::eBestPractices
+        //vk::ValidationFeatureEnableEXT::eBestPractices
     };
     
     std::vector<char const*> required_layers;
@@ -240,8 +240,8 @@ void VulkanRenderer::init() {
                                         && features.template get<vk::PhysicalDeviceFeatures2>().features.depthClamp
                                         && features.template get<vk::PhysicalDeviceFeatures2>().features.tessellationShader
                                         && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
-                                        && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout
-                                        && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
+                                        && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout;
+                                        //&& features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
 
         return supports_vulkan1_3 && supports_graphics && supports_all_required_exts && supports_all_required_features;
     });
@@ -263,14 +263,14 @@ void VulkanRenderer::init() {
     if (queue_index == ~0) Helpers::panic("Could not find a queue family for graphics and presentation");
 
     // Query for required features (Vulkan 1.1 and 1.3)
-    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT, vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT> feature_chain = {
+    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT, vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT> feature_chain = {
         { .features = { .depthClamp = true, .tessellationShader = true } },         // vk::PhysicalDeviceFeatures2
         { .shaderDrawParameters = true                                   },         // vk::PhysicalDeviceVulkan11Features
         { .synchronization2     = true, .dynamicRendering = true         },         // vk::PhysicalDeviceVulkan13Features
         { .extendedDynamicState = true                                   },         // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
         { .dynamicRenderingUnusedAttachments = true                      },         // vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
         { .attachmentFeedbackLoopLayout = true                           },         // vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT
-        { .attachmentFeedbackLoopDynamicState = true                     }          // vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT
+        //{ .attachmentFeedbackLoopDynamicState = true                     }          // vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT
     };
 
     // Create a (logical) Device
@@ -374,14 +374,24 @@ void VulkanRenderer::init() {
     // Create a memory pool. VMA will create allocations in block as specified below and manage memory by itself,
     // without having to allocate new Vulkan DeviceMemory every time.
     // This pool is used by the buffer cache (vertex buffers, index buffers, SSBOs)
-    const VmaPoolCreateInfo vma_pool_info = {
+    VmaPoolCreateInfo vma_pool_info = {
         .flags = VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT,
         .blockSize = 512_MB,
         .minBlockCount = 1,
-        .maxBlockCount = 20,
+        .maxBlockCount = 40,
         .memoryTypeIndex = findMemoryType(mem_type_bits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
     };
     vmaCreatePool(allocator, &vma_pool_info, &vma_pool);
+
+    // Create another one for device local memory
+    vma_pool_info = {
+        //.flags = VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT,
+        .blockSize = 1_GB,
+        .minBlockCount = 1,
+        .maxBlockCount = 16,
+        .memoryTypeIndex = findMemoryType(mem_type_bits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+    };
+    vmaCreatePool(allocator, &vma_pool_info, &device_vma_pool);
 
     // Initialize the buffer cache
     Cache::init();
@@ -500,7 +510,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* ps_ptr = getPSPtr();
     log("Vertex Shader address : %p\n", vs_ptr);
     log("Pixel Shader address  : %p\n", ps_ptr);
-
+   
     // Temporary hack to skip embedded shaders with no fetch shader
     u32* ptr = (u32*)vs_ptr;
     while (*ptr != 0x5362724F) {    // "OrbS"
@@ -515,6 +525,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         || hash == 0xf871bb9d4e8878f8   // Tomb Raider: Definitive Edition
         || hash == 0xd4f680821d9336a4   // Super Meat Boy
         || hash == 0x0000000042119848   // Super Meat Boy Forever
+        || hash == 0x0000000089386050   // Persona 5 Royal
+        || hash == 0x00000000e828b86f   // Persona 5 Royal
+        || hash == 0x00000000fec3c099   // Persona 5 Royal
         || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
        ) return;
     
@@ -559,8 +572,10 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     if (needs_new_render_pass || !is_recording_render_block) {
         endRendering(); // Has a check for if we were recording a render block or not
 
-        if (extent == vk::Extent2D{ 0xffffffff, 0xffffffff })
-            Helpers::panic("draw: no draw attachments\n");
+        if (extent == vk::Extent2D{ 0xffffffff, 0xffffffff }) {
+            log("draw: no draw attachments\n");
+            return;
+        }
 
         vk::RenderingInfo render_info = {
             .renderArea = {.offset = { 0, 0 }, .extent = extent },
@@ -572,7 +587,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         };
 
         beginRendering(render_info);
-        cmd_bufs[0].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
+        //cmd_bufs[0].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
     }
 
     // HACK: Skip feedback loops
@@ -891,9 +906,12 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     }
 
     // Wait for rendering to be done
+    auto gpu_time = std::chrono::steady_clock::now();
     while (vk::Result::eTimeout == device.waitForFences(*draw_fence, vk::True, UINT64_MAX));
     device.resetFences(*draw_fence);
-
+    auto gpu_time_end = std::chrono::steady_clock::now();
+    auto gpu_time_dur = std::chrono::duration<double, std::milli>(gpu_time_end - gpu_time).count();
+   
     // Cleanup
     for (auto& pipeline : curr_frame_pipelines)
         pipeline->clearBuffers();

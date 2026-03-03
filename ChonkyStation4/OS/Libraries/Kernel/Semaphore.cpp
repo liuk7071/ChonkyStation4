@@ -114,4 +114,11 @@ s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem) {
     return 0;
 }
 
+s32 PS4_FUNC kernel_sem_getvalue(SceKernelSema* sem, s32* val) {
+    log("sem_getvalue(sem=*%p, val=*%p)\n", sem, val);
+
+    *val = (*sem)->counter;
+    return 0;
+}
+
 };  // End namespace PS4::OS::Libs::Kernel

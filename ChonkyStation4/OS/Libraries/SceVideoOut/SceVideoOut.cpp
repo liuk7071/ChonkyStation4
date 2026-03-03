@@ -25,6 +25,7 @@ void init(Module& module) {
     module.addSymbolExport("1FZBKy8HeNU", "sceVideoOutGetVblankStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetVblankStatus);
     module.addSymbolExport("6kPnj51T62Y", "sceVideoOutGetResolutionStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetResolutionStatus);
     
+    module.addSymbolStub("zgXifHT9ErY", "sceVideoOutIsFlipPending", "libSceVideoOut", "libSceVideoOut", 0); // TODO: Important
     module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pjkDsgxli6c", "sceVideoOutModeSetAny_", "libSceVideoOut", "libSceVideoOut");

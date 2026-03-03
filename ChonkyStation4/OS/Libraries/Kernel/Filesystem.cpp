@@ -133,6 +133,26 @@ s64 PS4_FUNC kernel_write(s32 fd, u8* buf, u64 size) {
     return FS::write(fd, buf, size);
 }
 
+s64 PS4_FUNC kernel_pwrite(s32 fd, u8* buf, u64 size, s64 offset) {
+    log("pwrite(fd=%d, buf=%p, size=%lld, offset=%lld)\n", fd, buf, size, offset);
+    auto lock = FS::getFileLock(fd);
+
+    // Save old seek position
+    const auto old_pos = FS::tell(fd);
+    // Seek to offset and write
+    FS::seek(fd, offset, SEEK_SET);
+    const auto ret = FS::write(fd, buf, size);
+    // Restore old seek position
+    FS::seek(fd, old_pos, SEEK_SET);
+    return ret;
+}
+
+s64 PS4_FUNC sceKernelPwrite(s32 fd, u8* buf, u64 size, s64 offset) {
+    const auto res = kernel_pwrite(fd, buf, size, offset);
+    if (res < 0) return Error::posixToSce(*Kernel::kernel_error());
+    return res;
+}
+
 s64 PS4_FUNC sceKernelWrite(s32 fd, u8* buf, u64 size) {
     const auto res = kernel_write(fd, buf, size);
     if (res < 0) return Error::posixToSce(*Kernel::kernel_error());

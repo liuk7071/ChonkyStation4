@@ -14,6 +14,7 @@ namespace PS4::GCN::Shader {
 
 std::string shader;
 std::string const_tables;
+std::string initialization;
 std::unordered_map<std::string, size_t> const_table_map;
 std::unordered_map<int, std::string> in_attrs;
 std::unordered_map<int, std::string> out_attrs;
@@ -194,6 +195,26 @@ void addFloatConstTable(std::string name, float* table, size_t size) {
     const_tables += ");\n";
 }
 
+std::unordered_map<int, bool> vgpr_map;
+std::string getVGPR(int n) {
+    std::string reg = std::format("v{}", n);
+    if (!vgpr_map.contains(n)) {
+        vgpr_map[n] = true;
+        initialization += std::format("uint {} = 0;\n", reg);
+    }
+    return reg;
+}
+
+std::unordered_map<int, bool> sgpr_map;
+std::string getSGPR(int n) {
+    std::string reg = std::format("s{}", n);
+    if (!sgpr_map.contains(n)) {
+        sgpr_map[n] = true;
+        initialization += std::format("uint {} = 0;\n", reg);
+    }
+    return reg;
+}
+
 std::string getType(int n_lanes, u32 nfmt) {
     switch (n_lanes) {
     case 1: {
@@ -232,8 +253,8 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     std::string src;
     
     switch (op.field) {
-    case OperandField::ScalarGPR:           src = std::format("s[{}]", op.code);                                        break;
-    case OperandField::VectorGPR:           src = std::format("v[{}]", op.code);                                        break;
+    case OperandField::ScalarGPR:           src = getSGPR(op.code);                                                     break;
+    case OperandField::VectorGPR:           src = getVGPR(op.code);                                                     break;
     case OperandField::LiteralConst: {
         if constexpr (is_float)
             src = std::format("f2u({:#g}f)", reinterpret_cast<const float&>(op.code));
@@ -294,13 +315,13 @@ std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
         src = "uint(" + src + ")";
 
     switch (op.field) {
-    case OperandField::ScalarGPR:           code = std::format("s[{}] = {};\n", op.code, src);      break;
-    case OperandField::VectorGPR:           code = std::format("v[{}] = {};\n", op.code, src);      break;
-    case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                 break;
-    case OperandField::VccHi:               code = "// TODO: Set VccHi\n";                          break;
-    case OperandField::M0:                  code = "// TODO: Set M0\n";                             break;
-    case OperandField::ExecLo:              code = std::format("exec = {};\n", src);                break;
-    case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                         break;
+    case OperandField::ScalarGPR:           code = std::format("{} = {};\n", getSGPR(op.code), src);    break;
+    case OperandField::VectorGPR:           code = std::format("{} = {};\n", getVGPR(op.code), src);    break;
+    case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                     break;
+    case OperandField::VccHi:               code = "// TODO: Set VccHi\n";                              break;
+    case OperandField::M0:                  code = "// TODO: Set M0\n";                                 break;
+    case OperandField::ExecLo:              code = std::format("exec = {};\n", src);                    break;
+    case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                             break;
     default:    Helpers::panic("Unhandled DST %d\n", op.code);
     }
 
@@ -344,6 +365,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     shader.reserve(64_KB);  // Avoid reallocations
     const_tables.clear();
     const_tables.reserve(1_KB);
+    initialization.clear();
     const_table_map.clear();
     in_attrs.clear();
     out_attrs.clear();
@@ -354,6 +376,8 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     has_cubemap_tcoord_func = false;
     has_cubemap_majoraxis_func = false;
     has_fetch_buffer_func_map.clear();
+    vgpr_map.clear();
+    sgpr_map.clear();
 
     shader += R"(
 #version 450
@@ -369,8 +393,6 @@ ivec4 itmp;
 float tmp2[4];
 uint tmp_u;
 
-uint s[104];
-uint v[104];
 uint scc;
 uint vcc;
 uint exec;
@@ -460,6 +482,7 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::IMAGE_GATHER4_C:
         case Shader::Opcode::IMAGE_LOAD:
         case Shader::Opcode::IMAGE_LOAD_MIP:
         case Shader::Opcode::IMAGE_SAMPLE:
@@ -563,8 +586,10 @@ uint getStrideForBinding(uint binding) {
     main += "scc  = 0;\n";
     main += "exec = 1;\n";
     if (stage == ShaderStage::Fragment) {
-        main += "v[2] = f2u(gl_FragCoord.x);\n";
-        main += "v[3] = f2u(gl_FragCoord.y);\n";
+        getVGPR(2);
+        getVGPR(3);
+        main += "v2 = f2u(gl_FragCoord.x);\n";
+        main += "v3 = f2u(gl_FragCoord.y);\n";
     }
 
     switch (stage) {
@@ -588,7 +613,7 @@ uint getStrideForBinding(uint binding) {
                 else if (swizzle == DSEL_B) val = attr + ".z";
                 else if (swizzle == DSEL_A) val = attr + ".w";
 
-                main += std::format("v[{}] = floatBitsToUint({});\n", binding.dest_vgpr + i, val);
+                main += std::format("{} = floatBitsToUint({});\n", getVGPR(binding.dest_vgpr + i), val);
             }
         }
         break;
@@ -600,7 +625,7 @@ uint getStrideForBinding(uint binding) {
     auto v_cmp_f32 = [](const PS4::GCN::Shader::GcnInst& instr, std::string op) -> std::string {
         std::string dst;
         if (instr.dst[1].field == OperandField::ScalarGPR) {
-            dst = "s[" + std::to_string(instr.dst[1].code) + "]";
+            dst = getSGPR(instr.dst[1].code);
         }
         else if (instr.dst[1].field == OperandField::VccLo) {
             dst = "vcc";
@@ -648,6 +673,12 @@ uint getStrideForBinding(uint binding) {
         }
 
         case Shader::Opcode::S_CSELECT_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("(scc == 1) ? {} : {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+
+        case Shader::Opcode::S_CSELECT_B64: {
+            // TODO: 64bit
             main += setDST<Type::Uint>(instr.dst[0], std::format("(scc == 1) ? {} : {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
@@ -913,7 +944,7 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::V_CNDMASK_B32: {
             std::string cond;
             if (instr.src[2].field == OperandField::ScalarGPR) {
-                cond = "s[" + std::to_string(instr.src[2].code) + "]";
+                cond = getSGPR(instr.src[2].code);
             }
             else {
                 cond = "vcc";
@@ -1245,9 +1276,9 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
 
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset);
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code), ssbo_name, offset);
             break;
         }
 
@@ -1257,10 +1288,10 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
 
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
             break;
         }
 
@@ -1270,11 +1301,11 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 2, ssbo_name, offset + " + 2");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 3, ssbo_name, offset + " + 3");
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " + 2");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 3), ssbo_name, offset + " + 3");
             break;
         }
 
@@ -1284,15 +1315,15 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 1, ssbo_name, offset + " + 1");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 2, ssbo_name, offset + " + 2");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 3, ssbo_name, offset + " + 3");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 4, ssbo_name, offset + " + 4");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 5, ssbo_name, offset + " + 5");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 6, ssbo_name, offset + " + 6");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 7, ssbo_name, offset + " + 7");
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " + 2");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 3), ssbo_name, offset + " + 3");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 4), ssbo_name, offset + " + 4");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 5), ssbo_name, offset + " + 5");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 6), ssbo_name, offset + " + 6");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 7), ssbo_name, offset + " + 7");
             break;
         }
         
@@ -1302,23 +1333,23 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : std::format("s[{}]", instr.control.smrd.offset);
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code, ssbo_name, offset + " + 0");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  1, ssbo_name, offset + " +  1");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  2, ssbo_name, offset + " +  2");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  3, ssbo_name, offset + " +  3");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  4, ssbo_name, offset + " +  4");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  5, ssbo_name, offset + " +  5");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  6, ssbo_name, offset + " +  6");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  7, ssbo_name, offset + " +  7");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  8, ssbo_name, offset + " +  8");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code +  9, ssbo_name, offset + " +  9");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 10, ssbo_name, offset + " + 10");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 11, ssbo_name, offset + " + 11");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 12, ssbo_name, offset + " + 12");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 13, ssbo_name, offset + " + 13");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 14, ssbo_name, offset + " + 14");
-            main += std::format("s[{}] = {}.data[{}];\n", instr.dst[0].code + 15, ssbo_name, offset + " + 15");
+            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  0), ssbo_name, offset + " +  0");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  1), ssbo_name, offset + " +  1");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  2), ssbo_name, offset + " +  2");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  3), ssbo_name, offset + " +  3");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  4), ssbo_name, offset + " +  4");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  5), ssbo_name, offset + " +  5");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  6), ssbo_name, offset + " +  6");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  7), ssbo_name, offset + " +  7");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  8), ssbo_name, offset + " +  8");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  9), ssbo_name, offset + " +  9");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 10), ssbo_name, offset + " + 10");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 11), ssbo_name, offset + " + 11");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 12), ssbo_name, offset + " + 12");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 13), ssbo_name, offset + " + 13");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 14), ssbo_name, offset + " + 14");
+            main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 15), ssbo_name, offset + " + 15");
             break;
         }
 
@@ -1335,23 +1366,22 @@ uint getStrideForBinding(uint binding) {
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "TBUFFER_LOAD_FORMAT_XYZW: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
             addFetchBufferByteFunc(buf->binding);
-
             main += std::format("// DFMT: {} NFMT: {}\n", instr.control.mtbuf.dfmt, instr.control.mtbuf.nfmt);
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
             const std::string idx = instr.control.mtbuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
-            const std::string voffset = instr.control.mtbuf.offen ? std::format("v[{}]", instr.control.mtbuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
+            const std::string voffset = instr.control.mtbuf.offen ? getVGPR(instr.control.mtbuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
             const std::string instr_offs = std::format("{}", instr.control.mtbuf.offset);
             main += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {};\n", idx, buf->binding, voffset, instr_offs);
 
             // TODO: Format conversion
             for (int elem = 0; elem < instr.control.mtbuf.count; elem++) {
                 const std::string elem_addr = std::format("tmp_u + ({} << 2u)", elem);  // elem * sizeof(u32)
-                main += std::format("v[{}] = 0;\n", instr.src[1].code + elem);
-                main += std::format("v[{}] |= fetchBufferByte{}({} + 0) <<  0u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
-                main += std::format("v[{}] |= fetchBufferByte{}({} + 1) <<  8u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
-                main += std::format("v[{}] |= fetchBufferByte{}({} + 2) << 16u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
-                main += std::format("v[{}] |= fetchBufferByte{}({} + 3) << 24u;\n", instr.src[1].code + elem, buf->binding, elem_addr);
+                main += std::format("{} = 0;\n", getVGPR(instr.src[1].code + elem));
+                main += std::format("{} |= fetchBufferByte{}({} + 0) <<  0u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                main += std::format("{} |= fetchBufferByte{}({} + 1) <<  8u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                main += std::format("{} |= fetchBufferByte{}({} + 2) << 16u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                main += std::format("{} |= fetchBufferByte{}({} + 3) << 24u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
             }
             break;
         }
@@ -1368,10 +1398,10 @@ uint getStrideForBinding(uint binding) {
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_SAMPLE: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
 
-            main += std::format("// T# is in s[{}]\n", instr.src[2].code * 4);
+            main += std::format("// T# is in s{}\n", instr.src[2].code * 4);
 
             const auto sampler_name = std::format("tex{}", buf->binding);
-            const std::string texcoords = std::format("vec2(u2f(v[{}]), u2f(v[{}]))", instr.src[0].code, instr.src[0].code + 1);
+            const std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(instr.src[0].code), getVGPR(instr.src[0].code + 1));
             main += std::format("tmp = texture({}, {});\n", sampler_name, texcoords);
             main += "tmp2 = float[](tmp.x, tmp.y, tmp.z, tmp.w);\n";
 
@@ -1381,7 +1411,7 @@ uint getStrideForBinding(uint binding) {
                 if (((instr.control.mimg.dmask >> channel) & 1) == 0)
                     continue;
 
-                main += std::format("v[{}] = f2u(tmp2[{}]);\n", instr.dst[0].code + dest_gpr_offs++, channel);
+                main += std::format("{} = f2u(tmp2[{}]);\n", getVGPR(instr.dst[0].code + dest_gpr_offs++), channel);
             }
             break;
         }
@@ -1393,7 +1423,7 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto sampler_name = std::format("tex{}", buf->binding);
-            const std::string texcoords = std::format("vec2(u2f(v[{}]), u2f(v[{}]))", instr.src[0].code, instr.src[0].code + 1);
+            const std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(instr.src[0].code), getVGPR(instr.src[0].code + 1));
             main += std::format("tmp = texture({}, {});\n", sampler_name, texcoords);
             main += "tmp2 = float[](tmp.x, tmp.y, tmp.z, tmp.w);\n";
 
@@ -1403,7 +1433,7 @@ uint getStrideForBinding(uint binding) {
                 if (((instr.control.mimg.dmask >> channel) & 1) == 0)
                     continue;
 
-                main += std::format("v[{}] = f2u(tmp2[{}]);\n", instr.dst[0].code + dest_gpr_offs++, channel);
+                main += std::format("{} = f2u(tmp2[{}]);\n", getVGPR(instr.dst[0].code + dest_gpr_offs++), channel);
             }
             break;
         }
@@ -1418,19 +1448,52 @@ uint getStrideForBinding(uint binding) {
 
             u32 dest_gpr_offs = 0;
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Width) & 1) {
-                main += std::format("v[{}] = itmp.x;\n", instr.dst[0].code + dest_gpr_offs++);
+                main += std::format("{} = itmp.x;\n", getVGPR(instr.dst[0].code + dest_gpr_offs++));
             }
 
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Height) & 1) {
-                main += std::format("v[{}] = itmp.y;\n", instr.dst[0].code + dest_gpr_offs++);
+                main += std::format("{} = itmp.y;\n", getVGPR(instr.dst[0].code + dest_gpr_offs++));
             }
 
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Depth) & 1) {
-                main += std::format("v[{}] = 1; // TODO: IMAGE_GET_RESINFO depth\n", instr.dst[0].code + dest_gpr_offs++);
+                main += std::format("{} = 1; // TODO: IMAGE_GET_RESINFO depth\n", getVGPR(instr.dst[0].code + dest_gpr_offs++));
             }
 
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::MipCount) & 1) {
-                main += std::format("v[{}] = 1; // TODO: IMAGE_GET_RESINFO mip_count\n", instr.dst[0].code + dest_gpr_offs++);
+                main += std::format("{} = 1; // TODO: IMAGE_GET_RESINFO mip_count\n", getVGPR(instr.dst[0].code + dest_gpr_offs++));
+            }
+            break;
+        }
+
+        case Shader::Opcode::IMAGE_GATHER4_C: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_GATHER4: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            main += std::format("// T# is in s{}\n", instr.src[2].code * 4);
+
+            const auto sampler_name = std::format("tex{}", buf->binding);
+            const std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(instr.src[0].code), getVGPR(instr.src[0].code + 1));
+
+            // For gather instructions dmask selects the component
+            int comp = 0;
+            if (std::popcount(instr.control.mimg.dmask) == 1) {
+                for (comp = 0; comp < 4; comp++) {
+                    if (instr.control.mimg.dmask >> comp)
+                        break;
+                }
+            }
+            else {
+                Helpers::panic("IMAGE_GATHER4: dmask has != 1 bits set");
+            }
+
+            main += std::format("tmp = textureGather({}, {}, {});\n", sampler_name, texcoords, comp);
+            main += "tmp2 = float[](tmp.x, tmp.y, tmp.z, tmp.w);\n";
+
+            // Set results (ignore DMASK because it's used for the component here)
+            u32 dest_gpr_offs = 0;
+            for (int channel = 0; channel < 4; channel++) {
+                main += std::format("{} = f2u(tmp2[{}]);\n", getVGPR(instr.dst[0].code + dest_gpr_offs++), channel);
             }
             break;
         }
@@ -1486,6 +1549,8 @@ uint getStrideForBinding(uint binding) {
     shader += "\n";
     shader += const_tables;
     shader += "\n";
+
+    main = initialization + "\n" + main;
 
     // Declare main function
     addFunc("void main", main);

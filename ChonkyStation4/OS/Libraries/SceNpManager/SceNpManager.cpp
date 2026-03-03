@@ -38,6 +38,7 @@ void init(Module& module) {
     module.addSymbolStub("S7QTn72PrDw", "sceNpDeleteRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("OzKvTvg3ZYU", "sceNpAbortRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GFhVUpRmbHE", "sceNpInGameMessageInitialize", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("IPb1hd1wAGc", "sceNpGetGamePresenceStatus", "libSceNpManager", "libSceNpManager");
     
     module.addSymbolStub("0c7HbXRKUt4", "sceNpRegisterStateCallbackForToolkit", "libSceNpManagerForToolkit", "libSceNpManager");
     module.addSymbolStub("YIvqqvJyjEc", "sceNpUnregisterStateCallbackForToolkit", "libSceNpManagerForToolkit", "libSceNpManager");

@@ -18,6 +18,7 @@ inline vk::SurfaceFormatKHR                 swapchain_surface_format;
 inline vk::Extent2D                         swapchain_extent;
 inline VmaAllocator                         allocator;
 inline VmaPool                              vma_pool;
+inline VmaPool                              device_vma_pool;
 inline u64                                  host_memory_import_align = 0;
 
 vk::raii::CommandBuffer beginCommands();

@@ -21,6 +21,11 @@
 #define NOMINMAX
 #include <windows.h>
 #pragma intrinsic(__rdtsc)
+
+#include <intrin.h>
+#define RETURN_ADDRESS() _ReturnAddress()
+#else
+#define RETURN_ADDRESS() _builtin_return_address(0)
 #endif
 #include <SDL.h>    // For performance counters
 
@@ -137,6 +142,7 @@ void init(Module& module) {
     
     module.addSymbolExport("9BcDykPmo1I", "__error", "libkernel", "libkernel", (void*)&kernel_error);
     module.addSymbolExport("k+AXqu2-eBc", "getpagesize", "libkernel", "libkernel", (void*)&kernel_getpagesize);
+    module.addSymbolExport("k+AXqu2-eBc", "getpagesize", "libScePosix", "libkernel", (void*)&kernel_getpagesize);
     module.addSymbolExport("f7uOxY9mM1U", "__stack_chk_guard", "libkernel", "libkernel", (void*)&stack_chk_guard);
     module.addSymbolExport("vNe1w4diLCs", "__tls_get_addr", "libkernel", "libkernel", (void*)&__tls_get_addr);
 
@@ -160,6 +166,9 @@ void init(Module& module) {
     module.addSymbolExport("+r3rMFwItV4", "sceKernelPread", "libkernel", "libkernel", (void*)&sceKernelPread);
     module.addSymbolExport("FxVZqBAA7ks", "_write", "libkernel", "libkernel", (void*)&kernel_write);
     module.addSymbolExport("4wSze92BhLI", "sceKernelWrite", "libkernel", "libkernel", (void*)&sceKernelWrite);
+    module.addSymbolExport("C2kJ-byS5rM", "pwrite", "libkernel", "libkernel", (void*)&kernel_pwrite);
+    module.addSymbolExport("C2kJ-byS5rM", "pwrite", "libScePosix", "libkernel", (void*)&kernel_pwrite);
+    module.addSymbolExport("nKWi-N2HBV4", "sceKernelPwrite", "libkernel", "libkernel", (void*)&sceKernelPwrite);
     module.addSymbolExport("YSHRBRLn2pI", "_writev", "libkernel", "libkernel", (void*)&kernel_writev);
     module.addSymbolExport("ih4CD9-gghM", "ftruncate", "libkernel", "libkernel", (void*)&kernel_ftruncate);
     module.addSymbolExport("ih4CD9-gghM", "ftruncate", "libScePosix", "libkernel", (void*)&kernel_ftruncate);
@@ -239,6 +248,8 @@ void init(Module& module) {
     module.addSymbolExport("IKP8typ0QUk", "sem_post", "libScePosix", "libkernel", (void*)&kernel_sem_post);
     module.addSymbolExport("YCV5dGGBcCo", "sem_wait", "libkernel", "libkernel", (void*)&kernel_sem_wait);
     module.addSymbolExport("YCV5dGGBcCo", "sem_wait", "libScePosix", "libkernel", (void*)&kernel_sem_wait);
+    module.addSymbolExport("Bq+LRV-N6Hk", "sem_getvalue", "libkernel", "libkernel", (void*)&kernel_sem_getvalue);
+    module.addSymbolExport("Bq+LRV-N6Hk", "sem_getvalue", "libScePosix", "libkernel", (void*)&kernel_sem_getvalue);
     module.addSymbolStub("cDW233RAwWo", "sem_destroy", "libkernel", "libkernel");
     module.addSymbolStub("cDW233RAwWo", "sem_destroy", "libScePosix", "libkernel");
     
@@ -399,7 +410,7 @@ s32 PS4_FUNC kernel_getpagesize() {
 }
 
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx) {
-    //log("__tls_get_addr(tls_idx=*%p)\n", tls_idx);
+    log("__tls_get_addr(tls_idx=*%p)\n", tls_idx);
     //log("modid=%d, offset=0x%x\n", tls_idx->modid, tls_idx->offset);
     return (void*)((u64)Thread::getTLSPtr(tls_idx->modid) + tls_idx->offset);
 }
@@ -602,7 +613,7 @@ s32 PS4_FUNC __sys_regmgr_call() {
 
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
-
+    
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
     *out_addr = (void*)0x100000;
@@ -610,7 +621,7 @@ s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 me
 }
 
 s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end, size_t size, size_t align, s32 mem_type, void** out_addr) {
-    log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
+    log("sceKernelAllocateDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
 
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
@@ -703,9 +714,10 @@ s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
     return SCE_OK;
 }
 
-s32 PS4_FUNC sceKernelGetDirectMemorySize() {
+size_t PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
-    return 5_GB - 512_MB;   // total size - flexible mem size
+    return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
+    //return 5_GB - 512_MB;   // total size - flexible mem size
 }
 
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size) {

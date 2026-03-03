@@ -22,9 +22,11 @@ struct CachedBuffer {
     u64     page_end = 0;
     u64     hash = 0;
     bool    dirty = false;
+    vk::Buffer      staging_buf = nullptr;
     vk::Buffer      buf = nullptr;
     size_t          offs_in_buf = 0;
     void* mapping = nullptr;
+    VmaAllocation   staging_alloc;
     VmaAllocation   alloc;
 
     void protect() {
@@ -129,7 +131,9 @@ static LONG CALLBACK exceptionHandler(EXCEPTION_POINTERS* info) noexcept {
 #endif
 
 struct Allocation {
+    vk::Buffer staging_buf;
     vk::Buffer buf;
+    VmaAllocation staging_alloc;
     VmaAllocation alloc;
 };
 std::vector<Allocation> allocations;
@@ -152,11 +156,13 @@ void init() {
 }
 
 void updateBuffer(CachedBuffer* buf) {
-    auto& vk_buf = buf->buf;
-    auto& alloc = buf->alloc;
+    auto& staging_vk_buf    = buf->staging_buf;
+    auto& vk_buf            = buf->buf;
+    auto& staging_alloc     = buf->staging_alloc;
+    auto& alloc             = buf->alloc;
 
     // We create a new buffer instead of actually updating the old one,
-    // and then we free all allocations when clear() is called (at the end of every frame), in stream-buffer fashion.
+    // and then we free all allocations when clear() is called (at the end of every frame), in stream-buffer fashion(?).
     // This is because buffers can and will be updated mid-frame, so we can't free the old ones right away.
     // The allocation costs shouldn't be too much due to how VMA is setup - see VulkanRenderer.cpp
     const vk::BufferCreateInfo buf_create_info = {
@@ -172,12 +178,22 @@ void updateBuffer(CachedBuffer* buf) {
     alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
     VkBuffer raw_buf;
     VmaAllocationInfo info;
-    vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, &info);
+    vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &staging_alloc, &info);
+    staging_vk_buf = vk::Buffer(raw_buf);
+
+    // Create device local buffer
+    alloc_create_info = { .pool = device_vma_pool };
+    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+    alloc_create_info.flags = 0;
+    vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
     vk_buf = vk::Buffer(raw_buf);
 
     // Update the buffer
     std::memcpy(info.pMappedData, (void*)buf->base, buf->size);
-    allocations.push_back({ .buf = vk_buf, .alloc = alloc });
+    // Copy staging buffer to device local buffer
+    cmd_bufs[0].copyBuffer(staging_vk_buf, vk_buf, vk::BufferCopy{ 0, 0, buf->size });
+    
+    allocations.push_back({ .staging_buf = staging_vk_buf, .buf = vk_buf, .staging_alloc = staging_alloc, .alloc = alloc });
 }
 
 std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
@@ -191,7 +207,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
     // Check if we already cached this buffer
-    if (size >= page_size) {
+    if (size >= page_size / 8) {
         if (cache.contains(page)) {
             // Check if we need to reupload the buffer
             auto* buf = cache[page];
@@ -226,7 +242,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
 
     // The buffer is new - create and cache it
     CachedBuffer* buf = new CachedBuffer();
-    if (size >= page_size / 2) {
+    if (size >= page_size / 8) {
         buf->base = (void*)aligned_base;
         buf->page = page;
         buf->page_end = page_end;
@@ -369,8 +385,10 @@ bool isDirty(void* base, size_t size) {
 void clear() {
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
-    for (auto& alloc : allocations)
+    for (auto& alloc : allocations) {
+        vmaDestroyBuffer(allocator, alloc.staging_buf, alloc.staging_alloc);
         vmaDestroyBuffer(allocator, alloc.buf, alloc.alloc);
+    }
     allocations.clear();
 
     for (auto& buf : cache)

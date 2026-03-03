@@ -208,6 +208,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format2_10_10_10: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Unorm:   return { vk::Format::eA2B10G10R10UnormPack32, sizeof(u32) };    // TODO: Verify this
         case NumberFormat::Snorm:   return { vk::Format::eA2B10G10R10SnormPack32, sizeof(u32) };    // TODO: Verify this
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
