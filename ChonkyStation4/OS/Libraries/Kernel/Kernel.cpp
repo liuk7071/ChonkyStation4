@@ -70,6 +70,7 @@ void init(Module& module) {
     module.addSymbolExport("K-jXhbt2gn4", "pthread_mutex_trylock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_trylock);
     module.addSymbolExport("K-jXhbt2gn4", "pthread_mutex_trylock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_trylock);
     module.addSymbolExport("upoVrzMHFeE", "scePthreadMutexTrylock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_trylock);
+    module.addSymbolExport("IafI2PxcPnQ", "scePthreadMutexTimedlock", "libkernel", "libkernel", (void*)&scePthreadMutexTimedlock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
     module.addSymbolExport("2Z+PpY6CaJg", "pthread_mutex_unlock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_unlock);
     module.addSymbolExport("tn3VlD0hG60", "scePthreadMutexUnlock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_unlock);
@@ -248,6 +249,8 @@ void init(Module& module) {
     module.addSymbolExport("IKP8typ0QUk", "sem_post", "libScePosix", "libkernel", (void*)&kernel_sem_post);
     module.addSymbolExport("YCV5dGGBcCo", "sem_wait", "libkernel", "libkernel", (void*)&kernel_sem_wait);
     module.addSymbolExport("YCV5dGGBcCo", "sem_wait", "libScePosix", "libkernel", (void*)&kernel_sem_wait);
+    module.addSymbolExport("w5IHyvahg-o", "sem_timedwait", "libkernel", "libkernel", (void*)&kernel_sem_timedwait);
+    module.addSymbolExport("w5IHyvahg-o", "sem_timedwait", "libScePosix", "libkernel", (void*)&kernel_sem_timedwait);
     module.addSymbolExport("Bq+LRV-N6Hk", "sem_getvalue", "libkernel", "libkernel", (void*)&kernel_sem_getvalue);
     module.addSymbolExport("Bq+LRV-N6Hk", "sem_getvalue", "libScePosix", "libkernel", (void*)&kernel_sem_getvalue);
     module.addSymbolStub("cDW233RAwWo", "sem_destroy", "libkernel", "libkernel");
@@ -450,6 +453,7 @@ s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts) {
         break;
     }
 
+    case SCE_KERNEL_CLOCK_REALTIME: // TODO: I don't think this is correct
     case SCE_KERNEL_CLOCK_SECOND: {
         const auto now = std::chrono::system_clock::now();
         const auto sec = std::chrono::time_point_cast<std::chrono::seconds>(now);
@@ -640,13 +644,13 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
     if (!in_addr) {
-        *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, align);
+        *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
     }
     else if ((u64)in_addr >= 0x8000'0000)
-        *addr = allocate((u64)in_addr, 0x8000'0000 + 500_GB, len, align);
+        *addr = allocate((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
     else
         // TODO
-        *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, align);
+        *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
@@ -682,7 +686,7 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
 
     // TODO: prot, flags
 #ifdef _WIN32
-    *addr = allocate(0x8000'0000, 0x8000'0000 + 500_GB, len, 16_KB);
+    *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, 16_KB);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
@@ -752,7 +756,7 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
 
     void* out_addr;
 #ifdef _WIN32
-    out_addr = allocate((u64)addr, 0x8000'0000 + 500_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
+    out_addr = allocate((u64)addr, 0x8000'0000 + 2000_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif

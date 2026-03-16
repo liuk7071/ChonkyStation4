@@ -19,6 +19,7 @@ struct AppInfo {
 };
 
 bool prepareApp(const fs::path& app_content_path, AppInfo& info);
+void linkSysmodules(::App& app);
 bool getApp(const AppInfo& info, ::App& app);
 
 }   // End namespace PS4::Loader::App

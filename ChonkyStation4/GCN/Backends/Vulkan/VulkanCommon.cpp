@@ -292,6 +292,17 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         break;
     }
 
+    case DataFormat::FormatBc2: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eBc2UnormBlock, sizeof(u32) };
+        case NumberFormat::Srgb:  return { vk::Format::eBc2SrgbBlock, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
     case DataFormat::FormatBc3: {
         switch ((NumberFormat)nfmt) {
 
@@ -307,6 +318,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Unorm: return { vk::Format::eBc7UnormBlock, sizeof(u32) };
+        case NumberFormat::Srgb:  return { vk::Format::eBc7SrgbBlock, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }

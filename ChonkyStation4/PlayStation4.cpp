@@ -47,7 +47,7 @@ void loadAndRun(const fs::path& path) {
             Loader::App::getApp(app_info, g_app);
         } else {
             g_app = std::move(Loader::Linker::loadAndLink(path));
-            // TODO: Probably link sysmodules for ELFs too
+            Loader::App::linkSysmodules(g_app);
             g_app.name = path.filename().generic_string();
         }
 

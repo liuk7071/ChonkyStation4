@@ -49,23 +49,23 @@ void* PS4_FUNC kernel_pthread_self() {
     Helpers::panic("pthread_self(): could not find self pthread\n");
 }
 
-thread_local std::unordered_map<u64, const void*> spec_map;
+thread_local std::unordered_map<s32, const void*> spec_map;
 
-const void* PS4_FUNC kernel_pthread_getspecific(u64  /* pthread_key_t */ key) {
-    log("pthread_getspecific(key=%p)\n", key);
+const void* PS4_FUNC kernel_pthread_getspecific(s32  /* pthread_key_t */ key) {
+    log("pthread_getspecific(key=0x%x)\n", key);
     
     if (spec_map.contains(key)) return spec_map[key];
     return nullptr;
 }
 
-s32 PS4_FUNC kernel_pthread_setspecific(u64 /* pthread_key_t */ key, const void* val) {
-    log("pthread_setspecific(key=%p, val=%p)\n", key, val);
+s32 PS4_FUNC kernel_pthread_setspecific(s32 /* pthread_key_t */ key, const void* val) {
+    log("pthread_setspecific(key=0x%x, val=%p)\n", key, val);
     
     spec_map[key] = val;
     return 0;
 }
 
-s32 PS4_FUNC kernel_pthread_key_create(u64* /* pthread_key_t */ key, void (*destructor)(void*)) {
+s32 PS4_FUNC kernel_pthread_key_create(s32* /* pthread_key_t */ key, void (*destructor)(void*)) {
     log("pthread_key_create(key=*%p, destructor=%p)\n", key, destructor);
     
     *key = OS::requestHandle();

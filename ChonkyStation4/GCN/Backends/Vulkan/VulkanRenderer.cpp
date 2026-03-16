@@ -510,27 +510,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* ps_ptr = getPSPtr();
     log("Vertex Shader address : %p\n", vs_ptr);
     log("Pixel Shader address  : %p\n", ps_ptr);
-   
-    // Temporary hack to skip embedded shaders with no fetch shader
-    u32* ptr = (u32*)vs_ptr;
-    while (*ptr != 0x5362724F) {    // "OrbS"
-        ptr++;
-    }
-    // Get the shader hash from the header
-    u64 hash;
-    ptr += 4;
-    std::memcpy(&hash, ptr, sizeof(u64));
-    //printf("0x%llx <-- hash\n", hash);
-    if (   hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
-        || hash == 0xf871bb9d4e8878f8   // Tomb Raider: Definitive Edition
-        || hash == 0xd4f680821d9336a4   // Super Meat Boy
-        || hash == 0x0000000042119848   // Super Meat Boy Forever
-        || hash == 0x0000000089386050   // Persona 5 Royal
-        || hash == 0x00000000e828b86f   // Persona 5 Royal
-        || hash == 0x00000000fec3c099   // Persona 5 Royal
-        || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
-       ) return;
-    
 
     //std::ofstream vs_dump;
     //vs_dump.open("vs_dump.bin", std::ios::binary);
@@ -644,24 +623,6 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     log("Vertex Shader address : %p\n", vs_ptr);
     log("Pixel Shader address  : %p\n", ps_ptr);
 
-    // Temporary hack to skip embedded shaders with no fetch shader
-    u32* ptr = (u32*)vs_ptr;
-    while (*ptr != 0x5362724F) {    // "OrbS"
-        ptr++;
-    }
-    // Get the shader hash from the header
-    u64 hash;
-    ptr += 4;
-    std::memcpy(&hash, ptr, sizeof(u64));
-    //printf("0x%llx <-- hash\n", hash);
-    if (hash == 0x75486d66862abd78   // Tomb Raider: Definitive Edition
-        || hash == 0xf871bb9d4e8878f8   // Tomb Raider: Definitive Edition
-        || hash == 0xd4f680821d9336a4   // Super Meat Boy
-        || hash == 0x0000000042119848   // Super Meat Boy Forever
-        || hash == 0x9b2da5cf47f8c29f   // libSceGnmDriver.sprx
-        ) return;
-
-
     // TODO: For now fetch the shader address is hardcoded to user register 0:1.
     // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
@@ -766,7 +727,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
 }
 
 static bool fullscreen = false;
-
+static bool force_recreate_swapchain = false;
 void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     endRendering();
 
@@ -811,12 +772,12 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
     blit.srcOffsets[1] = vk::Offset3D(buf->attrib.width, buf->attrib.height, 1);
 
-    blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-    blit.dstSubresource.mipLevel = 0;
-    blit.dstSubresource.baseArrayLayer = 0;
-    blit.dstSubresource.layerCount = 1;
+    blit.dstSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
+    blit.dstSubresource.mipLevel        = 0;
+    blit.dstSubresource.baseArrayLayer  = 0;
+    blit.dstSubresource.layerCount      = 1;
     blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
-    blit.dstOffsets[1] = vk::Offset3D(1920, 1080, 1);
+    blit.dstOffsets[1] = vk::Offset3D(swapchain_extent.width, swapchain_extent.height, 1);
     
     cmd_bufs[0].blitImage(out_tex->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_images[current_swapchain_image_idx], vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
     transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, &cmd_bufs[0]);
@@ -834,24 +795,30 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         cmd_bufs[0].begin({});
     };
 
-    try {
-        const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema, .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
-        auto result = queue.presentKHR(present_info);
-        if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebuffer_resized) {
-            framebuffer_resized = false;
-            recreate_swapchain();
-        }
-        else if (result != vk::Result::eSuccess) {
-            Helpers::panic("Vulkan: failed to present swapchain image!");
-        }
+    if (force_recreate_swapchain) {
+        force_recreate_swapchain = false;
+        recreate_swapchain();
     }
-    catch (const vk::SystemError& e) {
-        if (e.code().value() == (int)vk::Result::eErrorOutOfDateKHR) {
-            framebuffer_resized = false;
-            recreate_swapchain();
+    else {
+        try {
+            const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema, .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
+            auto result = queue.presentKHR(present_info);
+            if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebuffer_resized) {
+                framebuffer_resized = false;
+                recreate_swapchain();
+            }
+            else if (result != vk::Result::eSuccess) {
+                Helpers::panic("Vulkan: failed to present swapchain image!");
+            }
         }
-        else {
-            Helpers::panic("Vulkan: failed to present swapchain image!");
+        catch (const vk::SystemError& e) {
+            if (e.code().value() == (int)vk::Result::eErrorOutOfDateKHR) {
+                framebuffer_resized = false;
+                recreate_swapchain();
+            }
+            else {
+                Helpers::panic("Vulkan: failed to present swapchain image!");
+            }
         }
     }
 
@@ -870,6 +837,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         case SDL_MOUSEBUTTONDOWN: {
             if (e.button.button == SDL_BUTTON_LEFT && e.button.clicks == 2) {
                 fullscreen = !fullscreen;
+                force_recreate_swapchain = true;
                 SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
                 SDL_ShowCursor(fullscreen ? SDL_DISABLE : SDL_ENABLE);
             }

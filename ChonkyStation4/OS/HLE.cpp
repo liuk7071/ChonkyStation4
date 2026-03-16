@@ -16,6 +16,7 @@
 #include <OS/Libraries/SceRtc/SceRtc.hpp>
 #include <OS/Libraries/SceNet/SceNet.hpp>
 #include <OS/Libraries/SceRandom/SceRandom.hpp>
+#include <OS/Libraries/SceVideodec/SceVideodec.hpp>
 
 
 // Stub until we implement audio input
@@ -54,6 +55,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceRtc::init(*module);
     PS4::OS::Libs::SceNet::init(*module);
     PS4::OS::Libs::SceRandom::init(*module);
+    PS4::OS::Libs::SceVideodec::init(*module);
 
     // libSceAppContent
     module->addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
@@ -114,6 +116,14 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceImeDialog
     module->addSymbolStub("IADmD4tScBY", "sceImeDialogGetStatus", "libSceImeDialog", "libSceImeDialog", 0);
     
+    // libSceImeBackend
+    module->addSymbolStub("9GIB91cj1wc", "sceImeBackendParamInit", "libSceImeBackend", "libSceImeBackend");
+    module->addSymbolStub("5yb0O2TsYvw", "sceImeBackendOpen", "libSceImeBackend", "libSceImeBackend");
+    module->addSymbolStub("w99gsSH-nWA", "sceImeBackendGetStatus", "libSceImeBackend", "libSceImeBackend");
+    module->addSymbolStub("Xva83fZZ7D4", "sceImeBackendGetCaretIndex", "libSceImeBackend", "libSceImeBackend");
+    module->addSymbolStub("co7QF5zVjnY", "sceImeBackendGetConvertString", "libSceImeBackend", "libSceImeBackend");
+    module->addSymbolStub("BfYmnUyy0ew", "sceImeBackendClose", "libSceImeBackend", "libSceImeBackend");
+    
     // libSceNpAuth
     module->addSymbolStub("N+mr7GjTvr8", "sceNpAuthCreateAsyncRequest", "libSceNpAuth", "libSceNpAuth", 1);
     module->addSymbolStub("KxGkOrQJTqY", "sceNpAuthGetAuthorizationCode", "libSceNpAuth", "libSceNpAuth");   // TODO: At least store a dummy value in auth_code ptr
@@ -164,6 +174,9 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("4I8vEpuEhZ8", "sceHttpDeleteTemplate", "libSceHttp", "libSceHttp");
     module->addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
     
+    // libSceNpCommon
+    module->addSymbolStub("i8UmXTSq7N4", "sceNpCmpNpId", "libSceNpCommon", "libSceNpCommon");
+    
     // libSceNpWebApi
     module->addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
     module->addSymbolStub("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
@@ -177,6 +190,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("9TrhuGzberQ", "sceVoiceInit", "libSceVoice", "libSceVoice");
     module->addSymbolStub("nXpje5yNpaE", "sceVoiceCreatePort", "libSceVoice", "libSceVoice");
     module->addSymbolStub("54phPH2LZls", "sceVoiceStart", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("CrLqDwWLoXM", "sceVoiceGetPortInfo", "libSceVoice", "libSceVoice");
 
     // libSceDiscMap
     module->addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
@@ -228,6 +242,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("7jdAXK+2fMo", "sceAjmBatchJobRunSplitBufferRa", "libSceAjm", "libSceAjm");
     module->addSymbolStub("fFFkk0xfGWs", "sceAjmBatchStartBuffer", "libSceAjm", "libSceAjm");
     module->addSymbolStub("-qLsfDAywIY", "sceAjmBatchWait", "libSceAjm", "libSceAjm");
+    module->addSymbolStub("eDFeTyi+G3Y", "sceAjmDecMp3ParseFrame", "libSceAjm", "libSceAjm");
     
     // libSceIme
     module->addSymbolStub("eaFXjfJv3xs", "sceImeKeyboardOpen", "libSceIme", "libSceIme");
@@ -235,12 +250,6 @@ std::shared_ptr<Module> buildHLEModule() {
     
     // libSceAvPlayer
     module->addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
-    
-    // libSceVideodec2
-    module->addSymbolStub("RnDibcGCPKw", "sceVideodec2QueryComputeMemoryInfo", "libSceVideodec2", "libSceVideodec2");
-    module->addSymbolStub("eD+X2SmxUt4", "sceVideodec2AllocateComputeQueue", "libSceVideodec2", "libSceVideodec2");
-    module->addSymbolStub("qqMCwlULR+E", "sceVideodec2QueryDecoderMemoryInfo", "libSceVideodec2", "libSceVideodec2");
-    module->addSymbolStub("wJXikG6QFN8", "sceVideodec2Reset", "libSceVideodec2", "libSceVideodec2");
     
     // libSceRudp
     module->addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");
@@ -253,6 +262,7 @@ std::shared_ptr<Module> buildHLEModule() {
     
     // libSceRazorCpu
     module->addSymbolStub("PAytDtFGpqY", "sceRazorCpuFiberSwitch", "libSceRazorCpu", "libSceRazorCpu");
+    module->addSymbolStub("G90IIOtgFQ0", "sceRazorCpuFiberLogNameChange", "libSceRazorCpu", "libSceRazorCpu");
     
     // libSceCoredump
     module->addSymbolStub("8zLSfEfW5AU", "sceCoredumpRegisterCoredumpHandler", "libSceCoredump", "libkernel");
@@ -260,6 +270,7 @@ std::shared_ptr<Module> buildHLEModule() {
     // ulobjmgr (TODO: What is this?)
     module->addSymbolStub("SweJO7t3pkk", "ulobjmgr_SweJO7t3pkk", "ulobjmgr", "ulobjmgr");
     module->addSymbolStub("BG26hBGiNlw", "ulobjmgr_BG26hBGiNlw", "ulobjmgr", "ulobjmgr");
+    module->addSymbolStub("Smf+fUNblPc", "ulobjmgr_Smf+fUNblPc", "ulobjmgr", "ulobjmgr");
     
     // dlcldr (TODO: What is this?)
     module->addSymbolStub("4qL3yyKEXoM", "dlcldr_4qL3yyKEXoM", "dlcldr", "dlcldr");

@@ -1,5 +1,6 @@
 #include "mutex.hpp"
 #include <Logger.hpp>
+#include <ErrorCodes.hpp>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -15,7 +16,7 @@ s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
         kernel_pthread_mutex_init(mutex, nullptr);
     }
 
-    s32 ret = pthread_mutex_lock(mutex);
+    auto ret = pthread_mutex_lock(mutex);
     return ret;
 }
 
@@ -28,8 +29,26 @@ s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
         kernel_pthread_mutex_init(mutex, nullptr);
     }
 
-    s32 ret = pthread_mutex_trylock(mutex);
+    auto ret = pthread_mutex_trylock(mutex);
     return ret;
+}
+
+s32 PS4_FUNC scePthreadMutexTimedlock(pthread_mutex_t* mutex, u64 us) {
+    log("scePthreadMutexTimedlock(mutex=%p, us=%lld)\n", mutex, us);
+
+    if (*mutex == (pthread_mutex_t)0 || *mutex == (pthread_mutex_t)1) {
+        log("mutex was null, initializing\n");
+        *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
+        kernel_pthread_mutex_init(mutex, nullptr);
+    }
+
+    timespec time;
+    time.tv_sec  = us / 1000000;
+    time.tv_nsec = (us % 1000000) * 1000;
+    auto ret = pthread_mutex_timedlock(mutex, &time);
+    if (ret == ETIMEDOUT)
+        return SCE_KERNEL_ERROR_ETIMEDOUT;
+    return SCE_OK;
 }
 
 s32 PS4_FUNC kernel_pthread_mutex_unlock(pthread_mutex_t* mutex) {

@@ -305,7 +305,7 @@ std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
 
     if constexpr (is_float) {
         if (op.output_modifier.multiplier != 0.0f)
-            src = std::format("({} * {:#g}f)", src, op.output_modifier.multiplier);
+            src = std::format("(({}) * {:#g}f)", src, op.output_modifier.multiplier);
         if (op.output_modifier.clamp)
             src = "clamp(" + src + ", 0.0f, 1.0f)";
         src = "f2u(" + src + ")";
@@ -489,6 +489,7 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C:
+        case Shader::Opcode::IMAGE_SAMPLE_O:
         case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
@@ -585,7 +586,10 @@ uint getStrideForBinding(uint binding) {
     main += "vcc  = 0;\n";
     main += "scc  = 0;\n";
     main += "exec = 1;\n";
-    if (stage == ShaderStage::Fragment) {
+    if (stage == ShaderStage::Vertex) {
+        getVGPR(0);
+        main += "v0 = gl_VertexIndex;\n";
+    } else if (stage == ShaderStage::Fragment) {
         getVGPR(2);
         getVGPR(3);
         main += "v2 = f2u(gl_FragCoord.x);\n";
@@ -1046,6 +1050,11 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_BCNT_U32_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("bitCount({}) + {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+
         case Shader::Opcode::V_ADD_I32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             // TODO: Carry out
@@ -1157,6 +1166,11 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::V_COS_F32: {
             main += setDST(instr.dst[0], std::format("cos({} * 2 * PI)", getSRC(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_NOT_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("~{}", getSRC<Type::Uint>(instr.src[0])));
             break;
         }
 
@@ -1389,6 +1403,7 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C:
+        case Shader::Opcode::IMAGE_SAMPLE_O:
         case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
@@ -1539,9 +1554,9 @@ uint getStrideForBinding(uint binding) {
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            main += "// TODO\n";
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //main += "// TODO\n";
         }
         }
     }

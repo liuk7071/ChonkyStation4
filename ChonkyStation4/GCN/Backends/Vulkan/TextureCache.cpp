@@ -52,7 +52,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     }
     
     case vk::Format::eBc7UnormBlock:
-    case vk::Format::eBc3UnormBlock: {
+    case vk::Format::eBc3UnormBlock:
+    case vk::Format::eBc2UnormBlock: {
         const auto blk_width  = (width + 3)  / 4;
         const auto blk_height = (height + 3) / 4;
         img_size = blk_width * blk_height * 16;

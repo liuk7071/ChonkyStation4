@@ -1,6 +1,7 @@
 #include "Semaphore.hpp"
 #include <Logger.hpp>
 #include <ErrorCodes.hpp>
+#include <OS/Libraries/Kernel/Kernel.hpp>
 
 
 namespace PS4::OS::Libs::Kernel {
@@ -111,6 +112,19 @@ s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem) {
     log("sem_wait(sem=*%p)\n", sem);
 
     (*sem)->wait(1, 0);
+    return 0;
+}
+
+s32 PS4_FUNC kernel_sem_timedwait(SceKernelSema* sem, const SceKernelTimespec* time) {
+    log("sem_timedwait(sem=*%p)\n", sem);
+
+    using namespace std::chrono;
+    //auto us = duration_cast<microseconds>(seconds(time->tv_sec) + nanoseconds(time->tv_nsec)).count();
+    auto us = 1000;
+    if (!(*sem)->wait(1, us)) {
+        *Kernel::kernel_error() = POSIX_ETIMEDOUT;
+        return -1;
+    }
     return 0;
 }
 

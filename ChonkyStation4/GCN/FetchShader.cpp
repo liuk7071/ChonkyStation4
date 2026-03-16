@@ -18,6 +18,13 @@ VSharp* VSharpLocation::asPtr() {
 }
 
 FetchShader::FetchShader(const u8* data) {
+    if (!data) return;
+
+    // Quick check to see if it's a garbage address.
+    // If it is, this shader most likely doesn't use a fetch shader.
+    // TODO: Restructure the code so that we can check if the shader has a fetch shader *before* parsing the fetch shader.
+    if ((uptr)data & ~((1ull << 40) - 1)) return;
+
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice((u32*)data, (u32*)data + std::numeric_limits<u32>::max());
     bindings.reserve(32);

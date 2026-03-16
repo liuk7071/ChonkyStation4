@@ -32,14 +32,7 @@ bool prepareApp(const fs::path& app_content_path, AppInfo& info) {
     return true;
 }
 
-bool getApp(const AppInfo& info, ::App& app) {
-    fs::path tmp_path = info.executable_path;
-    app = std::move(Loader::Linker::loadAndLink(tmp_path));
-
-    // TODO: Just have an AppInfo inside App?
-    app.name = info.title;
-    app.title_id = info.title_id;
-    
+void linkSysmodules(::App& app) {
     const std::string sysmodules_to_load[] = {
         "libSceLibcInternal.sprx",
         "libSceNgs2.sprx",
@@ -77,6 +70,17 @@ bool getApp(const AppInfo& info, ::App& app) {
 
         Loader::Linker::loadAndLinkLib(app, sysmodule_path, true, app.getHLEModule());
     }
+}
+
+bool getApp(const AppInfo& info, ::App& app) {
+    fs::path tmp_path = info.executable_path;
+    app = std::move(Loader::Linker::loadAndLink(tmp_path));
+
+    // TODO: Just have an AppInfo inside App?
+    app.name = info.title;
+    app.title_id = info.title_id;
+    
+    linkSysmodules(app);
 
     // Load game modules from the "sce_module" folder
     for (auto& module : fs::directory_iterator(info.content_path / "sce_module")) {
