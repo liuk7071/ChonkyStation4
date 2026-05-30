@@ -521,8 +521,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
 
-    if (!fetch_shader_ptr)
-        return;
+    //if (!fetch_shader_ptr)
+    //    return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
@@ -747,13 +747,23 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         else return false;
     };
 
+    auto is_10bit = [](OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
+        using namespace OS::Libs::SceVideoOut;
+        if (   buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10
+            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB
+            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_BT2020_PQ
+            )
+            return true;
+        else return false;
+    };
+
     // Get the SceVideoOut output buffer
     TSharp tsharp;
     tsharp.width    = buf->attrib.width - 1;
     tsharp.height   = buf->attrib.height - 1;
     tsharp.pitch    = buf->attrib.pitch_in_pixels - 1;
     tsharp.base_address = (uptr)buf->base >> 8;
-    tsharp.data_format  = (u32)DataFormat::Format8_8_8_8; // TODO
+    tsharp.data_format  = !is_10bit(buf) ? (u32)DataFormat::Format8_8_8_8 : (u32)DataFormat::Format2_10_10_10; // TODO: Other formats
     tsharp.num_format   = !is_srgb(buf) ? (u32)NumberFormat::Unorm : (u32)NumberFormat::Srgb;
     tsharp.dst_sel_x = DSEL_R;
     tsharp.dst_sel_y = DSEL_G;
@@ -877,11 +887,11 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     }
 
     // Wait for rendering to be done
-    auto gpu_time = std::chrono::steady_clock::now();
+    //auto gpu_time = std::chrono::steady_clock::now();
     while (vk::Result::eTimeout == device.waitForFences(*draw_fence, vk::True, UINT64_MAX));
     device.resetFences(*draw_fence);
-    auto gpu_time_end = std::chrono::steady_clock::now();
-    auto gpu_time_dur = std::chrono::duration<double, std::milli>(gpu_time_end - gpu_time).count();
+    //auto gpu_time_end = std::chrono::steady_clock::now();
+    //auto gpu_time_dur = std::chrono::duration<double, std::milli>(gpu_time_end - gpu_time).count();
    
     // Cleanup
     for (auto& pipeline : curr_frame_pipelines)

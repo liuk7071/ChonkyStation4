@@ -49,6 +49,9 @@ void loadAndRun(const fs::path& path) {
             g_app = std::move(Loader::Linker::loadAndLink(path));
             Loader::App::linkSysmodules(g_app);
             g_app.name = path.filename().generic_string();
+
+            // Mount /app0 to the elf file's directory
+            FS::mount(FS::Device::APP0, path.parent_path());
         }
 
         // Log module base addresses (for debugging)

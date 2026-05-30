@@ -23,6 +23,7 @@ public:
     void run();
     std::tuple<u8*, size_t, size_t> getTLSImage(u32 modid);
     std::shared_ptr<Module> getHLEModule();
+    std::shared_ptr<Module> findModule(s32 modid);
 
 private:
     MAKE_LOG_FUNCTION(log, loader_app);

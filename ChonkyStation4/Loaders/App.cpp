@@ -106,3 +106,11 @@ std::shared_ptr<Module> App::getHLEModule() {
     }
     Helpers::panic("App::getHLEModule: no HLE module found\n");
 }
+
+std::shared_ptr<Module> App::findModule(s32 modid) {
+    for (auto& m : modules) {
+        if (m->modid == modid)
+            return m;
+    }
+    Helpers::panic("App::findModule: no module found with id %d\n", modid);
+}

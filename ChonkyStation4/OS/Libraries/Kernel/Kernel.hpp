@@ -88,8 +88,10 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 s32 PS4_FUNC sceKernelMapNamedDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align, const char* name);
 s32 PS4_FUNC sceKernelMapFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags);
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name);
+s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len);
 s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len);
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
+s32 PS4_FUNC kernel_munmap(void* addr, size_t len);
 size_t PS4_FUNC sceKernelGetDirectMemorySize();
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size);
 s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end, s32* prot);
@@ -97,5 +99,6 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
 
 // Module
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res);
+s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** addr_ptr);
 
 }   // End namespace PS4::OS::Libs::Kernel

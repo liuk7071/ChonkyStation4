@@ -26,10 +26,12 @@ void init(Module& module) {
     module.addSymbolExport("6kPnj51T62Y", "sceVideoOutGetResolutionStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetResolutionStatus);
     
     module.addSymbolStub("zgXifHT9ErY", "sceVideoOutIsFlipPending", "libSceVideoOut", "libSceVideoOut", 0); // TODO: Important
+    module.addSymbolStub("N5KDtkIjjJ4", "sceVideoOutUnregisterBuffers", "libSceVideoOut", "libSceVideoOut"); // TODO: Important
     module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pjkDsgxli6c", "sceVideoOutModeSetAny_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("N1bEoJ4SRw4", "sceVideoOutConfigureOutputMode_", "libSceVideoOut", "libSceVideoOut");
+    module.addSymbolStub("kGVLc3htQE8", "sceVideoOutGetDeviceCapabilityInfo_", "libSceVideoOut", "libSceVideoOut");
 }
 
 void SceVideoOutPort::signalFlip(u64 flip_arg) {
@@ -163,7 +165,7 @@ s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs,
     log("sceVideoOutRegisterBuffers(handle=%d, start_idx=%d, addrs=*%p, n_bufs=%d, attrib=*%p)\n", handle, start_idx, addrs, n_bufs, attrib);
 
     for (int idx = start_idx; idx < start_idx + n_bufs; idx++) {
-        bufs[idx].base = addrs[idx];
+        bufs[idx].base = addrs[idx - start_idx];
         bufs[idx].attrib = *attrib;
     }
     return reg_idx++;   // "Registration index" - return a progressive number for now

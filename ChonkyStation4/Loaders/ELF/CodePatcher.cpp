@@ -45,6 +45,7 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
             if (    instruction.mnemonic == ZYDIS_MNEMONIC_MOV
                 &&  operands[1].type == ZYDIS_OPERAND_TYPE_MEMORY
                 &&  operands[1].mem.segment == ZYDIS_REGISTER_FS
+                &&  operands[1].mem.base == ZYDIS_REGISTER_NONE
                 &&  operands[1].mem.disp.value == 0
                 &&  operands[0].reg.value >= ZYDIS_REGISTER_RAX // There seem to be some instructions that move from FS to other segment registers. I don't know if those need to be patched and if so with what
                 &&  operands[0].reg.value <= ZYDIS_REGISTER_R15
@@ -99,10 +100,10 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
 
                 // Patch instruction to jmp to our code
                 code = std::make_unique<Xbyak::CodeGenerator>(instruction.length, instr_addr);
-                Helpers::debugAssert(code->getSize() <= instruction.length, "CodePatcher: patch is larger than the original instruction (patch is %d, instruction is %d)\n", code->getSize(), instruction.length);
                 code->jmp(patch_code_ptr);
+                Helpers::debugAssert(code->getSize() <= instruction.length, "CodePatcher: patch is larger than the original instruction (patch is %d, instruction is %d)\n", code->getSize(), instruction.length);
 
-                const auto leftover = std::max(instruction.length - code->getSize(), (u64)0);
+                const auto leftover = std::max((s64)instruction.length - (s64)code->getSize(), (s64)0);
                 std::memset(code_ptr + offs + code->getSize(), 0xcd, leftover);
             }
 

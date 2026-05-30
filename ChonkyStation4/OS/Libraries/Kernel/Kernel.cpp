@@ -14,6 +14,7 @@
 #include <OS/Libraries/Kernel/Semaphore.hpp>
 #include <OS/Libraries/Kernel/Filesystem.hpp>
 #include <OS/Filesystem.hpp>
+#include <OS/SceObj.hpp>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -35,6 +36,7 @@ extern App g_app;
 namespace PS4::OS::Libs::Kernel {
 
 MAKE_LOG_FUNCTION(log, lib_kernel);
+MAKE_LOG_FUNCTION(log_force, force_enable);
 MAKE_LOG_FUNCTION(unimpl, unimplemented);
 
 static u64 stack_chk_guard = 0x4452474B43415453;    // "STACKGRD"
@@ -48,6 +50,9 @@ void init(Module& module) {
     module.addSymbolExport("x1X76arYMxU", "scePthreadAttrGet", "libkernel", "libkernel", (void*)&kernel_pthread_attr_get_np);
     module.addSymbolExport("-wzZ7dvA7UU", "pthread_attr_getaffinity_np", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getaffinity_np);
     module.addSymbolExport("8+s5BzZjxSg", "scePthreadAttrGetaffinity", "libkernel", "libkernel", (void*)&scePthreadAttrGetaffinity);
+    module.addSymbolExport("vQm4fDEsWi8", "pthread_attr_getstack", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getstack);
+    module.addSymbolExport("vQm4fDEsWi8", "pthread_attr_getstack", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_getstack);
+    module.addSymbolExport("-quPa4SEJUw", "scePthreadAttrGetstack", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getstack);
     module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("UTXzJbWhhTE", "scePthreadAttrSetstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
@@ -270,15 +275,20 @@ void init(Module& module) {
     module.addSymbolExport("NcaWUxfMNIQ", "sceKernelMapNamedDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedDirectMemory);
     module.addSymbolExport("IWIBBdTHit4", "sceKernelMapFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapFlexibleMemory);
     module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
+    module.addSymbolExport("MBuItvba6z8", "sceKernelReleaseDirectMemory", "libkernel", "libkernel", (void*)&sceKernelReleaseDirectMemory);
     module.addSymbolExport("hwVSPCmp5tM", "sceKernelCheckedReleaseDirectMemory", "libkernel", "libkernel", (void*)&sceKernelCheckedReleaseDirectMemory);
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
+    module.addSymbolExport("UqDGjXA5yUM", "munmap", "libkernel", "libkernel", (void*)&kernel_munmap);
+    module.addSymbolExport("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel", (void*)&kernel_munmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
     module.addSymbolExport("rVjRvHJ0X6c", "sceKernelVirtualQuery", "libkernel", "libkernel", (void*)&sceKernelVirtualQuery);
     module.addSymbolExport("WFcfL2lzido", "sceKernelQueryMemoryProtection", "libkernel", "libkernel", (void*)&sceKernelQueryMemoryProtection);
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libScePosix", "libkernel", (void*)&kernel_mmap);
+    module.addSymbolStub("Jahsnh4KKkg", "madvise", "libkernel", "libkernel");
     
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
+    module.addSymbolExport("LwG8g3niqwA", "sceKernelDlsym", "libkernel", "libkernel", (void*)&sceKernelDlsym);
     
     module.addSymbolStub("VOx8NGmHXTs", "sceKernelGetCpumode", "libkernel", "libkernel", 5 /* normal 7cpu mode */);
     module.addSymbolStub("VHCS3rCd0PM", "sceKernelAddReadEvent", "libkernel", "libkernel"); // TODO: Important if not used for sockets
@@ -346,7 +356,6 @@ void init(Module& module) {
     module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
-    module.addSymbolStub("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel");  // TODO: Important
     
     module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
     
@@ -484,11 +493,11 @@ s32 PS4_FUNC kernel_gettimeofday(SceKernelTimeval* tv, SceKernelTimezone* tz) {
 
     const auto now = std::chrono::system_clock::now();
     const auto sec = std::chrono::time_point_cast<std::chrono::seconds>(now);
-    const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now - sec);
+    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(now - sec);
 
     if (tv) {
         tv->tv_sec = sec.time_since_epoch().count();
-        tv->tv_nsec = ns.count();
+        tv->tv_usec = us.count();
     }
     if (tz) {
         tz->tz_dsttime = 0;
@@ -576,7 +585,7 @@ u64 PS4_FUNC sceKernelGetTscFrequency() {
             QueryPerformanceCounter(&now);
             if (now.QuadPart - start.QuadPart >= freq.QuadPart) {
                 tsc_freq = i - first;
-                printf_s("Measured frequency: %lld\n", tsc_freq);
+                //printf("Measured frequency: %lld\n", tsc_freq);
                 break;
             }
         }
@@ -618,21 +627,24 @@ s32 PS4_FUNC __sys_regmgr_call() {
 
 // TODO: Properly implement the virtual memory map
 
+std::unordered_map<void*, u64> virt_dmem_map;
+std::unordered_map<u64, void*> dmem_virt_map;
+
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
     
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)0x100000;
+    *out_addr = (void*)OS::requestHandle();
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end, size_t size, size_t align, s32 mem_type, void** out_addr) {
-    log("sceKernelAllocateDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
+    log("sceKernelAllocateDirectMemory(search_start=%p, search_end=%p, size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", search_start, search_end, size, align, mem_type, out_addr);
 
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)0x100000;
+    *out_addr = (void*)OS::requestHandle();
     return SCE_OK;
 }
 
@@ -662,10 +674,13 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
         Helpers::panic("sceKernelMapDirectMemory: failed to allocate\n");
     }
 
+    virt_dmem_map[*addr] = (u64)dmem_start;
+    dmem_virt_map[(u64)dmem_start] = *addr;
+
     // Clear allocated memory
     std::memset(*addr, 0, len);
 
-    log("Allocated at %p\n", *addr);
+    log("Allocated at %p (dmem handle=0x%llx)\n", *addr, dmem_start);
     return SCE_OK;
 }
 
@@ -701,6 +716,20 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
+    log("sceKernelReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
+
+    // TODO: Implement properly
+    if (dmem_virt_map.contains((u64)addr)) {
+        log("releasing memory\n");
+        void* virt_addr = dmem_virt_map[(u64)addr];
+        sceKernelMunmap(virt_addr, len);
+        virt_dmem_map.erase(virt_addr);
+        dmem_virt_map.erase((u64)addr);
+    }
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len) {
     log("sceKernelCheckedReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
 
@@ -721,10 +750,18 @@ s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
     return SCE_OK;
 }
 
+s32 PS4_FUNC kernel_munmap(void* addr, size_t len) {
+    log("munmap(addr=%p, len=0x%llx)\n", addr, len);
+    
+    // TODO: Errors
+    sceKernelMunmap(addr, len);
+    return SCE_OK;
+}
+
 size_t PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
-    return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
-    //return 5_GB - 512_MB;   // total size - flexible mem size
+    //return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
+    return 5_GB - 512_MB;   // total size - flexible mem size
 }
 
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size) {
@@ -737,17 +774,28 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
 
     info->start             = mbi.BaseAddress;
     info->end               = (void*)((uptr)mbi.BaseAddress + mbi.RegionSize);
-    info->offset            = 0;
-    info->protection        = 0;
-    info->is_flexible_mem   = 1;
-    info->is_direct_mem     = 0;
-    info->is_stack          = 0;
-    info->is_pooled_mem     = 0;
-    info->is_committed      = 1;
-    info->name[0]           = '\0';
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
+    
+    bool is_dmem = false;
+    if (virt_dmem_map.contains(info->start)) {
+        is_dmem = true;
+    }
+
+    info->protection = 0;
+    info->is_flexible_mem = !is_dmem;
+    info->is_direct_mem = is_dmem;
+    info->is_stack = 0;
+    info->is_pooled_mem = 0;
+    info->is_committed = 1;
+    if (is_dmem) {
+        info->offset = virt_dmem_map[info->start];
+    }
+    else {
+        info->offset = 0;
+    }
+    info->name[0] = '\0';
 
     return SCE_OK;
 }
@@ -771,7 +819,7 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
 
     void* out_addr;
 #ifdef _WIN32
-    out_addr = allocate((u64)addr, 0x8000'0000 + 2000_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
+    out_addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
 #else
     Helpers::panic("Unsupported platform\n");
 #endif
@@ -792,6 +840,23 @@ SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_
     
     if (res) *res = ret;
     return module->modid;
+}
+
+s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** addr_ptr) {
+    printf("sceKernelDlsym(handle=%d, symbol=\"%s\", addr_ptr=%p)\n", handle, symbol, addr_ptr);
+
+    // TODO: symbol should be converted to a NID...
+    Helpers::panic("TODO: sceKernelDlsym\n");
+
+    auto module = g_app.findModule(handle);
+    auto* sym = module->findSymbolExport(symbol);
+    if (!sym) {
+        printf("could not find symbol\n");
+        return SCE_KERNEL_ERROR_EFAULT;
+    }
+
+    *addr_ptr = sym->ptr;
+    return SCE_OK;
 }
 
 }

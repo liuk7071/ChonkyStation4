@@ -16,7 +16,9 @@ void init(Module& module) {
     module.addSymbolExport("3Zl8BePTh9Y", "sceNpCheckCallback", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckCallback);
     module.addSymbolExport("eQH7nWPcAgc", "sceNpGetState", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetState);
     module.addSymbolExport("p-o74CnoNzY", "sceNpGetNpId", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetNpId);
+    module.addSymbolExport("rbknaUjpqWo", "sceNpGetAccountIdA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetAccountIdA);
     module.addSymbolExport("XDncXQIJUSk", "sceNpGetOnlineId", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetOnlineId);
+    module.addSymbolExport("JT+t00a3TxA", "sceNpGetAccountCountryA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetAccountCountryA);
     module.addSymbolExport("eiqMCt9UshI", "sceNpCreateAsyncRequest", "libSceNpManager", "libSceNpManager", (void*)&sceNpCreateAsyncRequest);
     module.addSymbolExport("uqcPJLWL08M", "sceNpPollAsync", "libSceNpManager", "libSceNpManager", (void*)&sceNpPollAsync);
     module.addSymbolExport("r6MyYJkryz8", "sceNpCheckPlus", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckPlus);
@@ -74,6 +76,17 @@ s32 PS4_FUNC sceNpGetNpId(SceUserService::SceUserServiceUserId uid, SceNpId* np_
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceNpGetAccountIdA(SceUserService::SceUserServiceUserId uid, SceNpAccountId* account_id) {
+    log("sceNpGetAccountIdA(uid=%d, account_id=*%p)\n", uid, account_id);
+
+    if (!is_signed_in)
+        return SCE_NP_ERROR_SIGNED_OUT;
+
+    // Return dummy NpAccountId
+    *account_id = 1;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceNpGetOnlineId(SceUserService::SceUserServiceUserId uid, SceNpOnlineId* online_id) {
     log("sceNpGetOnlineId(uid=%d, online_id=*%p)\n", uid, online_id);
 
@@ -83,6 +96,19 @@ s32 PS4_FUNC sceNpGetOnlineId(SceUserService::SceUserServiceUserId uid, SceNpOnl
     // Return dummy OnlineId
     std::memset(online_id, 0, sizeof(SceNpOnlineId));
     std::strcpy(online_id->data, "ChonkyStation4");
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceNpGetAccountCountryA(SceUserService::SceUserServiceUserId uid, SceNpCountryCode* country_code) {
+    log("sceNpGetAccountCountryA(uid=%d, country_code=*%p)\n", uid, country_code);
+
+    if (!is_signed_in)
+        return SCE_NP_ERROR_SIGNED_OUT;
+
+    // Stubbed
+    std::strncpy(country_code->data, "us", 2);
+    country_code->term = '\0';
+    country_code->padding[0] = 0;
     return SCE_OK;
 }
 

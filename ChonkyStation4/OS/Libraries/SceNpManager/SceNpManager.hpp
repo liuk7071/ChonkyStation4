@@ -30,7 +30,9 @@ struct SceNpRequest : SceObj {
 s32 PS4_FUNC sceNpCheckCallback();
 s32 PS4_FUNC sceNpGetState(SceUserService::SceUserServiceUserId uid, SceNpState* state);
 s32 PS4_FUNC sceNpGetNpId(SceUserService::SceUserServiceUserId uid, SceNpId* np_id);
+s32 PS4_FUNC sceNpGetAccountIdA(SceUserService::SceUserServiceUserId uid, SceNpAccountId* account_id);
 s32 PS4_FUNC sceNpGetOnlineId(SceUserService::SceUserServiceUserId uid, SceNpOnlineId* online_id);
+s32 PS4_FUNC sceNpGetAccountCountryA(SceUserService::SceUserServiceUserId uid, SceNpCountryCode* country_code);
 s32 PS4_FUNC sceNpCreateRequest();
 s32 PS4_FUNC sceNpCreateAsyncRequest(const SceNpCreateAsyncRequestParameter* param);
 s32 PS4_FUNC sceNpPollAsync(s32 req_id, s32* result);

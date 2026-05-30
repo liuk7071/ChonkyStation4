@@ -276,6 +276,7 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     case OperandField::ConstFloatPos_1_0:   src = "f2u(1.0f)";                                                          break;
     case OperandField::ConstFloatPos_2_0:   src = "f2u(2.0f)";                                                          break;
     case OperandField::ConstFloatPos_4_0:   src = "f2u(4.0f)";                                                          break;
+    case OperandField::M0:                  src = "0 /* TODO: M0 */";                                                   break;
     case OperandField::ExecLo:              src = "exec";                                                               break;
     case OperandField::VccLo:               src = "vcc";                                                                break;
     case OperandField::VccHi:               src = "f2u(1.0f) /* TODO: VccHi */";                                        break;
@@ -649,6 +650,16 @@ uint getStrideForBinding(uint binding) {
         }
         
         return std::format("{} = uint({} {} {});\n", dst, getSRC(instr.src[0]), op, getSRC(instr.src[1]));
+    };
+
+    auto s_buffer_load_dword_offset = [&](const PS4::GCN::Shader::GcnInst& instr) -> std::string {
+        if (instr.control.smrd.imm)
+            return std::format("{}", instr.control.smrd.offset);
+        else if (instr.control.smrd.offset == (u32)OperandField::LiteralConst)
+            return std::format("{}", instr.src[1].code);
+
+        // Thanks shadPS4, this is not mentioned anywhere in the docs...?
+        return std::format("({} >> 2u)", getSGPR(instr.control.smrd.offset));
     };
 
     buf_mapping_idx = 0;
@@ -1332,8 +1343,7 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
-
+            const auto offset = s_buffer_load_dword_offset(instr);
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code), ssbo_name, offset);
             break;
         }
@@ -1344,8 +1354,7 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
-
+            const auto offset = s_buffer_load_dword_offset(instr);
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
             break;
@@ -1357,7 +1366,7 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
+            const auto offset = s_buffer_load_dword_offset(instr);
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " + 2");
@@ -1371,7 +1380,7 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
+            const auto offset = s_buffer_load_dword_offset(instr);
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " + 2");
@@ -1389,7 +1398,7 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto ssbo_name = std::format("ssbo{}", buf->binding);
-            const auto offset = instr.control.smrd.imm ? std::format("{}", instr.control.smrd.offset) : getSGPR(instr.control.smrd.offset);
+            const auto offset = s_buffer_load_dword_offset(instr);
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  0), ssbo_name, offset + " +  0");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  1), ssbo_name, offset + " +  1");
             main += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code +  2), ssbo_name, offset + " +  2");
@@ -1498,8 +1507,8 @@ uint getStrideForBinding(uint binding) {
             auto* buf = buffer_map[buffer_mapping];
 
             const auto sampler_name = std::format("tex{}", buf->binding);
-            const std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(instr.src[0].code), getVGPR(instr.src[0].code + 1));
-            main += std::format("tmp = texture({}, {});\n", sampler_name, texcoords);
+            const std::string texcoords = std::format("ivec2({}, {})", getVGPR(instr.src[0].code), getVGPR(instr.src[0].code + 1));
+            main += std::format("tmp = texelFetch({}, {}, 0);\n", sampler_name, texcoords);
             main += "tmp2 = float[](tmp.x, tmp.y, tmp.z, tmp.w);\n";
 
             // Set results according to DMASK
@@ -1614,9 +1623,9 @@ uint getStrideForBinding(uint binding) {
         }
 
         default: {
-            printf("Shader so far:\n%s\n", main.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
-            //main += "// TODO\n";
+            //printf("Shader so far:\n%s\n", main.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            main += "// TODO\n";
         }
         }
     }

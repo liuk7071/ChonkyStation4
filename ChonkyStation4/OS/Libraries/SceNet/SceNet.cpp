@@ -16,9 +16,10 @@ void init(Module& module) {
     module.addSymbolExport("9T2pDF2Ryqg", "sceNetHtonl", "libSceNet", "libSceNet", (void*)&sceNetHtonl);
     module.addSymbolExport("pQGpHYopAIY", "sceNetNtohl", "libSceNet", "libSceNet", (void*)&sceNetNtohl);
     module.addSymbolExport("Rbvt+5Y2iEw", "sceNetNtohs", "libSceNet", "libSceNet", (void*)&sceNetNtohs);
+    module.addSymbolExport("9vA2aW+CHuA", "sceNetInetNtop", "libSceNet", "libSceNet", (void*)&sceNetInetNtop);
     
     module.addSymbolStub("Nlev7Lg8k3A", "sceNetInit", "libSceNet", "libSceNet", 0);
-    module.addSymbolStub("9vA2aW+CHuA", "sceNetInetNtop", "libSceNet", "libSceNet");
+    module.addSymbolStub("8Kcp5d-q1Uo", "sceNetInetPton", "libSceNet", "libSceNet", 1);
     module.addSymbolStub("dgJBaeJnGpo", "sceNetPoolCreate", "libSceNet", "libSceNet", 1);
     module.addSymbolStub("C4UgDHHPvdw", "sceNetResolverCreate", "libSceNet", "libSceNet", 1);
     module.addSymbolStub("Nd91WaWmG2w", "sceNetResolverStartNtoa", "libSceNet", "libSceNet");
@@ -31,10 +32,14 @@ void init(Module& module) {
     module.addSymbolStub("xphrZusl78E", "sceNetGetsockopt", "libSceNet", "libSceNet");
     module.addSymbolStub("bErx49PgxyY", "sceNetBind", "libSceNet", "libSceNet");
     module.addSymbolStub("kOj1HiAGE54", "sceNetListen", "libSceNet", "libSceNet");
+    module.addSymbolStub("9wO9XrMsNhc", "sceNetRecv", "libSceNet", "libSceNet");
     module.addSymbolStub("hoOAofhhRvE", "sceNetGetsockname", "libSceNet", "libSceNet");
     module.addSymbolStub("Apb4YDxKsRI", "sceNetResolverStartAton", "libSceNet", "libSceNet");
     module.addSymbolStub("SF47kB2MNTo", "sceNetEpollCreate", "libSceNet", "libSceNet");
     module.addSymbolStub("ZVw46bsasAk", "sceNetEpollControl", "libSceNet", "libSceNet");
+    module.addSymbolStub("TSM6whtekok", "sceNetShutdown", "libSceNet", "libSceNet");
+    module.addSymbolStub("zJGf8xjFnQE", "sceNetSocketAbort", "libSceNet", "libSceNet");
+    module.addSymbolStub("45ggEzakPJQ", "sceNetSocketClose", "libSceNet", "libSceNet");
     module.addSymbolStub("cTGkc6-TBlI", "sceNetTerm", "libSceNet", "libSceNet");
 }
 
@@ -62,6 +67,14 @@ u32 PS4_FUNC sceNetNtohl(u32 net32) {
 u16 PS4_FUNC sceNetNtohs(u16 net16) {
     log("sceNetNtohs(net16=0x%x)\n", net16);
     return ntohs(net16);
+}
+
+const char* PS4_FUNC sceNetInetNtop(int af, const void* src, char* dst, u32 size) {
+    log("sceNetInetNtop(af=%d, src=%p, dst=*%p, size=%d) TODO\n", af, src, dst, size);
+
+    // TODO
+    std::strncpy(dst, "127.0.0.1", size);
+    return dst;
 }
 
 }   // End namespace PS4::OS::Libs::SceNet

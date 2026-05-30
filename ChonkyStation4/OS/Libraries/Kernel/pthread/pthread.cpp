@@ -1,5 +1,6 @@
 #include "pthread.hpp"
 #include <Logger.hpp>
+#include <ErrorCodes.hpp>
 #include <OS/Thread.hpp>
 #include <OS/SceObj.hpp>
 #ifdef _WIN32
@@ -13,6 +14,7 @@
 namespace PS4::OS::Libs::Kernel {
 
 MAKE_LOG_FUNCTION(log, lib_kernel);
+MAKE_LOG_FUNCTION(log_force, force_enable);
 
 PS4::OS::Thread::Thread& findThread(void* tid) {
     pthread_t* pthread = (pthread_t*)tid;
@@ -31,6 +33,23 @@ PS4::OS::Thread::Thread& findThread(void* tid) {
     if (!curr_thread)
         Helpers::panic("Could not find pthread");
     return *curr_thread;
+}
+
+bool threadExists(void* tid) {
+    pthread_t* pthread = (pthread_t*)tid;
+    PS4::OS::Thread::Thread* curr_thread = nullptr;
+    for (auto& thread : PS4::OS::Thread::threads) {
+        if (pthread->p == thread.getPThread().p) {
+            if (curr_thread == nullptr)
+                curr_thread = &thread;
+            else {
+                if (thread.getPThread().x > curr_thread->getPThread().x)
+                    curr_thread = &thread;
+            }
+        }
+    }
+
+    return curr_thread != nullptr;
 }
 
 s32 PS4_FUNC kernel_pthread_once(pthread_once_t* once_control, void(*init_routine)()) {
@@ -79,6 +98,11 @@ s32 PS4_FUNC kernel_pthread_attr_init(pthread_attr_t* attr) {
 
 s32 PS4_FUNC kernel_pthread_attr_get_np(void* pthread, pthread_attr_t* attr) {
     log("pthread_attr_get_np(pthread=*%p, attr=*%p) TODO\n", pthread, attr);
+
+    // Assassin's Creed III Remastered relies on this
+    if (!threadExists(pthread) || findThread(pthread).exited)
+        return POSIX_ESRCH;
+
     return 0;
 }
 
@@ -89,6 +113,13 @@ s32 PS4_FUNC scePthreadAttrGetaffinity(pthread_attr_t* attr, u64* mask) {
 
 s32 PS4_FUNC kernel_pthread_attr_getaffinity_np(const pthread_attr_t* attr, size_t cpusetsize, cpu_set_t* cpuset) {
     log("pthread_attr_getaffinity_np(attr=*%p, cpusetsize=%d, cpuset=*%p) TODO\n", attr, cpusetsize, cpuset);
+    return 0;
+}
+
+s32 PS4_FUNC kernel_pthread_attr_getstack(pthread_attr_t* attr, void** stack_addr, size_t* stack_size) {
+    log("pthread_attr_getstack(attr=*%p, stack_addr=*%p, stack_size=*%p)\n", stack_addr, stack_size);
+    pthread_attr_getstackaddr(attr, stack_addr);
+    pthread_attr_getstacksize(attr, stack_size);
     return 0;
 }
 
@@ -104,7 +135,7 @@ s32 PS4_FUNC kernel_pthread_attr_setdetachstate(pthread_attr_t* attr, int detach
 
 s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr) {
     log("pthread_attr_destroy(attr=*%p) TODO\n", attr);
-    return 0;
+    return pthread_attr_destroy(attr);
 }
 
 s32 PS4_FUNC kernel_pthread_create(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC* start)(void*), void* arg) {
@@ -171,7 +202,7 @@ s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
 void PS4_FUNC kernel_pthread_exit(void* status) {
     log("pthread_exit(status=%p)\n", status);
     
-    auto thread = findThread(kernel_pthread_self());
+    auto& thread = findThread(kernel_pthread_self());
     thread.exited = true;
     thread.ret_val = status;
 #ifdef _WIN32

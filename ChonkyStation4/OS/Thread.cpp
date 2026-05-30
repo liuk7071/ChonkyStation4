@@ -100,6 +100,7 @@ void* threadStart(Thread* thread) {
 
     // Call entry function
     void* ret = thread->entry(thread->args);
+    
     // Set exited flag
     thread->exited = true;
     thread->ret_val = ret;

@@ -71,7 +71,8 @@ struct TrackedRegion {
 
         DWORD old_protect;
         if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READONLY, &old_protect))
-            Helpers::panic("TrackedRegion::protect: VirtualProtect failed");
+            //Helpers::panic("TrackedRegion::protect: VirtualProtect failed");
+            printf("TrackedRegion::protect: VirtualProtect failed at address 0x%llx\n", aligned_start);
 #else
         Helpers::panic("Unsupported platform\n");
 #endif
@@ -180,6 +181,10 @@ void updateBuffer(CachedBuffer* buf) {
     VmaAllocationInfo info;
     vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &staging_alloc, &info);
     staging_vk_buf = vk::Buffer(raw_buf);
+
+    if (info.size < buf->size) {
+        Helpers::panic("Cache::updateBuffer: could not allocate full buffer");
+    }
 
     // Create device local buffer
     alloc_create_info = { .pool = device_vma_pool };

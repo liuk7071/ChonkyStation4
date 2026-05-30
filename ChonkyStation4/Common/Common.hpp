@@ -57,7 +57,7 @@ struct SceKernelTimespec {
 
 struct SceKernelTimeval {
     s64 tv_sec;
-    s64 tv_nsec;
+    s64 tv_usec;
 };
 
 struct SceKernelTimezone {

@@ -146,6 +146,14 @@ public:
         return nullptr;
     }
 
+    Symbol* findSymbolExport(const std::string& name) {
+        for (auto& sym : exported_symbols) {
+            if (sym.nid == name)
+                return &sym;
+        }
+        return nullptr;
+    }
+
     bool isPartialLLESymbol(const std::string& name, const std::string& lib, const std::string& module) {
         for (auto& sym : partial_lle_symbols) {
             if ((sym.nid == name) && (sym.lib == lib) && (sym.module == module))

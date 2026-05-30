@@ -21,6 +21,7 @@ struct TrackedTexture {
     bool    was_targeted = false;
     bool    is_depth_buffer = false;
     bool    dead = false;
+    int     invalidate_cnt = 0;
     vk::Format vk_fmt;
     vk::raii::Image image = nullptr;
     vk::raii::DeviceMemory mem = nullptr;

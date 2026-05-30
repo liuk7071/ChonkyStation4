@@ -20,6 +20,9 @@ void init(Module& module) {
     module.addSymbolStub("gUPGiOQ1tmQ", "scePlayGoSetToDoList", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("4AAcTU9R3XM", "scePlayGoSetInstallSpeed", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("rvBSfTimejE", "scePlayGoGetInstallSpeed", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("v6EZ-YWRdMs", "scePlayGoGetEta", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("Uco1I0dlDi8", "scePlayGoClose", "libScePlayGo", "libScePlayGo");
+    module.addSymbolStub("MPe0EeBGM-E", "scePlayGoTerminate", "libScePlayGo", "libScePlayGo");
 }
 
 ScePlayGoInitParams param;

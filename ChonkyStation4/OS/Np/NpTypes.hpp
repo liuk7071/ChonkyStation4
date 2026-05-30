@@ -10,6 +10,7 @@ static constexpr s32 SCE_NP_ERROR_SIGNED_OUT        = 0x80550006;
 static constexpr s32 SCE_NP_ERROR_REQUEST_NOT_FOUND = 0x80550014;
 
 static constexpr s32 SCE_NP_ONLINEID_MAX_LENGTH = 16;
+static constexpr s32 SCE_NP_COUNTRY_CODE_LENGTH = 2;
 
 static constexpr s32 SCE_NP_PLUS_FEATURE_REALTIME_MULTIPLAY = 1;
 
@@ -17,6 +18,7 @@ static constexpr s32 SCE_NP_PLATFORM_TYPE_NONE      = 0;
 static constexpr s32 SCE_NP_PLATFORM_TYPE_PS3       = 1;
 static constexpr s32 SCE_NP_PLATFORM_TYPE_VITA      = 2;
 static constexpr s32 SCE_NP_PLATFORM_TYPE_PS4       = 3;
+
 
 using SceNpServiceLabel = u32;
 using SceNpAccountId    = u64;
@@ -63,6 +65,12 @@ struct SceNpCheckPlusParameter {
 struct SceNpCheckPlusResult {
     bool authorized;
     u8 reserved[32];
+};
+
+struct SceNpCountryCode {
+    char data[SCE_NP_COUNTRY_CODE_LENGTH];
+    char term;
+    char padding[1];
 };
 
 }   // End namespace PS4::OS::Np

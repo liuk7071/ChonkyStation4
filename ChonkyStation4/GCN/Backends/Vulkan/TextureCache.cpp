@@ -44,7 +44,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
     size_t img_size;
     switch (vk_fmt) {
-    case vk::Format::eBc1RgbaUnormBlock: {
+    case vk::Format::eBc1RgbaUnormBlock:
+    case vk::Format::eBc1RgbaSrgbBlock: {
         const auto blk_width  = (width + 3)  / 4;
         const auto blk_height = (height + 3) / 4;
         img_size = blk_width * blk_height * 8;
@@ -52,8 +53,12 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     }
     
     case vk::Format::eBc7UnormBlock:
+    case vk::Format::eBc7SrgbBlock:
+    case vk::Format::eBc6HUfloatBlock:
     case vk::Format::eBc3UnormBlock:
-    case vk::Format::eBc2UnormBlock: {
+    case vk::Format::eBc3SrgbBlock:
+    case vk::Format::eBc2UnormBlock:
+    case vk::Format::eBc2SrgbBlock: {
         const auto blk_width  = (width + 3)  / 4;
         const auto blk_height = (height + 3) / 4;
         img_size = blk_width * blk_height * 16;
@@ -73,6 +78,12 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     auto reupload_tex = [&](TrackedTexture* tex) {
         auto& img = tex->image;
 
+        //tex->invalidate_cnt++;
+        //if (tex->invalidate_cnt > 20) {
+        //    if (tex->invalidate_cnt % 20 != 0)
+        //        return;
+        //}
+
         // Transition image layout
         endRendering();
         tex->transition(vk::ImageLayout::eTransferDstOptimal);
@@ -81,11 +92,11 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         void* img_ptr = ptr;
         auto detiled_buf = std::make_unique<u8[]>(img_size);
 
-        //if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL) {
+        if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL) {
             const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
             GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
             img_ptr = detiled_buf.get();
-        //}
+        }
 
         // Upload to a buffer
         auto [buf, buf_ptr] = Cache::getMappedBufferForFrame(img_size);
@@ -159,7 +170,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
     log("Tracking new texture\n");
     log("texture size: width=%lld, height=%lld\n", (u32)tsharp->width + 1, (u32)tsharp->height + 1);
-    log("texture ptr: %p\n", (void*)tsharp->base_address);
+    log("texture ptr: %p\n", ptr);
     log("texture dfmt: %d\n", (u32)tsharp->data_format);
     log("texture nfmt: %d\n", (u32)tsharp->num_format);
     log("texture pitch: %d\n", (u32)tsharp->pitch + 1);
@@ -217,6 +228,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     vk::MemoryAllocateInfo alloc_info = { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) };
     mem = vk::raii::DeviceMemory(device, alloc_info);
     img.bindMemory(*mem, 0);
+    
+    // Set debug name
+    if (device.getDispatcher()->vkSetDebugUtilsObjectNameEXT)
+        device.setDebugUtilsObjectNameEXT(*img, std::format("Texture @ {}", ptr));
 
     // Create image view
     vk::ComponentSwizzle swizzle_map[] = {

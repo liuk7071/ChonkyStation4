@@ -14,7 +14,9 @@ s32 PS4_FUNC kernel_pthread_condattr_init(pthread_condattr_t* attr) {
 
 s32 PS4_FUNC kernel_pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr) {
     log("pthread_cond_init(cond=*%p, attr=*%p)\n", cond, attr);
-    return pthread_cond_init(cond, attr);
+    s32 ret = pthread_cond_init(cond, attr);
+    if (ret) Helpers::panic("ret %d\n", ret);
+    return ret;
 }
 
 s32 PS4_FUNC scePthreadCondInit(pthread_cond_t* cond, const pthread_condattr_t* attr, const char* name) {
@@ -48,7 +50,7 @@ s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t
 }
 
 s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, u64 us) {
-    log("scePthreadCondTimedwait(cond=*%p, mutex=*%p, us=%ulld)\n", cond, mutex, us);
+    log("scePthreadCondTimedwait(cond=*%p, mutex=*%p, us=%lld)\n", cond, mutex, us);
 
     if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
 
@@ -73,7 +75,9 @@ s32 PS4_FUNC kernel_pthread_cond_signal(pthread_cond_t* cond) {
     log("pthread_cond_signal(cond=*%p)\n", cond);
 
     if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
-    return pthread_cond_signal(cond);
+    s32 ret = pthread_cond_signal(cond);
+    if (ret) Helpers::panic("ret %d\n", ret);
+    return ret;
 }
 
 s32 PS4_FUNC kernel_pthread_cond_broadcast(pthread_cond_t* cond) {

@@ -108,7 +108,11 @@ GcnInst GcnDecodeContext::decodeInstruction(GcnCodeSlice& code) {
     const uint32_t token = code.at(0);
 
     InstEncoding encoding = GetInstructionEncoding(token);
-    Helpers::debugAssert(encoding != InstEncoding::ILLEGAL, "illegal encoding");
+    if (encoding == InstEncoding::ILLEGAL) {
+        Helpers::panic("illegal encoding");
+        return {};
+    }
+
     uint32_t encodingLen = getEncodingLength(encoding);
 
     // Clear the instruction
