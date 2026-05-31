@@ -19,6 +19,7 @@ void init(Module& module) {
     module.addSymbolExport("h3YURzXGSVQ", "sceSaveDataSetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataSetSaveDataMemory);
     module.addSymbolExport("dyIhnXq-0SM", "sceSaveDataDirNameSearch", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataDirNameSearch);
     module.addSymbolExport("ANmSWUiyyGQ", "sceSaveDataGetProgress", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataGetProgress);
+    module.addSymbolExport("65VH0Qaaz6s", "sceSaveDataGetMountInfo", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataGetMountInfo);
     
     module.addSymbolStub("ZkZhskCPXFw", "sceSaveDataInitialize", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("TywrFKCoLGY", "sceSaveDataInitialize3", "libSceSaveData", "libSceSaveData");
@@ -170,6 +171,15 @@ s32 PS4_FUNC sceSaveDataGetProgress(float* progress) {
     log("sceSaveDataGetProgress(progress=*%p)\n", progress);
 
     *progress = 1.0f;   // Done
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceSaveDataGetMountInfo(const SceSaveDataMountPoint* mount_point, SceSaveDataMountInfo* info) {
+    log("sceSaveDataGetMountInfo(mount_point=*%p, info=*%p)\n", mount_point, info);
+
+    // TODO
+    info->blocks = 12345678;
+    info->free_blocks = 12245678;
     return SCE_OK;
 }
 

@@ -4,6 +4,7 @@
 #include <BitField.hpp>
 #include <GCN/RegisterOffsets.hpp>
 #include <GCN/FetchShader.hpp>
+#include <GCN/ComputeJob.hpp>
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
 #include <SDL.h>
 
@@ -130,6 +131,7 @@ public:
     virtual void init() = 0;
     virtual void draw(const u64 cnt, const void* idx_buf_ptr = nullptr) = 0;
     virtual void drawIndirect(const u64 cnt, const bool is_indexed, void* draw_args, void* idx_buf_ptr = nullptr, s32 idx_buf_max_size = 0) = 0;
+    virtual void dispatch(ComputeJob job) = 0;
     virtual void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) = 0;
 
     u32 regs[0xd000];
@@ -143,6 +145,10 @@ public:
 
     u8* getPSPtr() {
         return (u8*)(((u64)regs[Reg::mmSPI_SHADER_PGM_LO_PS] << 8) | ((u64)regs[Reg::mmSPI_SHADER_PGM_HI_PS] << 8 << 32));
+    }
+
+    u8* getCSPtr() {
+        return (u8*)(((u64)regs[Reg::mmCOMPUTE_PGM_LO] << 8) | ((u64)regs[Reg::mmCOMPUTE_PGM_HI] << 8 << 32));
     }
 
     void getColorTargets(ColorTarget* rt) {

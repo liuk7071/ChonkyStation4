@@ -122,6 +122,11 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("8rhLl1-0W-o", "sceNpProfileDialogGetResult", "libSceNpProfileDialog", "libSceNpProfileDialog");
     module->addSymbolStub("0Sp9vJcB1-w", "sceNpProfileDialogTerminate", "libSceNpProfileDialog", "libSceNpProfileDialog");
     
+    // libSceNpCommerce
+    module->addSymbolStub("LR5cwFMMCVE", "sceNpCommerceDialogUpdateStatus", "libSceNpCommerce", "libSceNpCommerce", 3);
+    module->addSymbolStub("r42bWcQbtZY", "sceNpCommerceDialogGetResult", "libSceNpCommerce", "libSceNpCommerce");
+    module->addSymbolStub("m-I92Ab50W8", "sceNpCommerceDialogTerminate", "libSceNpCommerce", "libSceNpCommerce");
+    
     // libSceInvitationDialog
     module->addSymbolStub("9+g9iOq+7kg", "sceInvitationDialogUpdateStatus", "libSceInvitationDialog", "libSceInvitationDialog", 0);
     
@@ -213,6 +218,8 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("nXpje5yNpaE", "sceVoiceCreatePort", "libSceVoice", "libSceVoice");
     module->addSymbolStub("54phPH2LZls", "sceVoiceStart", "libSceVoice", "libSceVoice");
     module->addSymbolStub("CrLqDwWLoXM", "sceVoiceGetPortInfo", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("oV9GAdJ23Gw", "sceVoiceConnectIPortToOPort", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("elcxZTEfHZM", "sceVoiceGetPortAttr", "libSceVoice", "libSceVoice");
 
     // libSceDiscMap
     module->addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);

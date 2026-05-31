@@ -165,7 +165,7 @@ void addInSSBO(std::string name, int binding) {
         return;
     }
     in_buffers[binding] = name;
-    shader += std::format("layout(binding = {}, std430) readonly buffer {}_t {{ uint data[]; }} {};\n", binding, name, name);
+    shader += std::format("layout(binding = {}, std430) buffer {}_t {{ uint data[]; }} {};\n", binding, name, name);
 }
 
 void addInSampler2D(std::string name, int binding) {
@@ -176,6 +176,16 @@ void addInSampler2D(std::string name, int binding) {
     }
     in_samplers[binding] = name;
     shader += std::format("layout(binding = {}) uniform sampler2D {};\n", binding, name);
+}
+
+void addOutImage2D(std::string name, int binding) {
+    if (in_samplers.contains(binding)) {
+        // Extra check to be safe, this shouldn't ever happen
+        Helpers::debugAssert(in_samplers[binding] == name, "ShaderDecompiler: tried to add an output Image2D to an already used binding with a different name\n");
+        return;
+    }
+    in_samplers[binding] = name;    // Safe to reuse map
+    shader += std::format("layout(binding = {}) uniform writeonly image2D {};\n", binding, name);
 }
 
 void addFloatConstTable(std::string name, float* table, size_t size) {
@@ -335,6 +345,7 @@ T* DescriptorLocation::asPtr() {
     switch (stage) {
     case ShaderStage::Vertex:   base = Reg::mmSPI_SHADER_USER_DATA_VS_0;    break;
     case ShaderStage::Fragment: base = Reg::mmSPI_SHADER_USER_DATA_PS_0;    break;
+    case ShaderStage::Compute:  base = Reg::mmCOMPUTE_USER_DATA_0;          break;
     default:    Helpers::panic("DescriptorLocation::asPtr: unhandled shader stage\n");
     }
 
@@ -352,7 +363,7 @@ T* DescriptorLocation::asPtr() {
 template VSharp* DescriptorLocation::asPtr<VSharp>();
 template TSharp* DescriptorLocation::asPtr<TSharp>();
 
-void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader) {
+void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job) {
     std::ofstream out;
     ////if (stage == ShaderStage::Fragment) {
     //    out.open("shader.bin", std::ios::binary);
@@ -413,6 +424,10 @@ uint getStrideForBinding(uint binding) {
 }
 
 )";
+
+    if (stage == ShaderStage::Compute) {
+        shader += std::format("layout(local_size_x = {}, local_size_y = {}, local_size_z = {}) in;\n\n", compute_job->n_threads_x, compute_job->n_threads_y, compute_job->n_threads_z);
+    }
 
     // Parse shader to figure out descriptor locations.
     // This is done similarly to the fetch shader, but there are other cases we need to handle.
@@ -504,7 +519,16 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
+        case Shader::Opcode::IMAGE_STORE:
         case Shader::Opcode::IMAGE_GET_RESINFO:
+        case Shader::Opcode::BUFFER_LOAD_DWORD:
+        case Shader::Opcode::BUFFER_LOAD_DWORDX2:
+        case Shader::Opcode::BUFFER_LOAD_DWORDX3:
+        case Shader::Opcode::BUFFER_LOAD_DWORDX4:
+        case Shader::Opcode::BUFFER_STORE_DWORD:
+        case Shader::Opcode::BUFFER_STORE_DWORDX2:
+        case Shader::Opcode::BUFFER_STORE_DWORDX3:
+        case Shader::Opcode::BUFFER_STORE_DWORDX4:
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4:
@@ -513,7 +537,8 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_X: 
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY: 
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ: 
-        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW: {
+        case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW:
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW: {
             auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0) -> Buffer& {
                 // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
@@ -545,7 +570,8 @@ uint getStrideForBinding(uint binding) {
                 buf.desc_info.stage = stage;
                 switch (instr.inst_class) {
                 case InstClass::ScalarMemRd:
-                case InstClass::VectorMemBufFmt:{
+                case InstClass::VectorMemBufFmt:
+                case InstClass::VectorMemBufNoFmt: {
                     buf.desc_info.type = DescriptorType::Vsharp;
                     auto name = std::format("ssbo{}", buf.binding);
                     addInSSBO(name, buf.binding);
@@ -558,7 +584,17 @@ uint getStrideForBinding(uint binding) {
                 case InstClass::VectorMemImgSmp: {
                     buf.desc_info.type = DescriptorType::Tsharp;
                     auto name = std::format("tex{}", buf.binding);
-                    addInSampler2D(name, buf.binding);
+
+                    switch (instr.opcode) {
+                    case Shader::Opcode::IMAGE_STORE: {
+                        buf.is_image_store = true;
+                        addOutImage2D(name, buf.binding);
+                        break;
+                    }
+                    default:
+                        addInSampler2D(name, buf.binding);
+                        break;
+                    }
                     //printf("Created binding for %s\nsgpr=%d, is_ptr=%d, offs=%d\n", name.c_str(), sgpr, is_ptr, offs);
                     break;
                 }
@@ -570,7 +606,7 @@ uint getStrideForBinding(uint binding) {
             };
 
             bool is_img         = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp || instr.inst_class == InstClass::VectorMemImgUt;
-            bool is_vector_mem  = instr.inst_class == InstClass::VectorMemBufFmt;
+            bool is_vector_mem  = instr.inst_class == InstClass::VectorMemBufFmt || instr.inst_class == InstClass::VectorMemBufNoFmt;
             const int idx  = is_img || is_vector_mem ? 2 : 0;
             const int mult = is_img || is_vector_mem ? 4 : 2;
             const auto sgpr = instr.src[idx].code * mult;
@@ -606,6 +642,20 @@ uint getStrideForBinding(uint binding) {
         main += "v2 = f2u(gl_FragCoord.x);\n";
         main += "v3 = f2u(gl_FragCoord.y);\n";
     }
+    else if (stage == ShaderStage::Compute) {
+        getSGPR(16);    // TODO: Register numbers hardcoded from Minecraft
+        getSGPR(17);
+        getSGPR(18);
+        getVGPR(0);
+        getVGPR(1);
+        getVGPR(2);
+        main += "s16 = gl_WorkGroupID.x;\n";
+        main += "v0 = gl_LocalInvocationID.x;\n";   // TODO: Or is it the opposite? (local invocation id in SGPRs)
+        main += "s17 = gl_WorkGroupID.y;\n";
+        main += "v1 = gl_LocalInvocationID.y;\n";
+        main += "s18 = gl_WorkGroupID.z;\n";
+        main += "v2 = gl_LocalInvocationID.z;\n";
+    }
 
     switch (stage) {
     case ShaderStage::Vertex: {
@@ -613,7 +663,8 @@ uint getStrideForBinding(uint binding) {
         for (auto& binding : fetch_shader->bindings) {
             VSharp* vsharp = binding.vsharp_loc.asPtr();
             std::string attr = std::format("vs_attr{}", binding.idx);
-            addInAttr(attr, getType(binding.n_elements, vsharp->nfmt), binding.idx);
+            auto type = getType(binding.n_elements, vsharp->nfmt);
+            addInAttr(attr, type, binding.idx);
 
             // In main(), move the input data to the VGPRs.
             // Handle swizzling
@@ -628,7 +679,10 @@ uint getStrideForBinding(uint binding) {
                 else if (swizzle == DSEL_B) val = attr + ".z";
                 else if (swizzle == DSEL_A) val = attr + ".w";
 
-                main += std::format("{} = floatBitsToUint({});\n", getVGPR(binding.dest_vgpr + i), val);
+                if (!(type.contains("ivec") || type.contains("int")))
+                    val = std::format("floatBitsToUint({})", val);
+
+                main += std::format("{} = {};\n", getVGPR(binding.dest_vgpr + i), val);
             }
         }
         break;
@@ -746,6 +800,12 @@ uint getStrideForBinding(uint binding) {
         
         case Shader::Opcode::S_NAND_B64: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("~({} & {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+        
+        case Shader::Opcode::S_LSHL_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
@@ -982,6 +1042,13 @@ uint getStrideForBinding(uint binding) {
             main += std::format("vcc = uint({} >= {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
             break;
         }
+        
+        case Shader::Opcode::V_CMPX_GT_U32: {
+            // TODO: This can set other registers too I think?
+            // TODO: Exec
+            main += std::format("vcc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
 
         case Shader::Opcode::V_CNDMASK_B32: {
             std::string cond;
@@ -1054,6 +1121,11 @@ uint getStrideForBinding(uint binding) {
         
         case Shader::Opcode::V_MAX_I32: {
             main += setDST<Type::Int>(instr.dst[0], std::format("max({}, {})", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            break;
+        }
+        
+        case Shader::Opcode::V_MIN_U32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("min({}, {})", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             break;
         }
 
@@ -1423,6 +1495,7 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW:   // TODO: Handle properly
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_X:
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY:
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ:
@@ -1438,7 +1511,7 @@ uint getStrideForBinding(uint binding) {
             const std::string voffset = instr.control.mtbuf.offen ? getVGPR(instr.control.mtbuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
             const std::string instr_offs = std::format("{}", instr.control.mtbuf.offset);
             main += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {};\n", idx, buf->binding, voffset, instr_offs);
-
+            // TODO: soffset ???
             // TODO: Format conversion
             for (int elem = 0; elem < instr.control.mtbuf.count; elem++) {
                 const std::string elem_addr = std::format("tmp_u + ({} << 2u)", elem);  // elem * sizeof(u32)
@@ -1448,6 +1521,70 @@ uint getStrideForBinding(uint binding) {
                 main += std::format("{} |= fetchBufferByte{}({} + 2) << 16u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
                 main += std::format("{} |= fetchBufferByte{}({} + 3) << 24u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
             }
+            break;
+        }
+
+        case Shader::Opcode::BUFFER_LOAD_DWORD:
+        case Shader::Opcode::BUFFER_LOAD_DWORDX2:
+        case Shader::Opcode::BUFFER_LOAD_DWORDX3: 
+        case Shader::Opcode::BUFFER_LOAD_DWORDX4: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_LOAD_DWORD: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
+            const std::string voffset = instr.control.mubuf.offen ? getVGPR(instr.control.mubuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
+            const std::string soffset = getSRC<Type::Uint>(instr.src[3]);
+            const std::string instr_offs = std::format("{}", instr.control.mubuf.offset);
+            main += std::format("tmp_u = ({}) * (getStrideForBinding({}) >> 2u) + {} + {} + ({} >> 2u);\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
+
+            for (int dword = 0; dword < instr.control.mubuf.count; dword++) {
+                main += std::format("{} = {}.data[(tmp_u >> 0) + {}];\n", getVGPR(instr.src[1].code + dword), ssbo_name, dword);
+            }
+            break;
+        }
+
+        case Shader::Opcode::BUFFER_STORE_DWORD:
+        case Shader::Opcode::BUFFER_STORE_DWORDX2:
+        case Shader::Opcode::BUFFER_STORE_DWORDX3: 
+        case Shader::Opcode::BUFFER_STORE_DWORDX4: { 
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_STORE_DWORD: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
+            const std::string voffset = instr.control.mubuf.offen ? getVGPR(instr.control.mubuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
+            const std::string soffset = getSRC<Type::Uint>(instr.src[3]);
+            const std::string instr_offs = std::format("{}", instr.control.mubuf.offset);
+            main += std::format("tmp_u = ({}) * (getStrideForBinding({}) >> 2u) + {} + {} + ({} >> 2u);\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
+
+            for (int dword = 0; dword < instr.control.mubuf.count; dword++) {
+                main += std::format("{}.data[(tmp_u >> 0) + {}] = {};\n", ssbo_name, dword, getVGPR(instr.src[1].code + dword));
+            }
+            break;
+        }
+
+        case Shader::Opcode::IMAGE_STORE: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_SAMPLE: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto image_name = std::format("tex{}", buf->binding);
+
+            // TODO: Don't duplicate this stuff from IMAGE_SAMPLE (is it even the same???)
+            int coord_reg_idx = instr.src[0].code;
+
+            // TODO: Does IMAGE_STORE use DMASK?
+            main += std::format("tmp.x = u2f({});\n", getVGPR(instr.dst[0].code + 0));
+            main += std::format("tmp.y = u2f({});\n", getVGPR(instr.dst[0].code + 1));
+            main += std::format("tmp.z = u2f({});\n", getVGPR(instr.dst[0].code + 2));
+            main += std::format("tmp.w = u2f({});\n", getVGPR(instr.dst[0].code + 3));
+            
+            const std::string texcoords = std::format("ivec2({}, {})", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+            main += std::format("// T# is in s{}\n", instr.src[2].code * 4);
+            main += std::format("imageStore({}, {}, tmp);\n", image_name, texcoords);
             break;
         }
 
@@ -1463,11 +1600,10 @@ uint getStrideForBinding(uint binding) {
             const auto buffer_mapping = buf_mapping_idx++;
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_SAMPLE: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
-
-
+            
             const auto sampler_name = std::format("tex{}", buf->binding);
             
-            // There index of the texcoord register varies depending on the image flags.
+            // The index of the texcoord register varies depending on the image flags.
             // TODO: Use the decoder's image flags
             int coord_reg_idx = instr.src[0].code;
             switch (instr.opcode) {
@@ -1623,8 +1759,8 @@ uint getStrideForBinding(uint binding) {
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
             main += "// TODO\n";
         }
         }

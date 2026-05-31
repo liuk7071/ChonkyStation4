@@ -290,6 +290,7 @@ void init(Module& module) {
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
     module.addSymbolExport("LwG8g3niqwA", "sceKernelDlsym", "libkernel", "libkernel", (void*)&sceKernelDlsym);
     
+    module.addSymbolStub("7oxv3PPCumo", "sceKernelReserveVirtualRange", "libkernel", "libkernel");  // TODO: Important
     module.addSymbolStub("VOx8NGmHXTs", "sceKernelGetCpumode", "libkernel", "libkernel", 5 /* normal 7cpu mode */);
     module.addSymbolStub("VHCS3rCd0PM", "sceKernelAddReadEvent", "libkernel", "libkernel"); // TODO: Important if not used for sockets
     module.addSymbolStub("qBDmpCyGssE", "scePthreadCancel", "libkernel", "libkernel");

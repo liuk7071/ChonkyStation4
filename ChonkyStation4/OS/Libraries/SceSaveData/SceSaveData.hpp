@@ -109,6 +109,12 @@ struct SceSaveDataDirNameSearchResult {
     s32 : 32;
 };
 
+struct SceSaveDataMountInfo {
+    SceSaveDataBlocks blocks;
+    SceSaveDataBlocks free_blocks;
+    u8 reserved[32];
+};
+
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result);
 s32 PS4_FUNC sceSaveDataMount2(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result);
 s32 PS4_FUNC sceSaveDataSetupSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, const size_t memory_size, SceSaveDataParam* param);
@@ -116,5 +122,6 @@ s32 PS4_FUNC sceSaveDataGetSaveDataMemory(const SceUserService::SceUserServiceUs
 s32 PS4_FUNC sceSaveDataSetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);
 s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, SceSaveDataDirNameSearchResult* result);
 s32 PS4_FUNC sceSaveDataGetProgress(float* progress);
+s32 PS4_FUNC sceSaveDataGetMountInfo(const SceSaveDataMountPoint* mount_point, SceSaveDataMountInfo* info);
 
 }   // End namespace PS4::OS::Libs::SceSaveData

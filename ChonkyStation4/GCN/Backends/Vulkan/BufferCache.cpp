@@ -196,8 +196,25 @@ void updateBuffer(CachedBuffer* buf) {
     // Update the buffer
     std::memcpy(info.pMappedData, (void*)buf->base, buf->size);
     // Copy staging buffer to device local buffer
+    endRendering();
     cmd_bufs[0].copyBuffer(staging_vk_buf, vk_buf, vk::BufferCopy{ 0, 0, buf->size });
-    
+    VkMemoryBarrier barrier {
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT
+    };
+
+    vkCmdPipelineBarrier(
+        *cmd_bufs[0],
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        0,
+        1, &barrier,
+        0, nullptr,
+        0, nullptr
+    );
+
     allocations.push_back({ .staging_buf = staging_vk_buf, .buf = vk_buf, .staging_alloc = staging_alloc, .alloc = alloc });
 }
 

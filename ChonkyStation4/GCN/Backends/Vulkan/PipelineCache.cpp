@@ -14,6 +14,7 @@ namespace PS4::GCN::Vulkan::PipelineCache {
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 std::unordered_map<u64, Pipeline*> pipelines;
+std::unordered_map<u64, ComputePipeline*> compute_pipelines;
 
 Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, const u8* fetch_shader_code, const u32* regs) {
     // Compile shaders
@@ -130,6 +131,21 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     log("Compiling new pipeline\n");
     auto* pipeline = new Pipeline(vert_shader, pixel_shader, fetch_shader, cfg);
     pipelines[pipeline_hash] = pipeline;
+    return *pipeline;
+}
+
+ComputePipeline& getComputePipeline(const ComputeJob& job) {
+    const u8* compute_shader_code = (const u8*)job.addr;
+
+    // Compile shader (or get the cached one)
+    ShaderCache::CachedShader* compute_shader = ShaderCache::getShader(compute_shader_code, Shader::ShaderStage::Compute, nullptr, const_cast<ComputeJob*>(&job));
+
+    if (pipelines.contains(compute_shader->data.hash))
+        return *compute_pipelines[compute_shader->data.hash];
+
+    log("Compiling new compute pipeline\n");
+    auto* pipeline = new ComputePipeline(compute_shader);
+    compute_pipelines[compute_shader->data.hash] = pipeline;
     return *pipeline;
 }
 

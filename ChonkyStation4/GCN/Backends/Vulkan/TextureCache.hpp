@@ -29,6 +29,7 @@ struct TrackedTexture {
     vk::raii::Sampler sampler = nullptr;
     vk::ImageLayout curr_layout = vk::ImageLayout::eUndefined;
     vk::DescriptorImageInfo image_info;
+    vk::DescriptorImageInfo image_info_general;
     void transition(vk::ImageLayout new_layout);
 };
 

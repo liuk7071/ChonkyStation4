@@ -22,6 +22,9 @@ void endCommands(vk::raii::CommandBuffer& cmd_buffer) {
 }
 
 void beginRendering(vk::RenderingInfo render_info) {
+    if (is_recording_render_block)
+        endRendering();
+
     is_recording_render_block = true;
     cmd_bufs[0].beginRendering(render_info);
 }
@@ -102,6 +105,12 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
             return {
                 vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, 
                 vk::PipelineStageFlagBits::eAllGraphics
+            };
+
+        case vk::ImageLayout::eGeneral:
+            return {
+                vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+                vk::PipelineStageFlagBits::eAllGraphics | vk::PipelineStageFlagBits::eComputeShader
             };
         
         case vk::ImageLayout::ePresentSrcKHR:     
@@ -244,7 +253,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format16_16_16_16: {
         switch ((NumberFormat)nfmt) {
 
-        case NumberFormat::Float: return { vk::Format::eR16G16B16A16Sfloat, sizeof(u16) * 4 };
+        case NumberFormat::Sint:    return { vk::Format::eR16G16B16A16Sint, sizeof(u16) * 4 };
+        case NumberFormat::Float:   return { vk::Format::eR16G16B16A16Sfloat, sizeof(u16) * 4 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }

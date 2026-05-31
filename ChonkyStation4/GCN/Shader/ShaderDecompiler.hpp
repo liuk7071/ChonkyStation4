@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Common.hpp>
+#include <GCN/ComputeJob.hpp>
 #include <deque>
 
 
@@ -45,6 +46,7 @@ struct DescriptorLocation {
 struct Buffer {
     int binding = -1;
     DescriptorLocation desc_info;
+    bool is_image_store = false;
     bool is_instr_typed = false;
     u32 instr_dfmt = 0;
     u32 instr_nfmt = 0;
@@ -61,6 +63,6 @@ struct ShaderData {
     }
 };
 
-void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader = nullptr);
+void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader = nullptr, ComputeJob* compute_job = nullptr);
 
 }   // End namespace PS4::GCN::Shader

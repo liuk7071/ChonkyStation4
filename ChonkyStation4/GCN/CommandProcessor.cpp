@@ -1,6 +1,7 @@
 #include "CommandProcessor.hpp"
 #include <Logger.hpp>
 #include <GCN/PM4.hpp>
+#include <GCN/ComputeJob.hpp>
 #include <BitField.hpp>
 #include <thread>
 #include <atomic>
@@ -214,6 +215,22 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
         case PM4ItOpcode::IndexBufferSize: {
             n_indices = *args++;
+            break;
+        }
+
+        case PM4ItOpcode::DispatchDirect: {
+            ComputeJob job;
+            job.dim_x = *args++;
+            job.dim_y = *args++;
+            job.dim_z = *args++;
+            job.start_x = renderer->regs[Reg::mmCOMPUTE_START_X];
+            job.start_y = renderer->regs[Reg::mmCOMPUTE_START_Y];
+            job.start_z = renderer->regs[Reg::mmCOMPUTE_START_Z];
+            job.n_threads_x = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_X];
+            job.n_threads_y = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Y];
+            job.n_threads_z = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Z];
+            job.addr = renderer->getCSPtr();
+            renderer->dispatch(job);
             break;
         }
 

@@ -220,7 +220,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
         .tiling = vk::ImageTiling::eOptimal,
-        .usage = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT | attachment_bits,
+        .usage = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT | attachment_bits,
         .sharingMode = vk::SharingMode::eExclusive
     };
     img = vk::raii::Image(device, img_info);
@@ -290,6 +290,12 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .sampler = *sampler,
         .imageView = *img_view,
         .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
+    };
+
+    tex->image_info_general = {
+        .sampler = *sampler,
+        .imageView = *img_view,
+        .imageLayout = vk::ImageLayout::eGeneral
     };
 
     for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {

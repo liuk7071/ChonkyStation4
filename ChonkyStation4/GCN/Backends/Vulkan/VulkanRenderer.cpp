@@ -28,6 +28,7 @@ constexpr bool enable_validation_layers = false;
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
 std::vector<Pipeline*> curr_frame_pipelines;
+std::vector<ComputePipeline*> curr_frame_compute_pipelines;
 
 const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
@@ -396,7 +397,8 @@ void VulkanRenderer::init() {
     // Initialize the buffer cache
     Cache::init();
 
-    curr_frame_pipelines.reserve(1024);
+    curr_frame_pipelines.reserve(4096);
+    curr_frame_compute_pipelines.reserve(4096);
 
     log("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
@@ -729,6 +731,45 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     }
 }
 
+void VulkanRenderer::dispatch(ComputeJob job) {
+    log("Compute shader address: %p\n", job.addr);
+    endRendering();
+
+    // Get pipeline
+    auto& pipeline = Vulkan::PipelineCache::getComputePipeline(job);
+    curr_frame_compute_pipelines.push_back(&pipeline);
+    cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipeline());
+
+    // Upload buffers and get descriptor writes, as well as the push constants
+    ComputePipeline::PushConstants* push_constants;
+    auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants, color_attachments[0].tex, &has_feedback_loop);
+
+    if (descriptor_writes.size())
+        cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
+
+    vkCmdPushConstants(*cmd_bufs[0], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eCompute), 0, sizeof(Pipeline::PushConstants), push_constants);
+    cmd_bufs[0].dispatch(job.dim_x, job.dim_y, job.dim_z);
+
+    // TODO: Don't add a barrier after every dispatch...
+    VkMemoryBarrier barrier{
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_SHADER_WRITE_BIT,
+        VK_ACCESS_MEMORY_READ_BIT |
+        VK_ACCESS_MEMORY_WRITE_BIT
+    };
+
+    vkCmdPipelineBarrier(
+        *cmd_bufs[0],
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0,
+        1, &barrier,
+        0, nullptr,
+        0, nullptr
+    );
+}
+
 static bool fullscreen = false;
 static bool force_recreate_swapchain = false;
 void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
@@ -896,7 +937,11 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     // Cleanup
     for (auto& pipeline : curr_frame_pipelines)
         pipeline->clearBuffers();
+    for (auto& pipeline : curr_frame_compute_pipelines)
+        pipeline->clearBuffers();
+    
     curr_frame_pipelines.clear();
+    curr_frame_compute_pipelines.clear();
     last_draw_pipeline = nullptr;
     last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
     Cache::clear();
