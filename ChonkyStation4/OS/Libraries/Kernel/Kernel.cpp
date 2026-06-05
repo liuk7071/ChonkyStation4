@@ -249,6 +249,7 @@ void init(Module& module) {
     module.addSymbolExport("4czppHBiriw", "sceKernelSignalSema", "libkernel", "libkernel", (void*)&sceKernelSignalSema);
     module.addSymbolExport("Zxa0VhQVTsk", "sceKernelWaitSema", "libkernel", "libkernel", (void*)&sceKernelWaitSema);
     module.addSymbolExport("12wOHk8ywb0", "sceKernelPollSema", "libkernel", "libkernel", (void*)&sceKernelPollSema);
+    module.addSymbolStub("4DM06U2BNEY", "sceKernelCancelSema", "libkernel", "libkernel");   // TODO: IMPORTANT!
     module.addSymbolStub("R1Jvn8bSCW8", "sceKernelDeleteSema", "libkernel", "libkernel");
     module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libkernel", "libkernel", (void*)&kernel_sem_init);
     module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libScePosix", "libkernel", (void*)&kernel_sem_init);
@@ -345,6 +346,7 @@ void init(Module& module) {
     module.addSymbolStub("rNhWz+lvOMU", "_sceKernelSetThreadDtors", "libkernel", "libkernel");  // void
     module.addSymbolStub("pB-yGZ2nQ9o", "_sceKernelSetThreadAtexitCount", "libkernel", "libkernel");  // void
     module.addSymbolStub("WhCc1w3EhSI", "_sceKernelSetThreadAtexitReport", "libkernel", "libkernel");  // void
+    module.addSymbolStub("Tz4RNUCBbGI", "_sceKernelRtldThreadAtexitIncrement", "libkernel", "libkernel");
     module.addSymbolStub("DGMG3JshrZU", "sceKernelSetVirtualRangeName", "libkernel", "libkernel");
     module.addSymbolStub("PfccT7qURYE", "ioctl", "libkernel", "libkernel");
     module.addSymbolStub("TU-d9PfIHPM", "socket", "libkernel", "libkernel");
@@ -357,6 +359,9 @@ void init(Module& module) {
     module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
+    module.addSymbolStub("5dgOEPsEGqw", "scePthreadBarrierInit", "libkernel", "libkernel");
+    module.addSymbolStub("t9vVyTglqHQ", "scePthreadBarrierWait", "libkernel", "libkernel");
+    module.addSymbolStub("f7KBOafysXo", "sceKernelGetModuleInfoFromAddr", "libkernel", "libkernel");    // TODO: Important
     
     module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
     

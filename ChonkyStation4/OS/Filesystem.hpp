@@ -36,6 +36,7 @@ enum class Device {
     APP0,
     SAVEDATA0,
     DEV,
+    TEMP0,
     INVALID
 };
 

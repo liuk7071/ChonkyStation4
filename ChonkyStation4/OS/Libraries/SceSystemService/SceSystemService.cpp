@@ -25,6 +25,7 @@ s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* 
     s32 ret = 0;
     switch (param_id) {
     case SCE_SYSTEM_SERVICE_PARAM_ID_LANG:                  ret = 1;    break;  // English (United States)
+    case SCE_SYSTEM_SERVICE_PARAM_ID_DATE_FORMAT:           ret = 1;    break;  // DD/MM/YYYY
     case SCE_SYSTEM_SERVICE_PARAM_ID_ENTER_BUTTON_ASSIGN:   ret = 1;    break;  // Cross
 
     default:

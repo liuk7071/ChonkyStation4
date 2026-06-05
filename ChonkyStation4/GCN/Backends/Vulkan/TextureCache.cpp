@@ -44,6 +44,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
     size_t img_size;
     switch (vk_fmt) {
+    case vk::Format::eBc4UnormBlock:
+    case vk::Format::eBc4SnormBlock:
     case vk::Format::eBc1RgbaUnormBlock:
     case vk::Format::eBc1RgbaSrgbBlock: {
         const auto blk_width  = (width + 3)  / 4;
@@ -55,6 +57,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     case vk::Format::eBc7UnormBlock:
     case vk::Format::eBc7SrgbBlock:
     case vk::Format::eBc6HUfloatBlock:
+    case vk::Format::eBc5UnormBlock:
+    case vk::Format::eBc5SnormBlock:
     case vk::Format::eBc3UnormBlock:
     case vk::Format::eBc3SrgbBlock:
     case vk::Format::eBc2UnormBlock:
@@ -268,8 +272,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     // Create image sampler
     auto& sampler = tex->sampler;
     vk::SamplerCreateInfo sampler_info = {
-        .magFilter = vk::Filter::eLinear,
-        .minFilter = vk::Filter::eLinear,
+        .magFilter = vk::Filter::eNearest,
+        .minFilter = vk::Filter::eNearest,
         .mipmapMode = vk::SamplerMipmapMode::eNearest,
 
         // Hack for Tomb Raider, fix when I implement samplers

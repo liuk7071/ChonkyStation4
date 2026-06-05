@@ -129,7 +129,7 @@ public:
     SDL_Window* window;
 
     virtual void init() = 0;
-    virtual void draw(const u64 cnt, const void* idx_buf_ptr = nullptr) = 0;
+    virtual void draw(const u64 cnt, const void* idx_buf_ptr = nullptr, u32 idx_offs = 0) = 0;
     virtual void drawIndirect(const u64 cnt, const bool is_indexed, void* draw_args, void* idx_buf_ptr = nullptr, s32 idx_buf_max_size = 0) = 0;
     virtual void dispatch(ComputeJob job) = 0;
     virtual void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) = 0;

@@ -508,7 +508,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
     return extent;
 }
 
-void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
+void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) {
     const auto* vs_ptr = getVSPtr();
     const auto* ps_ptr = getPSPtr();
     log("Vertex Shader address : %p\n", vs_ptr);
@@ -523,8 +523,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
 
-    //if (!fetch_shader_ptr)
-    //    return;
+    if (!fetch_shader_ptr)
+        return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
@@ -603,6 +603,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
         cmd_bufs[0].setBlendConstants(blend_constants);
     }
 
+    // Primitive restart (TODO: You can configure the restart value)
+    cmd_bufs[0].setPrimitiveRestartEnable(regs[Reg::mmVGT_MULTI_PRIM_IB_RESET_EN] & 1);
+
     if (descriptor_writes.size())
         cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
     
@@ -614,7 +617,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr) {
     
     if (idx_buf_ptr) {
         cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
-        cmd_bufs[0].drawIndexed(cnt, 1, 0, 0, 0);
+        cmd_bufs[0].drawIndexed(cnt, 1, idx_offs, 0, 0);
     }
     else {
         cmd_bufs[0].draw(cnt, 1, 0, 0);

@@ -152,7 +152,12 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format8: {
         switch ((NumberFormat)nfmt) {
 
-        case NumberFormat::Unorm: return { vk::Format::eR8Unorm, sizeof(u8) };
+        case NumberFormat::Unorm:   return { vk::Format::eR8Unorm, sizeof(u8) };
+        case NumberFormat::Snorm:   return { vk::Format::eR8Snorm, sizeof(u8) };
+        case NumberFormat::Uscaled: return { vk::Format::eR8Uscaled, sizeof(u8) };
+        case NumberFormat::Sscaled: return { vk::Format::eR8Sscaled, sizeof(u8) };
+        case NumberFormat::Uint:    return { vk::Format::eR8Uint, sizeof(u8) };
+        case NumberFormat::Sint:    return { vk::Format::eR8Sint, sizeof(u8) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }
@@ -162,7 +167,12 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format8_8: {
         switch ((NumberFormat)nfmt) {
 
-        case NumberFormat::Unorm: return { vk::Format::eR8G8Unorm, sizeof(u8) * 2 };
+        case NumberFormat::Unorm:   return { vk::Format::eR8G8Unorm, sizeof(u8) * 2 };
+        case NumberFormat::Snorm:   return { vk::Format::eR8G8Snorm, sizeof(u8) * 2 };
+        case NumberFormat::Uscaled: return { vk::Format::eR8G8Uscaled, sizeof(u8) * 2 };
+        case NumberFormat::Sscaled: return { vk::Format::eR8G8Sscaled, sizeof(u8) * 2 };
+        case NumberFormat::Uint:    return { vk::Format::eR8G8Uint, sizeof(u8) * 2 };
+        case NumberFormat::Sint:    return { vk::Format::eR8G8Sint, sizeof(u8) * 2 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }
@@ -173,6 +183,11 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Unorm:   return { vk::Format::eR16Unorm, sizeof(u16) };
+        case NumberFormat::Snorm:   return { vk::Format::eR16Snorm, sizeof(u16) };
+        case NumberFormat::Uscaled: return { vk::Format::eR16Uscaled, sizeof(u16) };
+        case NumberFormat::Sscaled: return { vk::Format::eR16Sscaled, sizeof(u16) };
+        case NumberFormat::Uint:    return { vk::Format::eR16Uint, sizeof(u16) };
+        case NumberFormat::Sint:    return { vk::Format::eR16Sint, sizeof(u16) };
         case NumberFormat::Float:   return { vk::Format::eR16Sfloat, sizeof(u16) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -183,6 +198,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format32: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Uint:    return { vk::Format::eR32Uint, sizeof(u32) };
+        case NumberFormat::Sint:    return { vk::Format::eR32Sint, sizeof(u32) };
         case NumberFormat::Float:   return { vk::Format::eR32Sfloat, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -196,6 +213,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         case NumberFormat::Unorm:   return { vk::Format::eR16G16Unorm, sizeof(u16) * 2 };
         case NumberFormat::Snorm:   return { vk::Format::eR16G16Snorm, sizeof(u16) * 2 };
         case NumberFormat::Sscaled: return { vk::Format::eR16G16Sscaled, sizeof(u16) * 2 };
+        case NumberFormat::Uint:    return { vk::Format::eR16G16Uint, sizeof(u16) * 2 };
         case NumberFormat::Sint:    return { vk::Format::eR16G16Sint, sizeof(u16) * 2 };
         case NumberFormat::Float:   return { vk::Format::eR16G16Sfloat, sizeof(u16) * 2 };
 
@@ -232,6 +250,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         case NumberFormat::Snorm:   return { vk::Format::eR8G8B8A8Snorm, sizeof(u32) };
         case NumberFormat::Uscaled: return { vk::Format::eR8G8B8A8Uscaled, sizeof(u32) };
         case NumberFormat::Uint:    return { vk::Format::eR8G8B8A8Uint, sizeof(u32) };
+        case NumberFormat::Sint:    return { vk::Format::eR8G8B8A8Sint, sizeof(u32) };
         case NumberFormat::SnormNz: return { vk::Format::eR8G8B8A8Srgb, sizeof(u32) };  // TODO: ?
         case NumberFormat::Srgb:    return { vk::Format::eR8G8B8A8Srgb, sizeof(u32) };
 
@@ -243,6 +262,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format32_32: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Uint:  return { vk::Format::eR32G32Uint, sizeof(u32) * 2 };
+        case NumberFormat::Sint:  return { vk::Format::eR32G32Sint, sizeof(u32) * 2 };
         case NumberFormat::Float: return { vk::Format::eR32G32Sfloat, sizeof(u32) * 2 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -253,6 +274,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format16_16_16_16: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Snorm:   return { vk::Format::eR16G16B16A16Snorm, sizeof(u16) * 4 };
+        case NumberFormat::Uint:    return { vk::Format::eR16G16B16A16Uint, sizeof(u16) * 4 };
         case NumberFormat::Sint:    return { vk::Format::eR16G16B16A16Sint, sizeof(u16) * 4 };
         case NumberFormat::Float:   return { vk::Format::eR16G16B16A16Sfloat, sizeof(u16) * 4 };
 
@@ -264,6 +287,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format32_32_32: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Uint: return { vk::Format::eR32G32B32Uint, sizeof(u32) * 3 };
+        case NumberFormat::Sint: return { vk::Format::eR32G32B32Sint, sizeof(u32) * 3 };
         case NumberFormat::Float: return { vk::Format::eR32G32B32Sfloat, sizeof(u32) * 3 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -274,6 +299,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format32_32_32_32: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Uint:  return { vk::Format::eR32G32B32A32Uint, sizeof(u32) * 4 };
+        case NumberFormat::Sint:  return { vk::Format::eR32G32B32A32Sint, sizeof(u32) * 4 };
         case NumberFormat::Float: return { vk::Format::eR32G32B32A32Sfloat, sizeof(u32) * 4 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -285,6 +312,16 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Unorm: return { vk::Format::eR5G6B5UnormPack16, sizeof(u16) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::Format4_4_4_4: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eR4G4B4A4UnormPack16, sizeof(u16) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }
@@ -318,6 +355,28 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
 
         case NumberFormat::Unorm: return { vk::Format::eBc3UnormBlock, sizeof(u32) };
         case NumberFormat::Srgb:  return { vk::Format::eBc3SrgbBlock, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::FormatBc4: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eBc4UnormBlock, sizeof(u32) };
+        case NumberFormat::Snorm: return { vk::Format::eBc4SnormBlock, sizeof(u32) };
+
+        default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
+        }
+        break;
+    }
+
+    case DataFormat::FormatBc5: {
+        switch ((NumberFormat)nfmt) {
+
+        case NumberFormat::Unorm: return { vk::Format::eBc5UnormBlock, sizeof(u32) };
+        case NumberFormat::Snorm: return { vk::Format::eBc5SnormBlock, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }

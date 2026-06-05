@@ -20,6 +20,7 @@ std::unordered_map<int, std::string> in_attrs;
 std::unordered_map<int, std::string> out_attrs;
 std::unordered_map<int, std::string> in_buffers;
 std::unordered_map<int, std::string> in_samplers;
+std::unordered_map<int, std::string> out_imgs;
 
 void addFunc(std::string name, std::string body) {
     shader += name + "() {\n";
@@ -179,12 +180,12 @@ void addInSampler2D(std::string name, int binding) {
 }
 
 void addOutImage2D(std::string name, int binding) {
-    if (in_samplers.contains(binding)) {
+    if (out_imgs.contains(binding)) {
         // Extra check to be safe, this shouldn't ever happen
-        Helpers::debugAssert(in_samplers[binding] == name, "ShaderDecompiler: tried to add an output Image2D to an already used binding with a different name\n");
+        Helpers::debugAssert(out_imgs[binding] == name, "ShaderDecompiler: tried to add an output Image2D to an already used binding with a different name\n");
         return;
     }
-    in_samplers[binding] = name;    // Safe to reuse map
+    out_imgs[binding] = name;
     shader += std::format("layout(binding = {}) uniform writeonly image2D {};\n", binding, name);
 }
 
@@ -229,8 +230,13 @@ std::string getType(int n_lanes, u32 nfmt) {
     switch (n_lanes) {
     case 1: {
         switch ((NumberFormat)nfmt) {
-        case NumberFormat::Float:   return "float";
+        case NumberFormat::Unorm:   return "float";
+        case NumberFormat::Snorm:   return "float";
         case NumberFormat::Uscaled: return "float";
+        case NumberFormat::Sscaled: return "float";
+        case NumberFormat::Uint:    return "uint";
+        case NumberFormat::Sint:    return "int";
+        case NumberFormat::Float:   return "float";
         default: Helpers::panic("Unhandled n_lanes=%d, nfmt=%d", n_lanes, nfmt);
         }
         break;
@@ -383,6 +389,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     out_attrs.clear();
     in_buffers.clear();
     in_samplers.clear();
+    out_imgs.clear();
     has_cubemap_id_func = false;
     has_cubemap_scoord_func = false;
     has_cubemap_tcoord_func = false;
@@ -423,6 +430,18 @@ uint getStrideForBinding(uint binding) {
     return stride;
 }
 
+int sext6(uint x) {
+    return int(x << 26) >> 26;
+}
+
+ivec3 unpackImageOffset(uint packed) {
+    return ivec3(
+        sext6((packed >> 0)  & 0x3fu),
+        sext6((packed >> 8)  & 0x3fu),
+        sext6((packed >> 16) & 0x3fu)
+    );
+}
+
 )";
 
     if (stage == ShaderStage::Compute) {
@@ -453,6 +472,7 @@ uint getStrideForBinding(uint binding) {
     while (!code_slice.atEnd() && !done) {
         const auto instr = decoder.decodeInstruction(code_slice);
 
+        bool is_img_store = false;
         switch (instr.opcode) {
         case Shader::Opcode::S_ENDPGM: {
             done = true;
@@ -508,6 +528,10 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::IMAGE_STORE:
+        case Shader::Opcode::IMAGE_ATOMIC_ADD:
+        case Shader::Opcode::IMAGE_ATOMIC_UMIN:
+            is_img_store = true;
         case Shader::Opcode::IMAGE_GATHER4_C:
         case Shader::Opcode::IMAGE_LOAD:
         case Shader::Opcode::IMAGE_LOAD_MIP:
@@ -519,7 +543,6 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::IMAGE_SAMPLE_LZ_O:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O:
-        case Shader::Opcode::IMAGE_STORE:
         case Shader::Opcode::IMAGE_GET_RESINFO:
         case Shader::Opcode::BUFFER_LOAD_DWORD:
         case Shader::Opcode::BUFFER_LOAD_DWORDX2:
@@ -538,11 +561,14 @@ uint getStrideForBinding(uint binding) {
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY: 
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ: 
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW:
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_X: 
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XY: 
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZ: 
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW: {
-            auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0) -> Buffer& {
+            auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0, bool is_image_store = false) -> Buffer& {
                 // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
-                    if (buf.desc_info.sgpr == sgpr && buf.desc_info.is_ptr == is_ptr && buf.desc_info.offs == offs) {
+                    if (buf.desc_info.sgpr == sgpr && buf.desc_info.is_ptr == is_ptr && buf.desc_info.offs == offs && buf.is_image_store == is_image_store) {
                         // The buffer already exists
                         return buf;
                     }
@@ -564,6 +590,7 @@ uint getStrideForBinding(uint binding) {
                 }
                 else buf.is_instr_typed = false;
 
+                buf.is_image_store = false;
                 buf.desc_info.sgpr = sgpr;
                 buf.desc_info.is_ptr = is_ptr;
                 buf.desc_info.offs = offs;
@@ -586,12 +613,15 @@ uint getStrideForBinding(uint binding) {
                     auto name = std::format("tex{}", buf.binding);
 
                     switch (instr.opcode) {
+                    case Shader::Opcode::IMAGE_ATOMIC_ADD:
+                    case Shader::Opcode::IMAGE_ATOMIC_UMIN:
                     case Shader::Opcode::IMAGE_STORE: {
                         buf.is_image_store = true;
                         addOutImage2D(name, buf.binding);
                         break;
                     }
                     default:
+                        buf.is_image_store = false;
                         addInSampler2D(name, buf.binding);
                         break;
                     }
@@ -612,13 +642,13 @@ uint getStrideForBinding(uint binding) {
             const auto sgpr = instr.src[idx].code * mult;
             if (!descs.contains(sgpr)) {
                 // We assume that the descriptor is being passed directly as user data.
-                auto& buf = get_buffer(sgpr, false);
+                auto& buf = get_buffer(sgpr, false, 0, is_img_store);
                 buffer_map[buf_mapping_idx++] = &buf;
                 //printf("Found V# in SGPR %d\n", buf.desc_info.sgpr);
             }
             else {
                 auto& desc = descs[sgpr];
-                auto& buf = get_buffer(desc.sgpr, desc.is_ptr, desc.offs);
+                auto& buf = get_buffer(desc.sgpr, desc.is_ptr, desc.offs, is_img_store);
                 buffer_map[buf_mapping_idx++] = &buf;
             }
             break;
@@ -679,7 +709,7 @@ uint getStrideForBinding(uint binding) {
                 else if (swizzle == DSEL_B) val = attr + ".z";
                 else if (swizzle == DSEL_A) val = attr + ".w";
 
-                if (!(type.contains("ivec") || type.contains("int")))
+                if (!(type.contains("ivec") || type.contains("uvec") || type.contains("int")))
                     val = std::format("floatBitsToUint({})", val);
 
                 main += std::format("{} = {};\n", getVGPR(binding.dest_vgpr + i), val);
@@ -734,19 +764,31 @@ uint getStrideForBinding(uint binding) {
         }
 
         case Shader::Opcode::S_ADD_U32: {
-            main += setDST<Type::Int>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} + {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             // TODO: Carry out
             break;
         }
 
         case Shader::Opcode::S_SUB_U32: {
-            main += setDST<Type::Int>(instr.dst[0], std::format("{} - {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
-            // TODO: Carry out
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} - {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            // TODO: Borrow
             break;
         }
         
         case Shader::Opcode::S_ADD_I32: {
             main += setDST<Type::Int>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Carry out
+            break;
+        }
+
+        case Shader::Opcode::S_SUB_I32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("{} - {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Borrow
+            break;
+        }
+        
+        case Shader::Opcode::S_ADDC_U32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} + {} + scc", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             // TODO: Carry out
             break;
         }
@@ -804,9 +846,26 @@ uint getStrideForBinding(uint binding) {
             break;
         }
         
+        case Shader::Opcode::S_NOR_B64: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("~({} | {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+
         case Shader::Opcode::S_LSHL_B32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+        
+        case Shader::Opcode::S_LSHR_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            main += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_BFM_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("((1 << ({} & 0x1f)) - 1) << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
 
@@ -828,6 +887,11 @@ uint getStrideForBinding(uint binding) {
             const s16 imm16 = instr.control.sopk.simm;
             const s32 imm32 = (s32)imm16;
             main += setDST<Type::Int>(instr.dst[0], std::format("{}", imm32));
+            break;
+        }
+
+        case Shader::Opcode::S_CMPK_GT_U32: {
+            main += "// TODO: S_CMPK_GT_U32\n";
             break;
         }
         
@@ -859,6 +923,21 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::S_BREV_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("bitfieldReverse({})", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::S_GETPC_B64: {
+            main += "// TODO: S_GETPC_B64\n";
+            break;
+        }
+
+        case Shader::Opcode::S_SETPC_B64: {
+            main += "// TODO: S_SETPC_B64\n";
+            break;
+        }
+
         case Shader::Opcode::S_SWAPPC_B64: {
             main += "// S_SWAPPC_B64\n";
             break;
@@ -883,7 +962,27 @@ uint getStrideForBinding(uint binding) {
             main += std::format("scc = uint({} != {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
             break;
         }
-        
+
+        case Shader::Opcode::S_CMP_GT_I32: {
+            main += std::format("scc = uint({} > {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::S_CMP_GE_I32: {
+            main += std::format("scc = uint({} >= {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::S_CMP_LT_I32: {
+            main += std::format("scc = uint({} < {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::S_CMP_LE_I32: {
+            main += std::format("scc = uint({} <= {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::S_CMP_EQ_U32: {
             main += std::format("scc = uint({} == {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
             break;
@@ -891,6 +990,21 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::S_CMP_LG_U32: {
             main += std::format("scc = uint({} != {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+        
+        case Shader::Opcode::S_CMP_GT_U32: {
+            main += std::format("scc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::S_CMP_GE_U32: {
+            main += std::format("scc = uint({} >= {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::S_CMP_LT_U32: {
+            main += std::format("scc = uint({} < {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
             break;
         }
 
@@ -908,6 +1022,11 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::S_CBRANCH_VCCNZ: {
             main += "// TODO: S_CBRANCH_VCCNZ\n";
+            break;
+        }
+
+        case Shader::Opcode::S_BARRIER: {
+            main += "barrier();\n";
             break;
         }
 
@@ -965,6 +1084,48 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_CMPX_LT_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, "<");
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_EQ_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, "==");
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_LE_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, "<=");
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_GT_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, ">");
+            break;
+        }
+        
+        case Shader::Opcode::V_CMPX_LG_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, "!=");
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_GE_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, ">=");
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_NGE_F32: {
+            // TODO: Exec
+            main += v_cmp_f32(instr, "<");
+            break;
+        }
+        
         case Shader::Opcode::V_CMPX_NLE_F32: {
             // TODO: Exec
             main += v_cmp_f32(instr, ">");
@@ -1050,6 +1211,13 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_CMPX_NE_U32: {
+            // TODO: This can set other registers too I think?
+            // TODO: Exec
+            main += std::format("vcc = uint({} != {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_CNDMASK_B32: {
             std::string cond;
             if (instr.src[2].field == OperandField::ScalarGPR) {
@@ -1060,6 +1228,11 @@ uint getStrideForBinding(uint binding) {
             }
 
             main += setDST<Type::Uint>(instr.dst[0], std::format("({} == 1) ? {} : {}", cond, getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_READFIRSTLANE_B32: {
+            main += "// TODO: V_READFIRSTLANE_B32\n";
             break;
         }
 
@@ -1107,6 +1280,11 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_MUL_U32_U24: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+
         case Shader::Opcode::V_MIN_LEGACY_F32:
         case Shader::Opcode::V_MIN_F32: {
             main += setDST(instr.dst[0], std::format("min({}, {})", getSRC(instr.src[0]), getSRC(instr.src[1])));
@@ -1119,13 +1297,23 @@ uint getStrideForBinding(uint binding) {
             break;
         }
         
+        case Shader::Opcode::V_MIN_I32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("min({}, {})", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            break;
+        }
+        
         case Shader::Opcode::V_MAX_I32: {
             main += setDST<Type::Int>(instr.dst[0], std::format("max({}, {})", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             break;
         }
         
         case Shader::Opcode::V_MIN_U32: {
-            main += setDST<Type::Int>(instr.dst[0], std::format("min({}, {})", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            main += setDST<Type::Uint>(instr.dst[0], std::format("min({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+
+        case Shader::Opcode::V_MAX_U32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("max({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
 
@@ -1151,6 +1339,11 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::V_OR_B32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} | {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+        
+        case Shader::Opcode::V_XOR_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("{} ^ {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
 
@@ -1182,6 +1375,11 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_LDEXP_F32: {
+            main += setDST<Type::Float>(instr.dst[0], std::format("ldexp({}, {})", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            break;
+        }
+
         case Shader::Opcode::V_CVT_PKRTZ_F16_F32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("packHalf2x16(vec2({}, {}))", getSRC(instr.src[0]), getSRC(instr.src[1])));
             break;
@@ -1198,13 +1396,14 @@ uint getStrideForBinding(uint binding) {
             main += setDST(instr.dst[0], std::format("float({})", getSRC<Type::Int>(instr.src[0])));
             break;
         }
+
         case Shader::Opcode::V_CVT_F32_U32: {
             main += setDST(instr.dst[0], std::format("float({})", getSRC<Type::Uint>(instr.src[0])));
             break;
         }
         
         case Shader::Opcode::V_CVT_U32_F32: {
-            main += setDST<Type::Uint>(instr.dst[0], std::format("uint({})", getSRC(instr.src[0])));
+            main += setDST<Type::Uint>(instr.dst[0], std::format("uint({})", getSRC<Type::Float>(instr.src[0])));
             break;
         }
 
@@ -1215,6 +1414,21 @@ uint getStrideForBinding(uint binding) {
             main += std::format("else if ({} < -{}) tmp.x = -{};\n", src0, INT32_MAX, INT32_MAX);
             main += std::format("else               tmp.x =  {};\n", src0);
             main += setDST<Type::Uint>(instr.dst[0], "int(tmp.x)");
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_F32_F16: {
+            main += setDST<Type::Float>(instr.dst[0], std::format("unpackHalf2x16({}).x", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_FLR_I32_F32: {
+            const auto src0 = getSRC(instr.src[0]);
+
+            main += std::format("if      ({} >  {}) tmp.x =  {};\n", src0, INT32_MAX, INT32_MAX);
+            main += std::format("else if ({} < -{}) tmp.x = -{};\n", src0, INT32_MAX, INT32_MAX);
+            main += std::format("else               tmp.x =  {};\n", src0);
+            main += setDST<Type::Uint>(instr.dst[0], "int(floor(tmp.x))");
             break;
         }
 
@@ -1229,6 +1443,26 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_CVT_F32_UBYTE0: {
+            main += setDST(instr.dst[0], std::format("float({} & 0xff)", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_F32_UBYTE1: {
+            main += setDST(instr.dst[0], std::format("float(({} >> 8) & 0xff)", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_F32_UBYTE2: {
+            main += setDST(instr.dst[0], std::format("float(({} >> 16) & 0xff)", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_F32_UBYTE3: {
+            main += setDST(instr.dst[0], std::format("float(({} >> 24) & 0xff)", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
         case Shader::Opcode::V_FRACT_F32: {
             main += setDST(instr.dst[0], std::format("fract({})", getSRC(instr.src[0])));
             break;
@@ -1236,6 +1470,12 @@ uint getStrideForBinding(uint binding) {
         
         case Shader::Opcode::V_TRUNC_F32: {
             main += setDST(instr.dst[0], std::format("trunc({})", getSRC(instr.src[0])));
+            break;
+        }
+
+        case Shader::Opcode::V_CEIL_F32: {
+            // TODO: The manual says it's actually implemented as trunc...?
+            main += setDST(instr.dst[0], std::format("ceil({})", getSRC(instr.src[0])));
             break;
         }
 
@@ -1294,6 +1534,11 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_BFREV_B32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("bitfieldReverse({})", getSRC<Type::Uint>(instr.src[0])));
+            break;
+        }
+
         case Shader::Opcode::V_MAD_LEGACY_F32:
         case Shader::Opcode::V_MAD_F32: {
             main += setDST(instr.dst[0], std::format("{} * {} + {}", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
@@ -1337,6 +1582,22 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::V_BFE_I32: {
+            const auto src0 = getSRC<Type::Int>(instr.src[0]);
+            const auto src1 = getSRC<Type::Int>(instr.src[1]);
+            const auto src2 = getSRC<Type::Int>(instr.src[2]);
+            main += setDST<Type::Int>(instr.dst[0], std::format("bitfieldExtract({}, int({} & 0x1f), int({} & 0x1f))", src0, src1, src2));
+            break;
+        }
+
+        case Shader::Opcode::V_BFI_B32: {
+            const auto src0 = getSRC<Type::Uint>(instr.src[0]);
+            const auto src1 = getSRC<Type::Uint>(instr.src[1]);
+            const auto src2 = getSRC<Type::Uint>(instr.src[2]);
+            main += setDST<Type::Uint>(instr.dst[0], std::format("({} & {}) | (~{} & {})", src0, src1, src0, src2));
+            break;
+        }
+
         case Shader::Opcode::V_MADAK_F32:
         case Shader::Opcode::V_FMA_F32: {
             main += setDST(instr.dst[0], std::format("fma({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
@@ -1375,6 +1636,11 @@ uint getStrideForBinding(uint binding) {
 
         case Shader::Opcode::V_MUL_LO_U32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} * {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+        
+        case Shader::Opcode::V_MUL_LO_I32: {
+            main += setDST<Type::Int>(instr.dst[0], std::format("{} * {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             break;
         }
 
@@ -1490,11 +1756,34 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::DS_WRITE_B32: {
+            main += "// TODO: DS_WRITE_B32\n";
+            break;
+        }
+        
+        case Shader::Opcode::DS_WRITE2_B32: {
+            main += "// TODO: DS_WRITE2_B32\n";
+            break;
+        }
+
         case Shader::Opcode::DS_SWIZZLE_B32: {
             main += setDST(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 */", getSRC(instr.src[0])));
             break;
         }
 
+        case Shader::Opcode::DS_READ_B32: {
+            main += "// TODO: DS_READ_B32\n";
+            break;
+        }
+
+        case Shader::Opcode::DS_READ2_B32: {
+            main += "// TODO: DS_READ2_B32\n";
+            break;
+        }
+
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_X:      // TODO: Handle properly
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XY:     // TODO: Handle properly
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZ:    // TODO: Handle properly
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW:   // TODO: Handle properly
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_X:
         case Shader::Opcode::TBUFFER_LOAD_FORMAT_XY:
@@ -1521,6 +1810,15 @@ uint getStrideForBinding(uint binding) {
                 main += std::format("{} |= fetchBufferByte{}({} + 2) << 16u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
                 main += std::format("{} |= fetchBufferByte{}({} + 3) << 24u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
             }
+            break;
+        }
+
+        case Shader::Opcode::BUFFER_STORE_FORMAT_X: 
+        case Shader::Opcode::BUFFER_STORE_FORMAT_XY: 
+        case Shader::Opcode::BUFFER_STORE_FORMAT_XYZ: 
+        case Shader::Opcode::BUFFER_STORE_FORMAT_XYZW: {
+            main += "// TODO: BUFFER_STORE_FORMAT\n";
+            printf("TODO: BUFFER_STORE_FORMAT\n");
             break;
         }
 
@@ -1588,6 +1886,28 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::IMAGE_ATOMIC_ADD: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_ATOMIC_ADD: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto image_name = std::format("tex{}", buf->binding);
+
+            main += "// TODO: IMAGE_ATOMIC_ADD " + image_name + "\n";
+            break;
+        }
+
+        case Shader::Opcode::IMAGE_ATOMIC_UMIN: {
+            const auto buffer_mapping = buf_mapping_idx++;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_ATOMIC_UMIN: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto image_name = std::format("tex{}", buf->binding);
+
+            main += "// TODO: IMAGE_ATOMIC_UMIN " + image_name + "\n";
+            break;
+        }
+
         case Shader::Opcode::IMAGE_SAMPLE_L:
         case Shader::Opcode::IMAGE_SAMPLE_LZ:
         case Shader::Opcode::IMAGE_SAMPLE_C:
@@ -1603,26 +1923,49 @@ uint getStrideForBinding(uint binding) {
             
             const auto sampler_name = std::format("tex{}", buf->binding);
             
-            // The index of the texcoord register varies depending on the image flags.
-            // TODO: Use the decoder's image flags
+            const auto flags = MimgModifierFlags(instr.control.mimg.mod);
+            const bool offset = flags.test(MimgModifier::Offset);
+            const bool lod_bias = flags.test(MimgModifier::LodBias);
+            const bool pcf = flags.test(MimgModifier::Pcf);
+            const bool derivative = flags.test(MimgModifier::Derivative);
+
             int coord_reg_idx = instr.src[0].code;
-            switch (instr.opcode) {
-            case Shader::Opcode::IMAGE_SAMPLE_C:
-            case Shader::Opcode::IMAGE_SAMPLE_C_LZ:
-            case Shader::Opcode::IMAGE_SAMPLE_O:
-            case Shader::Opcode::IMAGE_SAMPLE_LZ_O: {
-                coord_reg_idx++;
-                break;
-            }
-            case Shader::Opcode::IMAGE_SAMPLE_C_LZ_O: {
-                coord_reg_idx += 2;
-                break;
-            }
+
+            int offset_reg = 0;
+            std::string offset_str = "";
+            if (offset) {
+                offset_reg = coord_reg_idx++;
+                offset_str = std::format("unpackImageOffset({})", getVGPR(offset_reg));
             }
 
-            const std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+            if (lod_bias)
+                coord_reg_idx++;
+
+            if (pcf)
+                coord_reg_idx++;
+
+            if (derivative)
+                coord_reg_idx += 2; // TODO: This should be 1 per dimension (i.e. 3 for 3D textures)
+
+            std::string sample_op = "texture";
+            
+            // TODO: LoadBias, PCF, derivative
+            std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
             main += std::format("// T# is in s{}\n", instr.src[2].code * 4);
-            main += std::format("tmp = texture({}, {});\n", sampler_name, texcoords);
+            
+            // Instead of using textureOffset we bake the offset into the coordinates, because textureOffset expects a constant offset
+            if (offset)
+                // Resident Evil Revelations relies on the + 0.5.
+                // It samples at (0, 0) with offset (1, 0) expecting to receive the texel at (1, 0). This would work if we used textureOffset, because the offset is applied in texel-space.
+                // Because we add the offset to the normalized coordinates instead, it doesn't work, because (0, 0) is the top-left corner of the texture 
+                // rather than the center of the texel, so adding (1, 0) to it ends up falling in between the 2 pixels and doesn't reliably sample the correct pixel.
+                texcoords = std::format("{} + (vec2({}.xy) + 0.5) * (1.0 / vec2(textureSize({}, 0)))", texcoords, offset_str, sampler_name);    // TODO: Multiple dimensions
+
+            std::string operation = std::format("{}({}, {}", sample_op, sampler_name, texcoords);
+            // TODO: Add other parameters for other sampling options
+            operation += ")";
+
+            main += std::format("tmp = {};\n", operation);
             main += "tmp2 = float[](tmp.x, tmp.y, tmp.z, tmp.w);\n";
 
             // Set results according to DMASK
@@ -1718,6 +2061,13 @@ uint getStrideForBinding(uint binding) {
             break;
         }
 
+        case Shader::Opcode::IMAGE_GET_LOD: {
+            std::format("{} = 0; // TODO: IMAGE_GET_LOD\n", getVGPR(instr.dst[0].code + 0));
+            std::format("{} = 0; // TODO: IMAGE_GET_LOD\n", getVGPR(instr.dst[0].code + 1));
+            printf("TODO: IMAGE_GET_LOD\n");
+            break;
+        }
+
         case Shader::Opcode::EXP: {
             //if (stage == ShaderStage::Fragment) {
             //    if (instr.control.exp.vm) {
@@ -1744,9 +2094,16 @@ uint getStrideForBinding(uint binding) {
             else if (tgt == 8) {
                 main += "gl_FragDepth = " + data + ".x;\n";
             }
+            else if (tgt == 9) {
+                // "Output to NULL" - do nothing
+            }
             // Output pos0
             else if (tgt == 12) {
                 main += "gl_Position = " + data + ";\n";
+            }
+            // Output pos1-pos4, ignore for now
+            else if (tgt >= 13 && tgt <= 15) {
+                main += "// TODO: pos1-pos4 output\n";
             }
             // Output attribute
             else if (tgt >= 32 && tgt < 64) {

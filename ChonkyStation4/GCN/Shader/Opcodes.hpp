@@ -2465,7 +2465,7 @@ enum class MimgModifier : u32 {
     Pcf,              /// Percentage closer filtering.
     Offset            /// Send X, Y, Z integer offsets (packed into 1 Dword) to offset XYZ address.
 };
-//using MimgModifierFlags = Common::Flags<MimgModifier>;
+using MimgModifierFlags = Helpers::Flags<MimgModifier>;
 
 enum class ImageResComponent : u32 { Width, Height, Depth, MipCount };
 //using ImageResFlags = Common::Flags<ImageResComponent>;

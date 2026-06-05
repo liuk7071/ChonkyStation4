@@ -16,6 +16,7 @@ void init(Module& module) {
     module.addSymbolExport("3Zl8BePTh9Y", "sceNpCheckCallback", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckCallback);
     module.addSymbolExport("eQH7nWPcAgc", "sceNpGetState", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetState);
     module.addSymbolExport("p-o74CnoNzY", "sceNpGetNpId", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetNpId);
+    module.addSymbolExport("Oad3rvY-NJQ", "sceNpHasSignedUp", "libSceNpManager", "libSceNpManager", (void*)&sceNpHasSignedUp);
     module.addSymbolExport("rbknaUjpqWo", "sceNpGetAccountIdA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetAccountIdA);
     module.addSymbolExport("XDncXQIJUSk", "sceNpGetOnlineId", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetOnlineId);
     module.addSymbolExport("JT+t00a3TxA", "sceNpGetAccountCountryA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetAccountCountryA);
@@ -28,6 +29,7 @@ void init(Module& module) {
     module.addSymbolStub("A2CQ3kgSopQ", "sceNpSetContentRestriction", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("VfRSmPmj8Q8", "sceNpRegisterStateCallback", "libSceNpManager", "libSceNpManager", 0);
     module.addSymbolStub("qQJfO8HAiaY", "sceNpRegisterStateCallbackA", "libSceNpManager", "libSceNpManager", 1);
+    module.addSymbolStub("oPO9U42YpgI", "sceNpGetGamePresenceStatusA", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("mjjTXh+NHWY", "sceNpUnregisterStateCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("xViqJdDgKl0", "sceNpUnregisterPlusEventCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("hw5KNqAAels", "sceNpRegisterNpReachabilityStateCallback", "libSceNpManager", "libSceNpManager");
@@ -37,6 +39,7 @@ void init(Module& module) {
     module.addSymbolStub("KswxLxk4c1Y", "sceNpRegisterGamePresenceCallbackA", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GpLQDNKICac", "sceNpCreateRequest", "libSceNpManager", "libSceNpManager", 1);
     module.addSymbolStub("2rsFmlGWleQ", "sceNpCheckNpAvailability", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("8Z2Jc5GvGDI", "sceNpCheckNpAvailabilityA", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("S7QTn72PrDw", "sceNpDeleteRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("OzKvTvg3ZYU", "sceNpAbortRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GFhVUpRmbHE", "sceNpInGameMessageInitialize", "libSceNpManager", "libSceNpManager");
@@ -73,6 +76,13 @@ s32 PS4_FUNC sceNpGetNpId(SceUserService::SceUserServiceUserId uid, SceNpId* np_
     // Return dummy NpId
     std::memset(np_id, 0, sizeof(SceNpId));
     std::strcpy(np_id->handle.data, "ChonkyStation4");
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceNpHasSignedUp(SceUserService::SceUserServiceUserId uid, bool* has_signed_up) {
+    log("sceNpHasSignedUp(uid=%d, has_signed_up=*%p)\n", uid, has_signed_up);
+
+    *has_signed_up = is_signed_in;
     return SCE_OK;
 }
 

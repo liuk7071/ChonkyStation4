@@ -18,6 +18,7 @@
 #include <OS/Libraries/SceRandom/SceRandom.hpp>
 #include <OS/Libraries/SceVideodec/SceVideodec.hpp>
 #include <OS/Libraries/SceAjm/SceAjm.hpp>
+#include <OS/Libraries/SceAppContent/SceAppContent.hpp>
 
 
 // Stub until we implement audio input
@@ -58,13 +59,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceRandom::init(*module);
     PS4::OS::Libs::SceVideodec::init(*module);
     PS4::OS::Libs::SceAjm::init(*module);
-
-    // libSceAppContent
-    module->addSymbolStub("R9lA82OraNs", "sceAppContentInitialize", "libSceAppContent", "libSceAppContentUtil");
-    module->addSymbolStub("xnd8BJzAxmk", "sceAppContentGetAddcontInfoList", "libSceAppContent", "libSceAppContentUtil");
-    module->addSymbolStub("99b82IKXpH4", "sceAppContentAppParamGetInt", "libSceAppContent", "libSceAppContentUtil"); // TODO: Important
-    //module->addSymbolStub("XTWR0UXvcgs", "sceAppContentGetEntitlementKey", "libSceAppContent", "libSceAppContentUtil", 0x80D90007 /* SCE_APP_CONTENT_ERROR_DRM_NO_ENTITLEMENT */); // TODO: Important...?
-    module->addSymbolStub("XTWR0UXvcgs", "sceAppContentGetEntitlementKey", "libSceAppContent", "libSceAppContentUtil", 0); // TODO: Important...?
+    PS4::OS::Libs::SceAppContent::init(*module);
 
     // libSceScreenShot
     module->addSymbolStub("2xxUtuC-RzE", "sceScreenShotEnable", "libSceScreenShot", "libSceScreenShot");
@@ -76,6 +71,7 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceSharePlay
     module->addSymbolStub("isruqthpYcw", "sceSharePlayInitialize", "libSceSharePlay", "libSceSharePlay");
     module->addSymbolStub("co2NCj--pnc", "sceSharePlaySetProhibition", "libSceSharePlay", "libSceSharePlay");
+    module->addSymbolStub("OOrLKB0bSDs", "sceSharePlayGetCurrentConnectionInfo", "libSceSharePlay", "libSceSharePlay");
     
     // libSceMsgDialog
     module->addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
@@ -179,6 +175,8 @@ std::shared_ptr<Module> buildHLEModule() {
     
     // libSceHttp
     module->addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
+    module->addSymbolStub("Kiwv9r4IZCc", "sceHttpCreateConnection", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("Aeu5wVKkF9w", "sceHttpCreateRequestWithURL", "libSceHttp", "libSceHttp");
     module->addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
     module->addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
     module->addSymbolStub("s2-NPIvz+iA", "sceHttpSetNonblock", "libSceHttp", "libSceHttp");
@@ -220,6 +218,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("CrLqDwWLoXM", "sceVoiceGetPortInfo", "libSceVoice", "libSceVoice");
     module->addSymbolStub("oV9GAdJ23Gw", "sceVoiceConnectIPortToOPort", "libSceVoice", "libSceVoice");
     module->addSymbolStub("elcxZTEfHZM", "sceVoiceGetPortAttr", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("QBFoAIjJoXQ", "sceVoiceSetVolume", "libSceVoice", "libSceVoice");
 
     // libSceDiscMap
     module->addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
@@ -234,6 +233,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("-EHnU68gExU", "sceGameLiveStreamingPermitServerSideRecording", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("wBOQWjbWMfU", "sceGameLiveStreamingEnableSocialFeedback", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("ycodiP2I0xo", "sceGameLiveStreamingSetPresetSocialFeedbackCommands", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("CoPMx369EqM", "sceGameLiveStreamingGetCurrentStatus", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     
     // libSceCamera
     module->addSymbolStub("p6n3Npi3YY4", "sceCameraIsAttached", "libSceCamera", "libSceCamera");
@@ -242,6 +242,12 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("j1ITE-EoJmE", "sceMoveInit", "libSceMove", "libSceMove");
     module->addSymbolStub("HzC60MfjJxU", "sceMoveOpen", "libSceMove", "libSceMove", 1);
     module->addSymbolStub("f2bcpK6kJfg", "sceMoveReadStateRecent", "libSceMove", "libSceMove");
+    
+    // libSceMouse
+    module->addSymbolStub("wadT3QBCGY0", "sceKeyboardInit", "libSceKeyboard", "libSceKeyboard");
+    module->addSymbolStub("HJ+KnEHcaxI", "sceKeyboardOpen", "libSceKeyboard", "libSceKeyboard", 1);
+    module->addSymbolStub("xybbGMCr738", "sceKeyboardRead", "libSceKeyboard", "libSceKeyboard");
+    module->addSymbolStub("6HpE68bzX6M", "sceKeyboardReadState", "libSceKeyboard", "libSceKeyboard");
     
     // libSceMouse
     module->addSymbolStub("Qs0wWulgl7U", "sceMouseInit", "libSceMouse", "libSceMouse");
@@ -265,6 +271,8 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceIme
     module->addSymbolStub("eaFXjfJv3xs", "sceImeKeyboardOpen", "libSceIme", "libSceIme");
     module->addSymbolStub("-4GCfYdNF1s", "sceImeUpdate", "libSceIme", "libSceIme");
+    module->addSymbolStub("VkqLPArfFdc", "sceImeKeyboardGetInfo", "libSceIme", "libSceIme");
+    module->addSymbolStub("dKadqZFgKKQ", "sceImeKeyboardGetResourceId", "libSceIme", "libSceIme");
     
     // libSceAvPlayer
     module->addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
@@ -292,6 +300,38 @@ std::shared_ptr<Module> buildHLEModule() {
     
     // dlcldr (TODO: What is this?)
     module->addSymbolStub("4qL3yyKEXoM", "dlcldr_4qL3yyKEXoM", "dlcldr", "dlcldr");
+
+    // libSceAvPlayer
+    module->addSymbolStub("KMcEa+rHsIo", "sceAvPlayerAddSource", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("x8uvuFOPZhU", "sceAvPlayerAddSourceEx", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("buMCiJftcfw", "sceAvPlayerChangeStream", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("NkJwDzKmIlw", "sceAvPlayerClose", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("wwM99gjFf1Y", "sceAvPlayerCurrentTime", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("BOVKAzRmuTQ", "sceAvPlayerDisableStream", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("ODJK2sn9w4A", "sceAvPlayerEnableStream", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("Wnp1OVcrZgk", "sceAvPlayerGetAudioData", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("d8FcbzfAdQw", "sceAvPlayerGetStreamInfo", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("ctTAcF5DiKQ", "sceAvPlayerGetStreamInfoEx", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("o3+RWnHViSg", "sceAvPlayerGetVideoData", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("JdksQu8pNdQ", "sceAvPlayerGetVideoDataEx", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("o9eWRkSL+M4", "sceAvPlayerInitEx", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("UbQoYawOsfY", "sceAvPlayerIsActive", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("XC9wM+xULz8", "sceAvPlayerJumpToTime", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("9y5v+fGN4Wk", "sceAvPlayerPause", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("HD1YKVU26-M", "sceAvPlayerPostInit", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("agig-iDRrTE", "sceAvPlayerPrintf", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("w5moABNwnRY", "sceAvPlayerResume", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("N6Oy-EjduiY", "sceAvPlayerSetAvailableBandwidth", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("k-q+xOxdc3E", "sceAvPlayerSetAvSyncMode", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("eBTreZ84JFY", "sceAvPlayerSetLogCallback", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("OVths0xGfho", "sceAvPlayerSetLooping", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("av8Z++94rs0", "sceAvPlayerSetTrickSpeed", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("ET4Gr-Uu07s", "sceAvPlayerStart", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("NxSdL9t-KXk", "sceAvPlayerStartEx", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("ZC17w3vB5Lo", "sceAvPlayerStop", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("hdTyRzCXQeQ", "sceAvPlayerStreamCount", "libSceAvPlayer", "libSceAvPlayer");
+    module->addSymbolStub("yN7Jhuv8g24", "sceAvPlayerVprintf", "libSceAvPlayer", "libSceAvPlayer");
 
     return module;
 }

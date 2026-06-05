@@ -138,7 +138,7 @@ void processCcb(u32* ccb, size_t ccb_size) {
             }
 
             default: {
-                //log("Unimplemented ccb opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
+                log("Unimplemented ccb opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
                 break;
             }
             }
@@ -182,7 +182,14 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             log("nop cmd: 0x%08x\n", cmd);
 
             switch (cmd) {
-            case 0x68750778: {  // Flip with label (?)
+            case 0x68750780: {  // Flip with interrupt
+                GCN::eop_ev_source.trigger(EOP_EVENT_ID);
+                break;
+            }
+
+            case 0x68750781:    // Flip with label and interrupt
+                GCN::eop_ev_source.trigger(EOP_EVENT_ID);
+            case 0x68750778: {  // Flip with label
                 const u32 addr_lo = *args++ & ~3;
                 const u32 addr_hi = *args++;
                 const u32 data = *args++;
@@ -350,8 +357,9 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             default: Helpers::panic("EventWriteEop: unhandled data_sel %d\n", data_sel);
             }
 
-            if (int_sel != 0)   // None
+            if (int_sel != 0) {   // 0 = None
                 GCN::eop_ev_source.trigger(EOP_EVENT_ID);
+            }
             break;
         }
 
@@ -542,6 +550,15 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
         case PM4ItOpcode::IndexType: {
             renderer->index_type = (*args & 1) == 0 ? IndexType::Uint16 : IndexType::Uint32;
+            break;
+        }
+
+        case PM4ItOpcode::DrawIndexOffset2: {
+            const u32 max_cnt = *args++;
+            const u32 idx_offs = *args++;
+            const u32 cnt = *args++;
+            //const u32 draw_initiator = *args++;
+            renderer->draw(cnt, index_base, idx_offs);
             break;
         }
 

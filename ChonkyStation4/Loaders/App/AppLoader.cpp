@@ -38,11 +38,15 @@ void linkSysmodules(::App& app) {
         "libSceNgs2.sprx",
         "libSceUlt.sprx",
         "libScePngDec.sprx",
+        "libScePngEnc.sprx",
+        "libSceJpegDec.sprx",
+        "libSceJpegEnc.sprx",
         "libSceFont.sprx",
         "libSceFontFt.sprx",
         "libSceFreeTypeOt.sprx",
         "libSceCesCs.sprx",
-        "libSceFiber.sprx"
+        "libSceFiber.sprx",
+        "libSceJson2.sprx"
     };
 
     const std::string partial_lle_sysmodules_to_load[] = {

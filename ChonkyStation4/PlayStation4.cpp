@@ -19,6 +19,7 @@ void init() {
     gcn_thread.detach();
 
     FS::mount(FS::Device::DEV, "./dev");    // TODO: Properly handle /dev
+    FS::mount(FS::Device::TEMP0, "./temp0");
     FS::init();
 
     // Wait for graphics initialization to complete

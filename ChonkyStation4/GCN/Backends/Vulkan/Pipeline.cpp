@@ -268,6 +268,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         vk::DynamicState::eViewport,
         vk::DynamicState::eScissor,
         vk::DynamicState::eBlendConstants,
+        vk::DynamicState::ePrimitiveRestartEnable
         //vk::DynamicState::eAttachmentFeedbackLoopEnableEXT
     };
     vk::PipelineDynamicStateCreateInfo dynamic_state = { .dynamicStateCount = (u32)dynamic_states.size(), .pDynamicStates = dynamic_states.data() };

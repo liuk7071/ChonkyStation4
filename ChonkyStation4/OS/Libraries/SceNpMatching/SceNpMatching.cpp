@@ -3,6 +3,7 @@
 #include <Loaders/Module.hpp>
 #include <OS/Libraries/SceNpMatching/NpEvents.hpp>
 #include <deque>
+#include <mutex>
 
 
 namespace PS4::OS::Libs::SceNpMatching {
@@ -25,6 +26,7 @@ void init(Module& module) {
 }
 
 static s32 next_req_id = 1;
+std::mutex req_mtx;
 
 struct {
     SceNpMatching2ContextCallback func = nullptr;
@@ -48,12 +50,14 @@ struct Request {
     SceNpMatching2ContextId ctx_id = 0;
     SceNpMatching2RequestOptParam param = {};
     SceNpMatching2Event event = 0;
-    std::shared_ptr<u8> data;
+    std::vector<u8> data;
 };
 std::deque<Request> requests;
 
 // Called by sceNpCheckCallback
 void checkCallback() {
+    const auto lk = std::unique_lock<std::mutex>(req_mtx);
+
     while (ctx_events.size()) {
         auto event = ctx_events.front();
         ctx_events.pop_front();
@@ -63,7 +67,7 @@ void checkCallback() {
     while (requests.size()) {
         auto req = requests.front();
         requests.pop_front();
-        req.param.req_callback(req.ctx_id, req.req_id, req.event, 0, (void*)req.data.get(), req.param.req_callback_arg);
+        req.param.req_callback(req.ctx_id, req.req_id, req.event, 0, (void*)req.data.data(), req.param.req_callback_arg);
     }
 }
 
@@ -72,7 +76,7 @@ s32 PS4_FUNC sceNpMatching2CreateContext(const SceNpMatching2CreateContextParam*
 
     auto* ctx = OS::make<SceNpMatching2Context>(true /* Request 16bit handle */);
     ctx->param = *param;
-    ctx->server_id = 0x10;  // Random id
+    ctx->server_id = 0x80552C42;  // Random id
 
     *ctx_id = ctx->handle;
     return SCE_OK;
@@ -120,11 +124,25 @@ s32 PS4_FUNC sceNpMatching2ContextStart(const SceNpMatching2ContextId ctx_id, co
     std::memset(&ctx->test_room, 0, sizeof(SceNpMatching2RoomDataExternalA));
     ctx->test_room.next = nullptr;
     ctx->test_room.max_slots = 16;
+    ctx->test_room.server_id = ctx->server_id;
+    ctx->test_room.world_id = ctx->test_world.world_id;
+    ctx->test_room.lobby_id = 100;
+    ctx->test_room.room_id = OS::requestHandle();
     ctx->test_room.n_members = 0;
     ctx->test_room.n_public_slots = 16;
     ctx->test_room.n_free_public_slots = 16;
+    ctx->test_room.room_searchable_int_attr_external = new SceNpMatching2IntAttr();
+    ctx->test_room.room_searchable_int_attr_external->id = 0x4c;
+    ctx->test_room.room_searchable_int_attr_external->num = 1;
+    ctx->test_room.n_room_searchable_int_attr_external = 1;
+    ctx->test_room.room_searchable_bin_attr_external = new SceNpMatching2BinAttr();
+    ctx->test_room.room_searchable_bin_attr_external->id = 0x55;
+    ctx->test_room.room_searchable_bin_attr_external->ptr = (void*)0x12345;
+    ctx->test_room.room_searchable_bin_attr_external->size = 10;
+    ctx->test_room.n_room_bin_attr_external = 1;
 
     // Send context start event
+    const auto lk = std::unique_lock<std::mutex>(req_mtx);
     ctx_events.push_back({ ctx_id, SCE_NP_MATCHING2_CONTEXT_EVENT_STARTED, SCE_NP_MATCHING2_EVENT_CAUSE_CONTEXT_ACTION, 0 });
     return SCE_OK;
 }
@@ -145,13 +163,14 @@ s32 PS4_FUNC sceNpMatching2GetWorldInfoList(const SceNpMatching2ContextId ctx_id
     auto* ctx = OS::find<SceNpMatching2Context>(ctx_id);
     if (!ctx) return SCE_NP_MATCHING2_ERROR_INVALID_CONTEXT_ID;
 
+    const auto lk = std::unique_lock<std::mutex>(req_mtx);
     Request& req    = requests.emplace_back();
     req.ctx_id      = ctx->handle;
     req.param       = param ? *param : ctx->default_req_param;
     req.event       = SCE_NP_MATCHING2_REQUEST_EVENT_GET_WORLD_INFO_LIST;
-    req.data        = std::make_shared<u8>(sizeof(SceNpMatching2GetWorldInfoListResponse));
+    req.data        = std::vector<u8>(sizeof(SceNpMatching2GetWorldInfoListResponse));
 
-    auto* res       = (SceNpMatching2GetWorldInfoListResponse*)req.data.get();
+    auto* res       = (SceNpMatching2GetWorldInfoListResponse*)req.data.data();
     res->worlds     = &ctx->test_world;
     res->n_worlds   = 1;
 
@@ -161,17 +180,42 @@ s32 PS4_FUNC sceNpMatching2GetWorldInfoList(const SceNpMatching2ContextId ctx_id
 
 s32 PS4_FUNC sceNpMatching2SearchRoom(const SceNpMatching2ContextId ctx_id, const SceNpMatching2SearchRoomRequest* req_param, const SceNpMatching2RequestOptParam* param, SceNpMatching2RequestId* assigned_req_id) {
     log("sceNpMatching2SearchRoom(ctx_id=%d, req_param=*%p, param=*%p, assigned_req_id=*%p)\n", ctx_id, req_param, param, assigned_req_id);
+    log("---------------------------------------------\n");
+    log("option        : 0x%x\n", req_param->option);
+    log("world_id      : 0x%llx\n", req_param->world_id);
+    log("lobby_id      : 0x%llx\n", req_param->lobby_id);
+    log("flag_filter   : 0x%x\n", req_param->flag_filter);
+    log("flag_attr     : 0x%x\n", req_param->flag_attr);
+    for (int i = 0; i < req_param->n_int_filters; i++) {
+        log("int_filter#%d:\n", i);
+        log("  search_op : 0x%x\n", req_param->int_filter[i].search_op);
+        log("  attr.id   : 0x%x\n", req_param->int_filter[i].attr.id);
+        log("  attr.num  : 0x%x\n", req_param->int_filter[i].attr.num);
+    }
+    for (int i = 0; i < req_param->n_bin_filters; i++) {
+        log("bin_filter#%d:\n", i);
+        log("  search_op : 0x%x\n", req_param->bin_filter[i].search_op);
+        log("  attr.id   : 0x%x\n", req_param->bin_filter[i].attr.id);
+        log("  attr.ptr  : %p\n", req_param->bin_filter[i].attr.ptr);
+        log("  attr.size : 0x%llx\n", req_param->bin_filter[i].attr.size);
+    }
+    for (int i = 0; i < req_param->n_attr_ids; i++) {
+        log("attr_id#%d    : 0x%x\n", i, req_param->attr_id[i]);
+    }
+    log("---------------------------------------------\n");
 
     auto* ctx = OS::find<SceNpMatching2Context>(ctx_id);
     if (!ctx) return SCE_NP_MATCHING2_ERROR_INVALID_CONTEXT_ID;
 
+    const auto lk = std::unique_lock<std::mutex>(req_mtx);
     Request& req = requests.emplace_back();
     req.ctx_id = ctx->handle;
     req.param = param ? *param : ctx->default_req_param;
     req.event = SCE_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A;
-    req.data = std::make_shared<u8>(sizeof(SceNpMatching2SearchRoomResponseA));
+    //req.event = 0x106;
+    req.data = std::vector<u8>(sizeof(SceNpMatching2SearchRoomResponseA));
 
-    auto* res = (SceNpMatching2SearchRoomResponseA*)req.data.get();
+    auto* res = (SceNpMatching2SearchRoomResponseA*)req.data.data();
     res->range.start_idx    = 0;
     res->range.total        = 1;
     res->range.result_count = 1;

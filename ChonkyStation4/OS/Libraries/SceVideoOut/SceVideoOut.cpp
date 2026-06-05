@@ -164,9 +164,15 @@ int reg_idx = 0;
 s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs, s32 n_bufs, SceVideoOutBufferAttribute* attrib) {
     log("sceVideoOutRegisterBuffers(handle=%d, start_idx=%d, addrs=*%p, n_bufs=%d, attrib=*%p)\n", handle, start_idx, addrs, n_bufs, attrib);
 
+    auto port = PS4::OS::find<SceVideoOutPort>(handle);
+    if (!port) {
+        Helpers::panic("sceVideoOutWaitVblank: handle %d does not exist\n", handle);
+    }
+
     for (int idx = start_idx; idx < start_idx + n_bufs; idx++) {
         bufs[idx].base = addrs[idx - start_idx];
         bufs[idx].attrib = *attrib;
+        port->buffer_labels[idx] = 0;
     }
     return reg_idx++;   // "Registration index" - return a progressive number for now
 }

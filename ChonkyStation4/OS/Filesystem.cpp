@@ -245,6 +245,7 @@ bool exists(u64 file_id) {
 }
 
 bool exists(fs::path path) {
+    if (!isDeviceMounted(path)) return false;
     return fs::exists(guestPathToHost(path));
 }
 
@@ -321,6 +322,7 @@ std::string deviceToString(Device device) {
     case Device::APP0:          return "app0";
     case Device::SAVEDATA0:     return "savedata0";
     case Device::DEV:           return "dev";
+    case Device::TEMP0:         return "temp0";
     }
 }
 
@@ -328,6 +330,7 @@ Device stringToDevice(std::string device) {
     if      (device == "app0")          return Device::APP0;
     else if (device == "savedata0")     return Device::SAVEDATA0;
     else if (device == "dev")           return Device::DEV;
+    else if (device == "temp0")         return Device::TEMP0;
     else return Device::INVALID;
 }
 

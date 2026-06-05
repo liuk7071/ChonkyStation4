@@ -72,6 +72,7 @@ void init(Module& module) {
     
     module.addSymbolStub("iBt3Oe00Kvc", "sceGnmFlushGarlic", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("PVT+fuoS9gU", "sceGnmDeleteEqEvent", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("Fwvh++m9IQI", "sceGnmGetGpuCoreClockFrequency", "libSceGnmDriver", "libSceGnmDriver", 800'000'000 /* 800 MHz */);
 }
 
 ComputeQueue compute_queues[MAX_COMPUTE_QUEUES];

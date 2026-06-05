@@ -150,10 +150,15 @@ std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_ll
 
         // TLS info
         case PT_TLS: {
+            module->tls_modid = tls_modid++;
             module->tls_vaddr = seg->get_virtual_address() + (u64)module->base_address;
             module->tls_filesz = seg->get_file_size();
             module->tls_memsz = seg->get_memory_size();
-            module->tls_modid = tls_modid++;
+            
+            // Align size
+            const auto align = seg->get_align();
+            if (align)
+                module->tls_memsz = (module->tls_memsz + align - 1) & ~(align - 1);
             break;
         }
         }
