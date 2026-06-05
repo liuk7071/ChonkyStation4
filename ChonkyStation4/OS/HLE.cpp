@@ -19,6 +19,7 @@
 #include <OS/Libraries/SceVideodec/SceVideodec.hpp>
 #include <OS/Libraries/SceAjm/SceAjm.hpp>
 #include <OS/Libraries/SceAppContent/SceAppContent.hpp>
+#include <OS/Libraries/SceZlib/SceZlib.hpp>
 
 
 // Stub until we implement audio input
@@ -60,6 +61,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceVideodec::init(*module);
     PS4::OS::Libs::SceAjm::init(*module);
     PS4::OS::Libs::SceAppContent::init(*module);
+    PS4::OS::Libs::SceZlib::init(*module);
 
     // libSceScreenShot
     module->addSymbolStub("2xxUtuC-RzE", "sceScreenShotEnable", "libSceScreenShot", "libSceScreenShot");

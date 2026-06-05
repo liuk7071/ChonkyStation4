@@ -321,6 +321,7 @@ void init(Module& module) {
     module.addSymbolStub("oIRFTjoILbg", "scePthreadSetschedparam", "libkernel", "libkernel");
     module.addSymbolStub("8mql9OcQnd4", "sceKernelDeleteEventFlag", "libkernel", "libkernel");
     module.addSymbolStub("1FGvU0i9saQ", "scePthreadMutexattrSetprotocol", "libkernel", "libkernel");
+    module.addSymbolStub("XAzZo12sbN8", "scePthreadMutexSetprioceiling", "libkernel", "libkernel");
     module.addSymbolStub("tZY4+SZNFhA", "msync", "libkernel", "libkernel");
     module.addSymbolStub("RpQJJVKTiFM", "sceKernelGetModuleInfoForUnwind", "libkernel", "libkernel"); // TODO: Important
     module.addSymbolStub("crb5j7mkk1c", "_is_signal_return", "libkernel", "libkernel"); // TODO: Important

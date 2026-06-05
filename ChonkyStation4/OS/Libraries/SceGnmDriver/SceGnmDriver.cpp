@@ -11,11 +11,16 @@ MAKE_LOG_FUNCTION(log, lib_sceGnmDriver);
 
 void init(Module& module) {
     module.addSymbolExport("xbxNatawohc", "sceGnmSubmitAndFlipCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitAndFlipCommandBuffers);
+    module.addSymbolExport("Ga6r7H6Y0RI", "sceGnmSubmitAndFlipCommandBuffersForWorkload", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitAndFlipCommandBuffersForWorkload);
     module.addSymbolExport("zwY0YV91TTI", "sceGnmSubmitCommandBuffers", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitCommandBuffers);
     module.addSymbolExport("yvZ73uQUqrk", "sceGnmSubmitDone", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmSubmitDone);
     module.addSymbolExport("b0xyllnVY-I", "sceGnmAddEqEvent", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmAddEqEvent);
     module.addSymbolExport("29oKvKXzEZo", "sceGnmMapComputeQueue", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmMapComputeQueue);
+    module.addSymbolExport("A+uGq+3KFtQ", "sceGnmMapComputeQueueWithPriority", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmMapComputeQueueWithPriority);
     module.addSymbolExport("bX5IbRvECXk", "sceGnmDingDong", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDingDong);
+    module.addSymbolExport("5udAm+6boVg", "sceGnmCreateWorkloadStream", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmCreateWorkloadStream);
+    module.addSymbolExport("ihxrbsoSKWc", "sceGnmBeginWorkload", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmBeginWorkload);
+    module.addSymbolExport("Fa3x75OOLRA", "sceGnmEndWorkload", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmEndWorkload);
     module.addSymbolExport("ln33zjBrfjk", "sceGnmGetTheTessellationFactorRingBufferBaseAddress", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmGetTheTessellationFactorRingBufferBaseAddress);
     //module.addSymbolExport("Idffwf3yh8s", "sceGnmDrawInitDefaultHardwareState", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState);
     //module.addSymbolExport("0H2vBYbTLHI", "sceGnmDrawInitDefaultHardwareState200", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDrawInitDefaultHardwareState200);
@@ -87,6 +92,11 @@ s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffersForWorkload(u64 workload, u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg) {
+    log("sceGnmSubmitAndFlipCommandBuffersForWorkload(workload=%lld, cnt=%d, dcb_gpu_addrs=*%p, dcb_sizes=%p, ccb_gpu_addrs=*%p, ccb_sizes=%p, video_out_handle=%d, buf_idx=%d, flip_mode=%d, flip_arg=0x%llx)\n", workload, cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes, video_out_handle, buf_idx, flip_mode, flip_arg);
+    return sceGnmSubmitAndFlipCommandBuffers(cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes, video_out_handle, buf_idx, flip_mode, flip_arg);
+}
+
 s32 PS4_FUNC sceGnmSubmitCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes) {
     log("sceGnmSubmitCommandBuffers(cnt=%d, dcb_gpu_addrs=*%p, dcb_sizes=%p, ccb_gpu_addrs=*%p, ccb_sizes=%p)\n", cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes);
 
@@ -118,7 +128,7 @@ s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* ud
 s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr) {
     log("sceGnmMapComputeQueue(pipe_id=%d, queue_id=%d, ring_base_addr=%p, ring_size_dw=0x%x, read_ptr_addr=%p)\n", pipe_id, queue_id, ring_base_addr, ring_size_dw, read_ptr_addr);
     
-    const auto qid = queue_id * pipe_id;
+    const auto qid = pipe_id * MAX_COMPUTE_QUEUES_PER_PIPE + queue_id;
     ComputeQueue& queue = compute_queues[qid];
     if (queue.is_mapped) {
         Helpers::panic("Tried to map an already mapped compute queue\n");
@@ -128,6 +138,13 @@ s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_ad
     *read_ptr_addr = 0;
     log("Mapped compute queue %d\n", qid + 1);
     return qid + 1;    // Queue id is non-zero
+}
+
+s32 PS4_FUNC sceGnmMapComputeQueueWithPriority(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr, u32 prio) {
+    log("sceGnmMapComputeQueue(pipe_id=%d, queue_id=%d, ring_base_addr=%p, ring_size_dw=0x%x, read_ptr_addr=%p, prio=%d)\n", pipe_id, queue_id, ring_base_addr, ring_size_dw, read_ptr_addr, prio);
+
+    // TODO: prio
+    return sceGnmMapComputeQueue(pipe_id, queue_id, ring_base_addr, ring_size_dw, read_ptr_addr);
 }
 
 s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw) {
@@ -154,6 +171,41 @@ s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw) {
 
     // Now that we have the command buffer base and size, submit it to the graphics thread
     GCN::submitCompute((u32*)cmd_buf_ptr, cmd_buf_size_dw * sizeof(u32), &queue);
+    return SCE_OK;
+}
+
+// Workload streams are used on devkits for debugging. On retail SDKs this function just returns a dummy ID.
+s32 PS4_FUNC sceGnmCreateWorkloadStream(const char* name, u32* workload_stream_id) {
+    log("sceGnmCreateWorkloadStream(name=\"%s\", workload_stream_id=*%p)\n", name, workload_stream_id);
+
+    if (name && workload_stream_id) {
+        *workload_stream_id = 1;
+        return 0;
+    }
+    return 3;   // Invalid argument
+}
+
+s32 PS4_FUNC sceGnmBeginWorkload(u32 workload_stream_id, u64* workload_id) {
+    log("sceGnmBeginWorkload(workload_stream_id=%d, workload_id=*%p)\n", workload_stream_id, workload_id);
+
+    if (!workload_id)
+        return 3;   // Invalid argument
+
+    if (workload_stream_id >= 16) {
+        *workload_id = 0;
+        return 1;   // Invalid workload stream (max id is 15)
+    }
+
+    *workload_id = 1;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmEndWorkload(u64 workload_id) {
+    log("sceGnmEndWorkload(workload_id=%lld)\n", workload_id);
+
+    if (workload_id == 0 || (workload_id >> 56) >= 16)  // Highest byte contains workload stream id?
+        return 2;   // Invalid workload
+
     return SCE_OK;
 }
 
