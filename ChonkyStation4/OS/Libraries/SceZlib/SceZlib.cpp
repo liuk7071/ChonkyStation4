@@ -57,7 +57,7 @@ s32 PS4_FUNC sceZlibInitialize(const void* buffer, size_t length) {
 
             std::shared_ptr<InflateTask> task;
             {
-                const std::unique_lock<std::mutex>(queue_mtx);
+                const std::unique_lock<std::mutex> lk(queue_mtx);
                 
                 // Find a task that was not completed
                 auto it = std::find_if(queue.begin(), queue.end(), [](const std::shared_ptr<InflateTask>& task) {
@@ -101,7 +101,7 @@ s32 PS4_FUNC sceZlibInflate(const void* src, u32 src_len, void* dst, u32 dst_len
     const auto new_req_id = next_req_id++;
     *req_id = new_req_id;
 
-    const std::unique_lock<std::mutex>(queue_mtx);
+    const std::unique_lock<std::mutex> lk(queue_mtx);
     auto task = std::make_shared<InflateTask>(new_req_id, src, src_len, dst, dst_len);
     queue.push_back(std::move(task));
     queue_sema.release();
@@ -109,7 +109,7 @@ s32 PS4_FUNC sceZlibInflate(const void* src, u32 src_len, void* dst, u32 dst_len
 }
 
 s32 PS4_FUNC sceZlibWaitForDone(u64* req_id, u32* timeout) {
-    printf("sceZlibWaitForDone(req_id=*%p, timeout=*%p)\n", req_id, timeout);
+    log("sceZlibWaitForDone(req_id=*%p, timeout=*%p)\n", req_id, timeout);
     
     if (!req_id) {
         log("sceZlibWaitForDone: req_id is null\n");
@@ -124,7 +124,7 @@ s32 PS4_FUNC sceZlibWaitForDone(u64* req_id, u32* timeout) {
     // Find task
     std::shared_ptr<InflateTask> task;
     {
-        const std::unique_lock<std::mutex>(queue_mtx);
+        const std::unique_lock<std::mutex> lk(queue_mtx);
 
         auto it = std::find_if(queue.begin(), queue.end(), [&](const std::shared_ptr<InflateTask>& task) {
             return task->req_id == *req_id;
@@ -146,7 +146,7 @@ s32 PS4_FUNC sceZlibGetResult(u64 req_id, u32* dst_len, s32* status) {
     log("sceZlibGetResult(req_id=*%p, dst_len=*%p, status=*%p)\n", req_id, dst_len, status);
 
     // Find task
-    const std::unique_lock<std::mutex>(queue_mtx);
+    const std::unique_lock<std::mutex> lk(queue_mtx);
 
     auto it = std::find_if(queue.begin(), queue.end(), [&](const std::shared_ptr<InflateTask>& task) {
         return task->req_id == req_id;
