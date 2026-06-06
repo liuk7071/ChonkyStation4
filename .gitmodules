@@ -22,6 +22,6 @@
 [submodule "Dependencies/VulkanMemoryAllocator"]
 	path = Dependencies/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-[submodule "Dependencies/zlib-ng"]
-	path = Dependencies/zlib-ng
-	url = https://github.com/zlib-ng/zlib-ng.git
+[submodule "Dependencies/miniz"]
+	path = Dependencies/miniz
+	url = https://github.com/richgel999/miniz.git

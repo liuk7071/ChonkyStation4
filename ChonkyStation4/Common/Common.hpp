@@ -48,6 +48,9 @@ namespace fs = std::filesystem;
 
 #define PS4_FUNC __attribute__((sysv_abi))
 
+#define PTHREAD_CHECK_RESULT(res) \
+if (res) Helpers::panic("%s: pthread result check failed\n", __PRETTY_FUNCTION__);
+
 static constexpr s32 SCE_OK = 0;
 
 struct SceKernelTimespec {

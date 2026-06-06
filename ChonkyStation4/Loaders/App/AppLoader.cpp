@@ -63,7 +63,7 @@ void linkSysmodules(::App& app) {
             Helpers::panic("Required sysmodule %s does not exist\n", sysmodule.c_str());
         }
 
-        Loader::Linker::loadAndLinkLib(app, sysmodule_path);
+        Loader::Linker::loadAndLinkLib(app, sysmodule_path, false, app.getHLEModule());
     }
 
     for (auto& sysmodule : partial_lle_sysmodules_to_load) {
@@ -99,11 +99,10 @@ bool getApp(const AppInfo& info, ::App& app) {
         auto ext = module.path().extension();
         if (ext != ".prx" && ext != ".sprx") continue;
 
-        // For now we expect decrypted modules as .elf files
         auto module_path = module.path();
         if (!fs::exists(module_path)) continue;
 
-        Loader::Linker::loadAndLinkLib(app, module_path);
+        Loader::Linker::loadAndLinkLib(app, module_path, false, app.getHLEModule());
     }
 
     // Mount /app0 and initialize FS

@@ -10,20 +10,21 @@ s32 PS4_FUNC scePthreadRwlockInit(pthread_rwlock_t* lock, const pthread_rwlockat
     log("scePthreadRwlockInit(lock=*%p, attr=*%p, name=\"%s\")\n", lock, attr, name);
     //s32 ret = pthread_rwlock_init(lock, attr);
     s32 ret = pthread_rwlock_init(lock, nullptr); // TODO: attr
+    PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_rdlock(pthread_rwlock_t* lock) {
     log("pthread_rwlock_rdlock(lock=*%p)\n", lock);
     s32 ret = pthread_rwlock_rdlock(lock);
-    if (ret) Helpers::panic("ret %d\n", ret);
+    PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_wrlock(pthread_rwlock_t* lock) {
     log("pthread_rwlock_wrlock(lock=*%p)\n", lock);
     s32 ret = pthread_rwlock_wrlock(lock);
-    if (ret) Helpers::panic("ret %d\n", ret);
+    PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 
@@ -34,7 +35,9 @@ s32 PS4_FUNC kernel_pthread_rwlock_unlock(pthread_rwlock_t* lock) {
 
 s32 PS4_FUNC kernel_pthread_rwlockattr_init(pthread_rwlockattr_t* attr) {
     log("pthread_rwlockattr_init(attr=*%p)\n", attr);
-    return pthread_rwlockattr_init(attr);
+    s32 ret = pthread_rwlockattr_init(attr);
+    PTHREAD_CHECK_RESULT(ret);
+    return ret;
 }
 
 }   // End namespace PS4::OS::Libs::Kernel

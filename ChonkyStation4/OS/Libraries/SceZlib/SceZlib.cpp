@@ -1,7 +1,7 @@
 #include "SceZlib.hpp"
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
-#include <zlib-ng.h>
+#include <miniz.h>
 #include <mutex>
 #include <semaphore>
 #include <deque>
@@ -71,8 +71,8 @@ s32 PS4_FUNC sceZlibInitialize(const void* buffer, size_t length) {
             }
 
             // Inflate
-            size_t out_len = task->dst_len;
-            auto res = zng_uncompress((u8*)task->dst, &out_len, (u8*)task->src, task->src_len);
+            unsigned long out_len = task->dst_len;
+            auto res = mz_uncompress((u8*)task->dst, &out_len, (u8*)task->src, task->src_len);
             if (res != Z_OK) {
                 Helpers::panic("inflate_thread: uncompress error %d\n", res);
             }

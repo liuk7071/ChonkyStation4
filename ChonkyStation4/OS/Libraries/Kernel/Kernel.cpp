@@ -369,6 +369,10 @@ void init(Module& module) {
     module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
     module.addSymbolStub("EfqmKkirJF0", "sceKernelMlockall", "libkernel", "libkernel");
 
+    // libc.prx HLE. Move these to their own file later
+    //module.addSymbolExport("gQX+4GDQjpM", "malloc", "libc", "libc", (void*)&Kernel::malloc);
+    //module.addSymbolExport("tIhsqj0qsFE", "free", "libc", "libc", (void*)&Kernel::free);
+
     proc_counter_start = SDL_GetPerformanceCounter();
 }
 
@@ -864,6 +868,18 @@ s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** a
 
     *addr_ptr = sym->ptr;
     return SCE_OK;
+}
+
+// libc.prx HLE
+
+void* malloc(size_t size) {
+    printf("malloc\n");
+    return std::malloc(size);
+}
+
+void free(void* ptr) {
+    printf("free\n");
+    std::free(ptr);
 }
 
 }

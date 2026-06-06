@@ -17,6 +17,7 @@ s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
     }
 
     auto ret = pthread_mutex_lock(mutex);
+    //PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 
@@ -30,6 +31,7 @@ s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
     }
 
     auto ret = pthread_mutex_trylock(mutex);
+    //PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 
@@ -48,6 +50,8 @@ s32 PS4_FUNC scePthreadMutexTimedlock(pthread_mutex_t* mutex, u64 us) {
     auto ret = pthread_mutex_timedlock(mutex, &time);
     if (ret == ETIMEDOUT)
         return SCE_KERNEL_ERROR_ETIMEDOUT;
+
+    //PTHREAD_CHECK_RESULT(ret);
     return SCE_OK;
 }
 
@@ -60,6 +64,7 @@ s32 PS4_FUNC kernel_pthread_mutexattr_init(pthread_mutexattr_t* attr) {
     log("pthread_mutexattr_init(attr=%p)\n", attr);
     s32 ret = pthread_mutexattr_init(attr);
     pthread_mutexattr_settype(attr, PTHREAD_MUTEX_ERRORCHECK);
+    PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 
@@ -90,10 +95,14 @@ s32 PS4_FUNC kernel_pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mut
         pthread_mutexattr_t new_attr;
         pthread_mutexattr_init(&new_attr);
         pthread_mutexattr_settype(&new_attr, PTHREAD_MUTEX_ERRORCHECK);
-        return pthread_mutex_init(mutex, &new_attr);
+        s32 ret = pthread_mutex_init(mutex, &new_attr);
+        PTHREAD_CHECK_RESULT(ret);
+        return ret;
     }
 
-    return pthread_mutex_init(mutex, attr);
+    s32 ret = pthread_mutex_init(mutex, attr);
+    PTHREAD_CHECK_RESULT(ret);
+    return ret;
 }
 
 s32 PS4_FUNC kernel_pthread_mutex_destroy(pthread_mutex_t* mutex) {

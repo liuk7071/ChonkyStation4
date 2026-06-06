@@ -101,4 +101,8 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res);
 s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** addr_ptr);
 
+// libc.prx HLE
+void* malloc(size_t size);
+void free(void* ptr);
+
 }   // End namespace PS4::OS::Libs::Kernel
