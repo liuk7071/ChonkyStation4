@@ -276,6 +276,7 @@ void init(Module& module) {
     module.addSymbolExport("NcaWUxfMNIQ", "sceKernelMapNamedDirectMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedDirectMemory);
     module.addSymbolExport("IWIBBdTHit4", "sceKernelMapFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapFlexibleMemory);
     module.addSymbolExport("mL8NDH86iQI", "sceKernelMapNamedFlexibleMemory", "libkernel", "libkernel", (void*)&sceKernelMapNamedFlexibleMemory);
+    module.addSymbolExport("7oxv3PPCumo", "sceKernelReserveVirtualRange", "libkernel", "libkernel", (void*)&sceKernelReserveVirtualRange);
     module.addSymbolExport("MBuItvba6z8", "sceKernelReleaseDirectMemory", "libkernel", "libkernel", (void*)&sceKernelReleaseDirectMemory);
     module.addSymbolExport("hwVSPCmp5tM", "sceKernelCheckedReleaseDirectMemory", "libkernel", "libkernel", (void*)&sceKernelCheckedReleaseDirectMemory);
     module.addSymbolExport("cQke9UuBQOk", "sceKernelMunmap", "libkernel", "libkernel", (void*)&sceKernelMunmap);
@@ -291,7 +292,6 @@ void init(Module& module) {
     module.addSymbolExport("wzvqT4UqKX8", "sceKernelLoadStartModule", "libkernel", "libkernel", (void*)&sceKernelLoadStartModule);
     module.addSymbolExport("LwG8g3niqwA", "sceKernelDlsym", "libkernel", "libkernel", (void*)&sceKernelDlsym);
     
-    module.addSymbolStub("7oxv3PPCumo", "sceKernelReserveVirtualRange", "libkernel", "libkernel");  // TODO: Important
     module.addSymbolStub("VOx8NGmHXTs", "sceKernelGetCpumode", "libkernel", "libkernel", 5 /* normal 7cpu mode */);
     module.addSymbolStub("VHCS3rCd0PM", "sceKernelAddReadEvent", "libkernel", "libkernel"); // TODO: Important if not used for sockets
     module.addSymbolStub("qBDmpCyGssE", "scePthreadCancel", "libkernel", "libkernel");
@@ -685,6 +685,9 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
         Helpers::panic("sceKernelMapDirectMemory: failed to allocate\n");
     }
 
+    if ((flags & 0x10) && *addr != in_addr)
+        Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag\n");
+
     virt_dmem_map[*addr] = (u64)dmem_start;
     dmem_virt_map[(u64)dmem_start] = *addr;
 
@@ -724,6 +727,24 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
     std::memset(*addr, 0, len);
 
     log("Allocated at %p\n", *addr);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelReserveVirtualRange(void** addr, size_t len, s32 flags, size_t align) {
+    log("sceKernelReserveVirtualRange(addr=*%p, len=0x%llx, flags=%d, align=0x%016llx)\n", addr, len, flags, align);
+    log("in_addr=%p\n", *addr);
+
+    void* in_addr = *addr;  
+
+    // Allocate memory, then decommit
+    if ((u64)in_addr >= 0x8000'0000)
+        *addr = allocate((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
+    else
+        // TODO
+        *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
+    sceKernelMunmap(*addr, len);
+
+    log("out_addr=%p\n", *addr);
     return SCE_OK;
 }
 

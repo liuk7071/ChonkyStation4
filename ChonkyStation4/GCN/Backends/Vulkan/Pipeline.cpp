@@ -25,7 +25,6 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         VSharp* vsharp = shader_binding.vsharp_loc.asPtr();
         auto& binding = bindings.emplace_back();
         auto& attrib = attribs.emplace_back();
-
         binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
         attrib = { shader_binding.idx, n_binding++, getBufFormatAndSize(vsharp->dfmt, vsharp->nfmt).first, 0 };
 

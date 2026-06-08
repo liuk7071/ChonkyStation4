@@ -28,6 +28,33 @@ s32 PS4_FUNC sceAudioInInput(s32 handle, void* ptr) {
     return 0;
 }
 
+// Move to sceSsl file later
+struct SceSslData {
+    char* ptr;
+    size_t size;
+};
+
+struct SceSslCaCerts {
+    SceSslData* cert;
+    size_t n_certs;
+    void* pool;
+};
+
+s32 PS4_FUNC sceSslGetCaCerts(s32 ctx_id, SceSslCaCerts* certs) {
+    printf("sceSslGetCaCerts(ctx_id=%d, certs=*%p)\n", ctx_id, certs);
+
+    // Some games check that at least some data is present. Return a dummy value.
+    constexpr std::string dummy_data = "chonky";
+    certs->cert = new SceSslData();
+    certs->cert[0].ptr = new char[1_KB];
+    std::strcpy(certs->cert[0].ptr, dummy_data.data());
+    certs->cert[0].size = dummy_data.length();
+
+    certs->n_certs = 1;
+    certs->pool = nullptr;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceNetCtlGetState(s32* state) {
     //printf("sceNetCtlGetState()\n");
     *state = 0; // Disconnected
@@ -173,7 +200,9 @@ std::shared_ptr<Module> buildHLEModule() {
 
     // libSceSsl
     module->addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
-    module->addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl", 1);
+    module->addSymbolExport("TDfQqO-gMbY", "sceSslGetCaCerts", "libSceSsl", "libSceSsl", (void*)&sceSslGetCaCerts);
+    module->addSymbolStub("qIvLs0gYxi0", "sceSslFreeCaCerts", "libSceSsl", "libSceSsl");
+    module->addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl");
     
     // libSceHttp
     module->addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
@@ -235,6 +264,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("-EHnU68gExU", "sceGameLiveStreamingPermitServerSideRecording", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("wBOQWjbWMfU", "sceGameLiveStreamingEnableSocialFeedback", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("ycodiP2I0xo", "sceGameLiveStreamingSetPresetSocialFeedbackCommands", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("yeQKjHETi40", "sceGameLiveStreamingGetSocialFeedbackMessagesCount", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("CoPMx369EqM", "sceGameLiveStreamingGetCurrentStatus", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     
     // libSceCamera

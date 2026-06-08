@@ -18,6 +18,7 @@ void init(Module& module) {
     module.addSymbolExport("29oKvKXzEZo", "sceGnmMapComputeQueue", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmMapComputeQueue);
     module.addSymbolExport("A+uGq+3KFtQ", "sceGnmMapComputeQueueWithPriority", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmMapComputeQueueWithPriority);
     module.addSymbolExport("bX5IbRvECXk", "sceGnmDingDong", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDingDong);
+    module.addSymbolExport("byXlqupd8cE", "sceGnmDingDongForWorkload", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmDingDongForWorkload);
     module.addSymbolExport("5udAm+6boVg", "sceGnmCreateWorkloadStream", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmCreateWorkloadStream);
     module.addSymbolExport("ihxrbsoSKWc", "sceGnmBeginWorkload", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmBeginWorkload);
     module.addSymbolExport("Fa3x75OOLRA", "sceGnmEndWorkload", "libSceGnmDriver", "libSceGnmDriver", (void*)&sceGnmEndWorkload);
@@ -172,6 +173,11 @@ s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw) {
     // Now that we have the command buffer base and size, submit it to the graphics thread
     GCN::submitCompute((u32*)cmd_buf_ptr, cmd_buf_size_dw * sizeof(u32), &queue);
     return SCE_OK;
+}
+
+s32 PS4_FUNC sceGnmDingDongForWorkload(u32 queue_id, u32 next_offs_dw, u64 workload) {
+    log("sceGnmDingDong(queue_id=%d, next_offs_dw=0x%x, workload=%lld)\n", queue_id, next_offs_dw, workload);
+    return sceGnmDingDong(queue_id, next_offs_dw);
 }
 
 // Workload streams are used on devkits for debugging. On retail SDKs this function just returns a dummy ID.

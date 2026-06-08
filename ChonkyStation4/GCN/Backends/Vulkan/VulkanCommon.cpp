@@ -225,6 +225,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format10_11_11: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Snorm:   return { vk::Format::eR16G16B16Snorm, sizeof(u32) };    // TODO: No Vulkan equivalent. Rise of the Tomb Raider uses this
         case NumberFormat::Float:   return { vk::Format::eB10G11R11UfloatPack32, sizeof(u32) };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
@@ -249,6 +250,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         case NumberFormat::Unorm:   return { vk::Format::eR8G8B8A8Unorm, sizeof(u32) };
         case NumberFormat::Snorm:   return { vk::Format::eR8G8B8A8Snorm, sizeof(u32) };
         case NumberFormat::Uscaled: return { vk::Format::eR8G8B8A8Uscaled, sizeof(u32) };
+        case NumberFormat::Sscaled: return { vk::Format::eR8G8B8A8Sscaled, sizeof(u32) };
         case NumberFormat::Uint:    return { vk::Format::eR8G8B8A8Uint, sizeof(u32) };
         case NumberFormat::Sint:    return { vk::Format::eR8G8B8A8Sint, sizeof(u32) };
         case NumberFormat::SnormNz: return { vk::Format::eR8G8B8A8Srgb, sizeof(u32) };  // TODO: ?
@@ -262,9 +264,10 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format32_32: {
         switch ((NumberFormat)nfmt) {
 
-        case NumberFormat::Uint:  return { vk::Format::eR32G32Uint, sizeof(u32) * 2 };
-        case NumberFormat::Sint:  return { vk::Format::eR32G32Sint, sizeof(u32) * 2 };
-        case NumberFormat::Float: return { vk::Format::eR32G32Sfloat, sizeof(u32) * 2 };
+        case NumberFormat::Uint:        return { vk::Format::eR32G32Uint, sizeof(u32) * 2 };
+        case NumberFormat::Sint:        return { vk::Format::eR32G32Sint, sizeof(u32) * 2 };
+        case NumberFormat::SnormNz:     return { vk::Format::eR32G32Sint, sizeof(u32) * 2 };    // TODO: ?
+        case NumberFormat::Float:       return { vk::Format::eR32G32Sfloat, sizeof(u32) * 2 };
 
         default:    Helpers::panic("Unimplemented buffer/texture format: dfmt=%d, nfmt=%d\n", dfmt, nfmt);
         }
@@ -275,6 +278,8 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
         switch ((NumberFormat)nfmt) {
 
         case NumberFormat::Snorm:   return { vk::Format::eR16G16B16A16Snorm, sizeof(u16) * 4 };
+        case NumberFormat::Uscaled: return { vk::Format::eR16G16B16A16Uscaled, sizeof(u16) * 4 };
+        case NumberFormat::Sscaled: return { vk::Format::eR16G16B16A16Sscaled, sizeof(u16) * 4 };
         case NumberFormat::Uint:    return { vk::Format::eR16G16B16A16Uint, sizeof(u16) * 4 };
         case NumberFormat::Sint:    return { vk::Format::eR16G16B16A16Sint, sizeof(u16) * 4 };
         case NumberFormat::Float:   return { vk::Format::eR16G16B16A16Sfloat, sizeof(u16) * 4 };

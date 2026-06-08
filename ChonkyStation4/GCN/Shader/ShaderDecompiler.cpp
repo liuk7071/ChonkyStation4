@@ -532,6 +532,7 @@ ivec3 unpackImageOffset(uint packed) {
         case Shader::Opcode::IMAGE_ATOMIC_ADD:
         case Shader::Opcode::IMAGE_ATOMIC_UMIN:
             is_img_store = true;
+        case Shader::Opcode::IMAGE_GATHER4_LZ:
         case Shader::Opcode::IMAGE_GATHER4_C:
         case Shader::Opcode::IMAGE_LOAD:
         case Shader::Opcode::IMAGE_LOAD_MIP:
@@ -565,10 +566,10 @@ ivec3 unpackImageOffset(uint packed) {
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XY: 
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZ: 
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW: {
-            auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs = 0, bool is_image_store = false) -> Buffer& {
+            auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs, DescriptorType type, bool is_image_store = false) -> Buffer& {
                 // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
-                    if (buf.desc_info.sgpr == sgpr && buf.desc_info.is_ptr == is_ptr && buf.desc_info.offs == offs && buf.is_image_store == is_image_store) {
+                    if (buf.desc_info.sgpr == sgpr && buf.desc_info.is_ptr == is_ptr && buf.desc_info.offs == offs && buf.desc_info.type == type && buf.is_image_store == is_image_store) {
                         // The buffer already exists
                         return buf;
                     }
@@ -590,7 +591,7 @@ ivec3 unpackImageOffset(uint packed) {
                 }
                 else buf.is_instr_typed = false;
 
-                buf.is_image_store = false;
+                buf.is_image_store = is_image_store;
                 buf.desc_info.sgpr = sgpr;
                 buf.desc_info.is_ptr = is_ptr;
                 buf.desc_info.offs = offs;
@@ -642,13 +643,13 @@ ivec3 unpackImageOffset(uint packed) {
             const auto sgpr = instr.src[idx].code * mult;
             if (!descs.contains(sgpr)) {
                 // We assume that the descriptor is being passed directly as user data.
-                auto& buf = get_buffer(sgpr, false, 0, is_img_store);
+                auto& buf = get_buffer(sgpr, false, 0, is_img ? DescriptorType::Tsharp : DescriptorType::Vsharp, is_img_store);
                 buffer_map[buf_mapping_idx++] = &buf;
                 //printf("Found V# in SGPR %d\n", buf.desc_info.sgpr);
             }
             else {
                 auto& desc = descs[sgpr];
-                auto& buf = get_buffer(desc.sgpr, desc.is_ptr, desc.offs, is_img_store);
+                auto& buf = get_buffer(desc.sgpr, desc.is_ptr, desc.offs, is_img ? DescriptorType::Tsharp : DescriptorType::Vsharp, is_img_store);
                 buffer_map[buf_mapping_idx++] = &buf;
             }
             break;
@@ -790,6 +791,12 @@ ivec3 unpackImageOffset(uint packed) {
         case Shader::Opcode::S_ADDC_U32: {
             main += setDST<Type::Uint>(instr.dst[0], std::format("{} + {} + scc", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             // TODO: Carry out
+            break;
+        }
+
+        case Shader::Opcode::S_MIN_U32: {
+            main += setDST<Type::Uint>(instr.dst[0], std::format("min({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            main += std::format("scc = uint({} == {});\n", getSRC<Type::Uint>(instr.dst[0]), getSRC<Type::Uint>(instr.src[0]));
             break;
         }
 
@@ -1204,10 +1211,24 @@ ivec3 unpackImageOffset(uint packed) {
             break;
         }
         
+        case Shader::Opcode::V_CMPX_LT_U32: {
+            // TODO: This can set other registers too I think?
+            // TODO: Exec
+            main += std::format("vcc = uint({} < {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_CMPX_GT_U32: {
             // TODO: This can set other registers too I think?
             // TODO: Exec
             main += std::format("vcc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+        
+        case Shader::Opcode::V_CMPX_EQ_U32: {
+            // TODO: This can set other registers too I think?
+            // TODO: Exec
+            main += std::format("vcc = uint({} == {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
             break;
         }
 
@@ -1660,6 +1681,14 @@ ivec3 unpackImageOffset(uint packed) {
             break;
         }
 
+        case Shader::Opcode::V_INTERP_MOV_F32: {
+            const std::string attr = std::format("ps_attr{}", instr.control.vintrp.attr);
+            addInAttr(attr, "vec4", instr.control.vintrp.attr);
+            char lanes[4] = { 'x', 'y', 'z', 'w' };
+            main += setDST(instr.dst[0], std::format("{}.{}", attr, lanes[instr.control.vintrp.chan]));
+            break;
+        }
+
         case Shader::Opcode::S_LOAD_DWORDX4: {
             main += "// TODO: S_LOAD_DWORDX4 dest: " + std::to_string(instr.dst[0].code) + " offs: " + std::to_string(instr.control.smrd.offset) + "\n";
             break;
@@ -1765,6 +1794,11 @@ ivec3 unpackImageOffset(uint packed) {
             main += "// TODO: DS_WRITE2_B32\n";
             break;
         }
+        
+        case Shader::Opcode::DS_WRITE2ST64_B32: {
+            main += "// TODO: DS_WRITE2ST64_B32\n";
+            break;
+        }
 
         case Shader::Opcode::DS_SWIZZLE_B32: {
             main += setDST(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 */", getSRC(instr.src[0])));
@@ -1778,6 +1812,16 @@ ivec3 unpackImageOffset(uint packed) {
 
         case Shader::Opcode::DS_READ2_B32: {
             main += "// TODO: DS_READ2_B32\n";
+            break;
+        }
+        
+        case Shader::Opcode::DS_READ2ST64_B32: {
+            main += "// TODO: DS_READ2ST64_B32\n";
+            break;
+        }
+        
+        case Shader::Opcode::DS_READ2_B64: {
+            main += "// TODO: DS_READ2_B64\n";
             break;
         }
 
@@ -2028,6 +2072,7 @@ ivec3 unpackImageOffset(uint packed) {
             break;
         }
 
+        case Shader::Opcode::IMAGE_GATHER4_LZ:
         case Shader::Opcode::IMAGE_GATHER4_C: {
             const auto buffer_mapping = buf_mapping_idx++;
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_GATHER4: no buffer_mapping");  // Unreachable if everything works as intended
@@ -2116,8 +2161,8 @@ ivec3 unpackImageOffset(uint packed) {
         }
 
         default: {
-            printf("Shader so far:\n%s\n", main.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //printf("Shader so far:\n%s\n", main.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
             main += "// TODO\n";
         }
         }

@@ -18,6 +18,7 @@ void init(Module& module) {
     module.addSymbolStub("7jdAXK+2fMo", "sceAjmBatchJobRunSplitBufferRa", "libSceAjm", "libSceAjm");
     module.addSymbolStub("fFFkk0xfGWs", "sceAjmBatchStartBuffer", "libSceAjm", "libSceAjm");
     module.addSymbolStub("-qLsfDAywIY", "sceAjmBatchWait", "libSceAjm", "libSceAjm");
+    module.addSymbolStub("ElslOCpOIns", "sceAjmBatchJobRunBufferRa", "libSceAjm", "libSceAjm");
     module.addSymbolStub("MHur6qCsUus", "sceAjmFinalize", "libSceAjm", "libSceAjm");
 }
 

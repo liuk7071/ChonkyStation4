@@ -237,7 +237,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             job.n_threads_y = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Y];
             job.n_threads_z = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Z];
             job.addr = renderer->getCSPtr();
-            renderer->dispatch(job);
+            //renderer->dispatch(job);
             break;
         }
 

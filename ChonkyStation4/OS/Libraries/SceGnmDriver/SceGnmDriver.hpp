@@ -30,6 +30,7 @@ s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* ud
 s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr);
 s32 PS4_FUNC sceGnmMapComputeQueueWithPriority(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr, u32 prio);
 s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw);
+s32 PS4_FUNC sceGnmDingDongForWorkload(u32 queue_id, u32 next_offs_dw, u64 workload);
 s32 PS4_FUNC sceGnmCreateWorkloadStream(const char* name, u32* workload_stream_id);
 s32 PS4_FUNC sceGnmBeginWorkload(u32 workload_stream_id, u64* workload_id);
 s32 PS4_FUNC sceGnmEndWorkload(u64 workload_id);

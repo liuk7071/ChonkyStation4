@@ -534,7 +534,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     vk::Buffer vk_idx_buf = nullptr;
     size_t idx_buf_offs = 0;
     if (idx_buf_ptr) {
-        vk::DeviceSize idx_buf_size = cnt * (index_type == IndexType::Uint16 ? sizeof(u16) : sizeof(u32));
+        vk::DeviceSize idx_buf_size = (cnt + idx_offs) * (index_type == IndexType::Uint16 ? sizeof(u16) : sizeof(u32));
         auto [idx_buf, offs, was_dirty] = Cache::getBuffer((void*)idx_buf_ptr, idx_buf_size);
         vk_idx_buf = idx_buf;
         idx_buf_offs = offs;
@@ -566,7 +566,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
             .colorAttachmentCount = (u32)curr_attachments.size(),
             .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
             .pDepthAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr,
-            .pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
+            //.pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
         };
 
         beginRendering(render_info);
