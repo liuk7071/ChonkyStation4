@@ -44,7 +44,7 @@ s32 PS4_FUNC sceSslGetCaCerts(s32 ctx_id, SceSslCaCerts* certs) {
     printf("sceSslGetCaCerts(ctx_id=%d, certs=*%p)\n", ctx_id, certs);
 
     // Some games check that at least some data is present. Return a dummy value.
-    constexpr std::string dummy_data = "chonky";
+    const std::string dummy_data = "chonky";
     certs->cert = new SceSslData();
     certs->cert[0].ptr = new char[1_KB];
     std::strcpy(certs->cert[0].ptr, dummy_data.data());

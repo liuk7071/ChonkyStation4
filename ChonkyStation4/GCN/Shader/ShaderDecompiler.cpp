@@ -2114,11 +2114,11 @@ ivec3 unpackImageOffset(uint packed) {
         }
 
         case Shader::Opcode::EXP: {
-            //if (stage == ShaderStage::Fragment) {
-            //    if (instr.control.exp.vm) {
-            //        main += "if (exec != 0) discard;\n";
-            //    }
-            //}
+            if (stage == ShaderStage::Fragment) {
+                if (instr.control.exp.vm) {
+                    main += "if (exec == 0) discard;\n";
+                }
+            }
             
             const auto tgt = instr.control.exp.target;
             
