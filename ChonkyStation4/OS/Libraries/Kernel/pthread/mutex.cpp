@@ -7,14 +7,28 @@ namespace PS4::OS::Libs::Kernel {
 
 MAKE_LOG_FUNCTION(log, lib_kernel_mutex);
 
+#ifdef _WIN32
+#define CHECK_INIT \
+if (*mutex == (pthread_mutex_t)0 || *mutex == (pthread_mutex_t)1) {     \
+    log("mutex was null, initializing\n");                              \
+    *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;                      \
+    kernel_pthread_mutex_init(mutex, nullptr);                          \
+}
+#else
+#define CHECK_INIT \
+if (*(int*)mutex == 0 || *(int*)mutex == 1) {                             \
+    log("mutex was null, initializing\n");                              \
+    pthread_mutexattr_t attr;                                           \ 
+    kernel_pthread_mutexattr_init(&attr);                               \
+    kernel_pthread_mutex_init(mutex, &attr);                            \
+    kernel_pthread_mutexattr_destroy(&attr);                            \
+}
+#endif
+
 s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
     log("pthread_mutex_lock(mutex=%p)\n", mutex);
 
-    if (*mutex == (pthread_mutex_t)0 || *mutex == (pthread_mutex_t)1) {
-        log("mutex was null, initializing\n");
-        *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
-        kernel_pthread_mutex_init(mutex, nullptr);
-    }
+    CHECK_INIT
 
     auto ret = pthread_mutex_lock(mutex);
     //PTHREAD_CHECK_RESULT(ret);
@@ -24,11 +38,7 @@ s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
 s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
     log("pthread_mutex_trylock(mutex=%p)\n", mutex);
 
-    if (*mutex == (pthread_mutex_t)0 || *mutex == (pthread_mutex_t)1) {
-        log("mutex was null, initializing\n");
-        *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
-        kernel_pthread_mutex_init(mutex, nullptr);
-    }
+    CHECK_INIT
 
     auto ret = pthread_mutex_trylock(mutex);
     //PTHREAD_CHECK_RESULT(ret);
@@ -38,11 +48,7 @@ s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
 s32 PS4_FUNC scePthreadMutexTimedlock(pthread_mutex_t* mutex, u64 us) {
     log("scePthreadMutexTimedlock(mutex=%p, us=%lld)\n", mutex, us);
 
-    if (*mutex == (pthread_mutex_t)0 || *mutex == (pthread_mutex_t)1) {
-        log("mutex was null, initializing\n");
-        *mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
-        kernel_pthread_mutex_init(mutex, nullptr);
-    }
+    CHECK_INIT
 
     timespec time;
     time.tv_sec  = us / 1000000;

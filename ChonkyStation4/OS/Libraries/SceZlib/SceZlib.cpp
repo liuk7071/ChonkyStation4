@@ -6,6 +6,7 @@
 #include <semaphore>
 #include <deque>
 #include <atomic>
+#include <thread>
 
 
 namespace PS4::OS::Libs::SceZlib {
@@ -60,7 +61,7 @@ s32 PS4_FUNC sceZlibInitialize(const void* buffer, size_t length) {
                 const std::unique_lock<std::mutex> lk(queue_mtx);
                 
                 // Find a task that was not completed
-                auto it = std::find_if(queue.begin(), queue.end(), [](const std::shared_ptr<InflateTask>& task) {
+                auto it = std::find_if(queue.begin(), queue.end(), [&](const std::shared_ptr<InflateTask>& task) {
                     return !task->completed;
                 });
 

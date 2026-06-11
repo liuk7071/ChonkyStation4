@@ -234,8 +234,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     img.bindMemory(*mem, 0);
     
     // Set debug name
+#ifdef _WIN32
     if (device.getDispatcher()->vkSetDebugUtilsObjectNameEXT)
         device.setDebugUtilsObjectNameEXT(*img, std::format("Texture @ {}", ptr));
+#endif
 
     // Create image view
     vk::ComponentSwizzle swizzle_map[] = {

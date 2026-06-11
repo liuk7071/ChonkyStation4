@@ -7,6 +7,8 @@ namespace PS4::OS::Libs::Kernel {
 
 MAKE_LOG_FUNCTION(log, lib_kernel);
 
+#define CHECK_INIT if (*(int*)cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+
 s32 PS4_FUNC kernel_pthread_condattr_init(pthread_condattr_t* attr) {
     log("pthread_condattr_init(attr=*%p)\n", attr);
     s32 ret = pthread_condattr_init(attr);
@@ -31,7 +33,8 @@ s32 PS4_FUNC scePthreadCondInit(pthread_cond_t* cond, const pthread_condattr_t* 
 s32 PS4_FUNC kernel_pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
     log("pthread_cond_wait(cond=*%p, mutex=*%p)\n", cond, mutex);
 
-    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+    CHECK_INIT
+
     s32 ret = pthread_cond_wait(cond, mutex);
     PTHREAD_CHECK_RESULT(ret);
     return ret;
@@ -43,7 +46,7 @@ s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t
     //time.tv_sec  = abstime->tv_sec;
     //time.tv_nsec = abstime->tv_nsec;
     
-    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+    CHECK_INIT
 
     auto now = std::chrono::system_clock::now();
     auto timeout = now + std::chrono::milliseconds(100);
@@ -58,7 +61,7 @@ s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t
 s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, u64 us) {
     log("scePthreadCondTimedwait(cond=*%p, mutex=*%p, us=%lld)\n", cond, mutex, us);
 
-    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+    CHECK_INIT
 
     auto now = std::chrono::system_clock::now();
     auto timeout = now + std::chrono::microseconds(us);
@@ -80,7 +83,8 @@ s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mute
 s32 PS4_FUNC kernel_pthread_cond_signal(pthread_cond_t* cond) {
     log("pthread_cond_signal(cond=*%p)\n", cond);
 
-    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+    CHECK_INIT
+
     s32 ret = pthread_cond_signal(cond);
     PTHREAD_CHECK_RESULT(ret);
     return ret;
@@ -89,7 +93,8 @@ s32 PS4_FUNC kernel_pthread_cond_signal(pthread_cond_t* cond) {
 s32 PS4_FUNC kernel_pthread_cond_broadcast(pthread_cond_t* cond) {
     log("pthread_cond_broadcast(cond=*%p)\n", cond);
 
-    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+    CHECK_INIT
+    
     s32 ret = pthread_cond_broadcast(cond);
     PTHREAD_CHECK_RESULT(ret);
     return ret;

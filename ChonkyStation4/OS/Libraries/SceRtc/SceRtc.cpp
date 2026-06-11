@@ -70,7 +70,7 @@ s32 PS4_FUNC sceRtcSetTick(SceRtcDateTime* time, const SceRtcTick* tick) {
 #ifdef _WIN32
     gmtime_s(&tm_time, &seconds);
 #else
-    gmtime_s(&seconds, &tm_time);
+    gmtime_r(&seconds, &tm_time);
 #endif
 
     time->year          = tm_time.tm_year; 

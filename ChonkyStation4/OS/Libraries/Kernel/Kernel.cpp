@@ -26,7 +26,7 @@
 #include <intrin.h>
 #define RETURN_ADDRESS() _ReturnAddress()
 #else
-#define RETURN_ADDRESS() _builtin_return_address(0)
+#define RETURN_ADDRESS() __builtin_return_address(0)
 #endif
 #include <SDL.h>    // For performance counters
 
@@ -378,23 +378,22 @@ void init(Module& module) {
 
 static thread_local s32 posix_errno = 0;
 
-#ifdef _WIN32
 std::mutex allocator_mtx;
-
-void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
+void* allocate(uptr search_start, uptr search_end, size_t size, size_t alignment) {
     auto lk = std::unique_lock<std::mutex>(allocator_mtx);
     
-    if (reservation_start >= reservation_end) return nullptr;
+    if (search_start >= search_end) return nullptr;
     if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
     if (size == 0) return nullptr;
 
+#ifdef _WIN32
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     const size_t page_size = si.dwPageSize;
     alignment = alignment < page_size ? page_size : alignment;
     size = (size + page_size - 1) & ~(page_size - 1);
 
-    uptr cur_addr = reservation_start;
+    uptr cur_addr = search_start;
     while (true) {
         MEMORY_BASIC_INFORMATION mbi;
         if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
@@ -419,13 +418,14 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
         // Align up
         cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
         
-        if (cur_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
+        if (cur_addr > search_end) Helpers::panic("allocate: out of memory\n");
     }
-
+#else
+    Helpers::panic("Unsupported platform\n");
+#endif
     
     return nullptr;
 }
-#endif
 
 s32* PS4_FUNC kernel_error() {
     return &posix_errno;
@@ -668,7 +668,6 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     align = align ? align : 16_KB;
 
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
-#ifdef _WIN32
     if (!in_addr) {
         *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
     }
@@ -677,9 +676,6 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     else
         // TODO
         *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
-#else
-    Helpers::panic("Unsupported platform\n");
-#endif
 
     if (!*addr) {
         Helpers::panic("sceKernelMapDirectMemory: failed to allocate\n");
@@ -717,11 +713,7 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
     }
 
     // TODO: prot, flags
-#ifdef _WIN32
     *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, 16_KB);
-#else
-    Helpers::panic("Unsupported platform\n");
-#endif
 
     // Clear allocated memory
     std::memset(*addr, 0, len);
@@ -850,11 +842,7 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
     // TODO: This is stubbed as a normal alloc for now
 
     void* out_addr;
-#ifdef _WIN32
     out_addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
-#else
-    Helpers::panic("Unsupported platform\n");
-#endif
 
     // Clear allocated memory
     std::memset(out_addr, 0, len);

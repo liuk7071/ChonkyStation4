@@ -104,7 +104,6 @@ if (WIN32)
         target_link_options(ChonkyStation4 PRIVATE -Wl,--stack,2097152)
     endif()
 else()
-    target_link_options(ChonkyStation4 PRIVATE -Wl,--image-base=0x700000000000)
 endif()
 
 if(WIN32)
