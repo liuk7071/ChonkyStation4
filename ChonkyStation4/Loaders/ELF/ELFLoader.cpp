@@ -104,7 +104,9 @@ std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_ll
     }
     Helpers::debugAssert(module->base_address, "ELFLoader: VirtualAlloc failed");
 #else
-    Helpers::panic("Unsupported platform\n");
+    module->base_address = last_load_addr;
+    Helpers::debugAssert(!mprotect(module->base_address, total_size, PROT_READ | PROT_WRITE), "ELFLoader: mprotect failed");
+    last_load_addr = (void*)((u64)last_load_addr + Helpers::alignUp(total_size, 64_KB));
 #endif
 
     log("* Base address of ELF: 0x%016llx\n", (u64)module->base_address);
@@ -307,6 +309,8 @@ std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_ll
     // Fix permissions for each segment
     for (auto& seg : elf.segments) {
         if (seg->get_type() != PT_LOAD) continue;
+        
+        const u8* ptr = (u8*)module->base_address + seg->get_virtual_address();
 
 #ifdef _WIN32
         // Set permissions
@@ -321,8 +325,6 @@ std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_ll
             else Helpers::panic("ELFLoader: invalid flags 0x%08x\n", flags);
         };
 
-        const u8* ptr = (u8*)module->base_address + seg->get_virtual_address();
-
         // TODO: To apply permissions properly (get_perms(seg->get_flags())) we need to apply them AFTER relocations happen.
         //       Doing that requires restructuring some code. Stub to RWX.
         DWORD old_flags;
@@ -330,7 +332,8 @@ std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_ll
             Helpers::panic("ELFLoader: VirtualProtect failed\n");
         }
 #else
-        Helpers::panic("Unsupported platform\n");
+        // See TODO above
+        Helpers::debugAssert(!mprotect((void*)ptr, seg->get_memory_size(), PROT_READ | PROT_WRITE | PROT_EXEC), "ELFLoader: mprotect failed");
 #endif
 
     }

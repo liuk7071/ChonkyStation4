@@ -222,7 +222,7 @@ s32 PS4_FUNC kernel_stat(const char* path, SceKernelStat* stat) {
     stat->st_uid = 0;
     stat->st_gid = 0;
     // TODO: time
-    stat->st_size = FS::getFileSize(path);
+    stat->st_size = !is_dir ? FS::getFileSize(path) : 0;
     stat->st_blksize = 512;    // TODO: ?
     stat->st_blocks = (stat->st_size + stat->st_blksize - 1) / stat->st_blksize;
     return 0;

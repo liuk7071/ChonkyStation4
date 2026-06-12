@@ -72,6 +72,7 @@ void doRelocations(App& app) {
             const auto base = module.base_address;
             //log("Relocation type: %x\n", type);
             //log("Relocation offs: 0x%llx\n", rela->r_offset);
+            //log("Relocation addend: 0x%llx\n", rela->r_addend);
 
             switch (type) {
             case R_X86_64_RELATIVE: {
@@ -107,7 +108,7 @@ void doRelocations(App& app) {
                     for (auto& m : app.modules) {
                         Symbol* exported_sym = m->findSymbolExport(tokens[0], lib->name, mod->name);
                         if (exported_sym) {
-                            log("* Resolved symbol %s as %s (%s)\n", sym_name.c_str(), exported_sym->name.c_str(), exported_sym->lib.c_str());
+                            log("* Resolved symbol %s as %s (%s) (ptr=%p)\n", sym_name.c_str(), exported_sym->name.c_str(), exported_sym->lib.c_str(), exported_sym->ptr);
                             ptr = exported_sym->ptr;
                             break;
                         }

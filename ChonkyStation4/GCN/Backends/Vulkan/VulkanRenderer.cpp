@@ -1,5 +1,3 @@
-#pragma once
-
 #define NOMINMAX
 #include "VulkanRenderer.hpp"
 #include <Logger.hpp>
@@ -130,7 +128,7 @@ void VulkanRenderer::init() {
     // ---- Create the SDL window ----
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0)
-        Helpers::panic("Failed to initialize SDL\n");
+        Helpers::panic("Failed to initialize SDL: %s\n", SDL_GetError());
 
     window = SDL_CreateWindow(std::format("ChonkyStation4 | {} | {}", CHONKYSTATION4_VERSION, g_app.name).c_str(), 100, 100, 1920, 1080, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
     if (window == nullptr) {

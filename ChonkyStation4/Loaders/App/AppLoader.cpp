@@ -60,7 +60,7 @@ void linkSysmodules(::App& app) {
     for (auto& sysmodule : sysmodules_to_load) {
         const auto sysmodule_path = sysmodules_path / sysmodule;
         if (!fs::exists(sysmodule_path)) {
-            Helpers::panic("Required sysmodule %s does not exist\n", sysmodule.c_str());
+            Helpers::panic("Required sysmodule %s does not exist. Place sysmodules in %s\n", sysmodule.c_str(), sysmodules_path.generic_string().c_str());
         }
 
         Loader::Linker::loadAndLinkLib(app, sysmodule_path, false, app.getHLEModule());
@@ -69,7 +69,7 @@ void linkSysmodules(::App& app) {
     for (auto& sysmodule : partial_lle_sysmodules_to_load) {
         const auto sysmodule_path = sysmodules_path / sysmodule;
         if (!fs::exists(sysmodule_path)) {
-            Helpers::panic("Required sysmodule %s does not exist\n", sysmodule.c_str());
+            Helpers::panic("Required sysmodule %s does not exist. Place sysmodules in %s\n", sysmodule.c_str(), sysmodules_path.generic_string().c_str());
         }
 
         Loader::Linker::loadAndLinkLib(app, sysmodule_path, true, app.getHLEModule());

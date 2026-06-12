@@ -4,6 +4,11 @@
 #define NOMINMAX
 #include <codecvt>
 #include <windows.h>
+#else
+#include <sys/prctl.h>
+#include <asm/prctl.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #endif
 #include <thread>
 
@@ -15,14 +20,14 @@ namespace PS4::OS::Thread {
 
 void init() {
     if (initialized) return;
-
+    
+#ifdef _WIN32
     // Get the offset of guest_tls_ptr in the host TLS image and save it for later.
     // The pointer of the guest TLS area is stored in the host TLS. We need to access this variable from the patched guest TLS access code.
     // To do that we need to know the offset of the variable in the host TLS image.
 
     void* tls_ptr = nullptr;
 
-#ifdef _WIN32
     asm volatile(R"(
         movl %1, %%eax
         movq %%gs:0x58, %%rcx
@@ -33,11 +38,10 @@ void init() {
     : "r"(_tls_index)
     :    
     );
-#else
-    Helpers::panic("Unsupported platform\n");
-#endif
 
     guest_tls_ptr_offs = (u8*)&guest_tls_ptr - (u8*)tls_ptr;
+#endif
+
     initialized = true;
 }
 
@@ -98,6 +102,11 @@ void* threadStart(Thread* thread) {
     std::memset((u8*)guest_tls_ptr - tls_mem_size, 0, tls_mem_size + tcb_size);
     std::memcpy((u8*)guest_tls_ptr - tls_mem_size, tls_image_ptr, tls_image_size);
     
+#ifndef _WIN32
+    // TODO: For linux place guest_tls_ptr in GS
+    syscall(SYS_arch_prctl, ARCH_SET_GS, &guest_tls_ptr);
+#endif
+
     // Call entry function
     void* ret = thread->entry(thread->args);
     

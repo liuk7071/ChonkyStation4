@@ -25,3 +25,6 @@
 [submodule "Dependencies/miniz"]
 	path = Dependencies/miniz
 	url = https://github.com/richgel999/miniz.git
+[submodule "Dependencies/procmap"]
+	path = Dependencies/procmap
+	url = https://github.com/joaomlneto/procmap.git

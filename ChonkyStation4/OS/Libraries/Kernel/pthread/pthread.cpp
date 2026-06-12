@@ -98,12 +98,17 @@ s32 PS4_FUNC kernel_pthread_key_create(s32* /* pthread_key_t */ key, void (*dest
     return 0;
 }
 
-s32 PS4_FUNC kernel_pthread_attr_init(pthread_attr_t* attr) {
+s32 PS4_FUNC kernel_pthread_attr_init(PTHREADATTR_IMPL* attr) {
     log("pthread_attr_init(attr=*%p)\n", attr);
+#ifdef _WIN32
     return pthread_attr_init(attr);
+#else
+    *attr = new PthreadAttrWrapper();
+    return pthread_attr_init(&(*attr)->attr);
+#endif
 }
 
-s32 PS4_FUNC kernel_pthread_attr_get_np(void* pthread, pthread_attr_t* attr) {
+s32 PS4_FUNC kernel_pthread_attr_get_np(void* pthread, PTHREADATTR_IMPL* attr) {
     log("pthread_attr_get_np(pthread=*%p, attr=*%p) TODO\n", pthread, attr);
 
 #ifdef _WIN32
@@ -117,45 +122,63 @@ s32 PS4_FUNC kernel_pthread_attr_get_np(void* pthread, pthread_attr_t* attr) {
     return 0;
 }
 
-s32 PS4_FUNC scePthreadAttrGetaffinity(pthread_attr_t* attr, u64* mask) {
+s32 PS4_FUNC scePthreadAttrGetaffinity(PTHREADATTR_IMPL* attr, u64* mask) {
     log("scePthreadAttrGetaffinity(attr=*%p, mask=*%p) TODO\n", attr, mask);
     return 0;
 }
 
-s32 PS4_FUNC kernel_pthread_attr_getaffinity_np(const pthread_attr_t* attr, size_t cpusetsize, cpu_set_t* cpuset) {
+s32 PS4_FUNC kernel_pthread_attr_getaffinity_np(const PTHREADATTR_IMPL* attr, size_t cpusetsize, cpu_set_t* cpuset) {
     log("pthread_attr_getaffinity_np(attr=*%p, cpusetsize=%d, cpuset=*%p) TODO\n", attr, cpusetsize, cpuset);
     return 0;
 }
 
-s32 PS4_FUNC kernel_pthread_attr_getstack(pthread_attr_t* attr, void** stack_addr, size_t* stack_size) {
+s32 PS4_FUNC kernel_pthread_attr_getstack(PTHREADATTR_IMPL* attr, void** stack_addr, size_t* stack_size) {
     log("pthread_attr_getstack(attr=*%p, stack_addr=*%p, stack_size=*%p)\n", stack_addr, stack_size);
+#ifdef _WIN32
     pthread_attr_getstackaddr(attr, stack_addr);
     pthread_attr_getstacksize(attr, stack_size);
     return 0;
+#else
+    return pthread_attr_getstack(&(*attr)->attr, stack_addr, stack_size);
+#endif
 }
 
-s32 PS4_FUNC kernel_pthread_attr_setstacksize(pthread_attr_t* attr, size_t stacksize) {
+s32 PS4_FUNC kernel_pthread_attr_setstacksize(PTHREADATTR_IMPL* attr, size_t stacksize) {
     log("pthread_attr_setstacksize(attr=*%p, stacksize=%lld)\n", attr, stacksize);
+#ifdef _WIN32
     return pthread_attr_setstacksize(attr, stacksize);
+#else
+    return pthread_attr_setstacksize(&(*attr)->attr, stacksize);
+#endif
 }
 
-s32 PS4_FUNC kernel_pthread_attr_setdetachstate(pthread_attr_t* attr, int detachstate) {
+s32 PS4_FUNC kernel_pthread_attr_setdetachstate(PTHREADATTR_IMPL* attr, int detachstate) {
     log("pthread_attr_setdetachstate(attr=*%p, detachstate=%d)\n", attr, detachstate);
+#ifdef _WIN32
     return pthread_attr_setdetachstate(attr, detachstate);
+#else
+    return pthread_attr_setdetachstate(&(*attr)->attr, detachstate);
+#endif
 }
 
-s32 PS4_FUNC kernel_pthread_attr_destroy(pthread_attr_t* attr) {
-    log("pthread_attr_destroy(attr=*%p) TODO\n", attr);
+s32 PS4_FUNC kernel_pthread_attr_destroy(PTHREADATTR_IMPL* attr) {
+    log("pthread_attr_destroy(attr=*%p)\n", attr);
+#ifdef _WIN32
     return pthread_attr_destroy(attr);
+#else
+    s32 ret = pthread_attr_destroy(&(*attr)->attr);
+    delete *attr;
+    return ret;
+#endif
 }
 
-s32 PS4_FUNC kernel_pthread_create(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC* start)(void*), void* arg) {
+s32 PS4_FUNC kernel_pthread_create(void** tid, const PTHREADATTR_IMPL* attr, void* (PS4_FUNC* start)(void*), void* arg) {
     log("pthread_create(tid=*%p, attr=*%p, start=%p, arg=%p)\n", tid, attr, start, arg);
     scePthreadCreate(tid, attr, start, arg, nullptr);
     return 0;
 }
 
-s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
+s32 PS4_FUNC scePthreadCreate(void** tid, const PTHREADATTR_IMPL* attr, void* (PS4_FUNC *start)(void*), void* arg, const char* name) {
     // TODO: attr
 
     std::string name_str;
@@ -170,7 +193,7 @@ s32 PS4_FUNC scePthreadCreate(void** tid, const pthread_attr_t* attr, void* (PS4
         name_str = "unnamed";
     }
 #else
-name_str = "unnamed";
+    name_str = "unnamed";
 #endif
     
     log("scePthreadCreate(tid=*%p, attr=*%p, start=%p, arg=%p, name=\"%s\")\n", tid, attr, start, arg, name_str.c_str());

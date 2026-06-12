@@ -59,6 +59,7 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 // Build patch code
                 auto dest = zydis_to_xbyak(operands[0].reg.value);
 
+#ifdef _WIN32
                 // Allocate code for the patch.
                 // We need the code to be allocated within 2GiB of the original instruction so that we can jump to it with a single relative jmp.
                 u8* patch_code_ptr = nullptr;
@@ -66,7 +67,6 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                     s64 diff = std::llabs((u8*)addr - instr_addr);
                     return diff <= 0x80000000;
                 };
-#ifdef _WIN32
                 // TODO: Add a timeout or something
                 void* addr = code_ptr + offs;
                 while (!patch_code_ptr || !is_addr_ok(patch_code_ptr)) {
@@ -84,9 +84,7 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
 
                     addr = (u8*)((u64)mbi.BaseAddress + mbi.RegionSize);
                 }
-#else
-                Helpers::panic("Unsupported platform\n");
-#endif
+
                 auto code = std::make_unique<Xbyak::CodeGenerator>(128, patch_code_ptr);
                 //log("Allocated patch at %p\n", patch_code_ptr);
 
@@ -105,6 +103,12 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
 
                 const auto leftover = std::max((s64)instruction.length - (s64)code->getSize(), (s64)0);
                 std::memset(code_ptr + offs + code->getSize(), 0xcd, leftover);
+#else
+                // On Linux, simply swap the FS access with GS. The TLS pointer is stored in GS on thread init.
+                auto code = std::make_unique<Xbyak::CodeGenerator>(instruction.length, instr_addr);
+                code->putSeg(gs);
+                code->mov(dest, ptr[(uptr)0]);
+#endif
             }
 
             offs += instruction.length;

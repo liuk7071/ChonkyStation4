@@ -27,6 +27,10 @@
 #define RETURN_ADDRESS() _ReturnAddress()
 #else
 #define RETURN_ADDRESS() __builtin_return_address(0)
+
+#include <x86intrin.h>
+#include <time.h>
+#include <procmap/MemoryMap.hpp>
 #endif
 #include <SDL.h>    // For performance counters
 
@@ -421,7 +425,32 @@ void* allocate(uptr search_start, uptr search_end, size_t size, size_t alignment
         if (cur_addr > search_end) Helpers::panic("allocate: out of memory\n");
     }
 #else
-    Helpers::panic("Unsupported platform\n");
+    procmap::MemoryMap map;
+
+    // TODO: This currently only searches forward
+    void* cur_addr = (void*)search_start;
+    while (true) {
+        for (auto& seg : map) {
+            if (seg.startAddress() <= cur_addr && cur_addr < seg.endAddress()) {
+                if  (   !seg.isReadable() && !seg.isWriteable() && !seg.isExecutable()
+                    &&  ((uptr)seg.endAddress() - (uptr)cur_addr >= size)) {
+                    // Found a free mapping
+                    Helpers::debugAssert(!mprotect(cur_addr, size, PROT_READ | PROT_WRITE), "allocate: mprotect failed\n");
+                    return cur_addr;
+                } else {
+                    // Move to the end of this segment and try again
+                    cur_addr = seg.endAddress();
+                    // Align up
+                    cur_addr = (void*)(((uptr)cur_addr + alignment - 1) & ~(alignment - 1));
+                    continue;   // TODO: Unnecessary?
+                }
+            }
+        }
+
+        break;
+    }
+
+    Helpers::panic("allocate: out of memory\n");
 #endif
     
     return nullptr;
@@ -591,7 +620,7 @@ u64 PS4_FUNC sceKernelGetTscFrequency() {
         LARGE_INTEGER now;
         u64 first = __rdtsc();
         QueryPerformanceCounter(&start);
-        for (;;) {
+        while (true) {
             u64 i = __rdtsc();
             QueryPerformanceCounter(&now);
             if (now.QuadPart - start.QuadPart >= freq.QuadPart) {
@@ -602,7 +631,14 @@ u64 PS4_FUNC sceKernelGetTscFrequency() {
         }
     }
 #else
-    Helpers::panic("Unsupported platform\n");
+    u64 first = __rdtsc();
+
+    // Wait 100ms
+    auto start = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(100));
+
+    u64 last = __rdtsc();
+    tsc_freq = (last - first) * 10; // * 10 because we measured for 100ms, not 1s
 #endif
 
     log("freq: %lld\n", tsc_freq);

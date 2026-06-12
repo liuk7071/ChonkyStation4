@@ -8,6 +8,10 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <intrin.h>
+#else
+#include <sys/mman.h>
+#include <signal.h>
+#include <ucontext.h>
 #endif
 
 
@@ -30,28 +34,30 @@ struct CachedBuffer {
     VmaAllocation   alloc;
 
     void protect() {
-#ifdef _WIN32
         const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
         const auto aligned_end = Helpers::alignUp<u64>((u64)base + size, page_size);
 
+#ifdef _WIN32
         DWORD old_protect;
         if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READONLY, &old_protect))
             Helpers::panic("CachedBuffer::protect: VirtualProtect failed");
 #else
-        Helpers::panic("Unsupported platform\n");
+        if (mprotect((void*)aligned_start, aligned_end - aligned_start, PROT_READ))
+            Helpers::panic("CachedBuffer::protect: mprotect failed");
 #endif
     }
 
     void unprotect() {
-#ifdef _WIN32
         const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
         const auto aligned_end = Helpers::alignUp<u64>((u64)base + size, page_size);
 
+#ifdef _WIN32
         DWORD old_protect;
         if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READWRITE, &old_protect))
             Helpers::panic("CachedBuffer::unprotect: VirtualProtect failed");
 #else
-        Helpers::panic("Unsupported platform\n");
+        if (mprotect((void*)aligned_start, aligned_end - aligned_start, PROT_READ | PROT_WRITE))
+            Helpers::panic("CachedBuffer::unprotect: mprotect failed");
 #endif
     }
 };
@@ -65,29 +71,31 @@ struct TrackedRegion {
     std::function<void(uptr)> callback;
 
     void protect() {
-#ifdef _WIN32
         const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
         const auto aligned_end = Helpers::alignUp<u64>((u64)base + size, page_size);
 
+#ifdef _WIN32
         DWORD old_protect;
         if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READONLY, &old_protect))
             //Helpers::panic("TrackedRegion::protect: VirtualProtect failed");
             printf("TrackedRegion::protect: VirtualProtect failed at address 0x%llx\n", aligned_start);
 #else
-        Helpers::panic("Unsupported platform\n");
+        if (mprotect((void*)aligned_start, aligned_end - aligned_start, PROT_READ))
+            Helpers::panic("TrackedRegion::protect: mprotect failed");
 #endif
     }
 
     void unprotect() {
-#ifdef _WIN32
         const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
         const auto aligned_end = Helpers::alignUp<u64>((u64)base + size, page_size);
 
+#ifdef _WIN32
         DWORD old_protect;
         if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READWRITE, &old_protect))
             Helpers::panic("TrackedRegion::unprotect: VirtualProtect failed");
 #else
-        Helpers::panic("Unsupported platform\n");
+        if (mprotect((void*)aligned_start, aligned_end - aligned_start, PROT_READ | PROT_WRITE))
+            Helpers::panic("TrackedRegion::unprotect: mprotect failed");
 #endif
     }
 };
@@ -129,6 +137,34 @@ static LONG CALLBACK exceptionHandler(EXCEPTION_POINTERS* info) noexcept {
     return handled ? EXCEPTION_CONTINUE_EXECUTION : EXCEPTION_CONTINUE_SEARCH;
 }
 
+#else
+
+static void exceptionHandler(int sig, siginfo_t* info, void* uctx) {
+    void* addr = info->si_addr;
+    const u64 page = (uptr)addr >> page_bits;
+
+    auto lk = std::unique_lock<std::mutex>(cache_mtx);
+    bool handled = false;
+
+    if (cache.contains(page)) {
+        handled = true;
+        cache[page]->dirty = true;
+        cache[page]->unprotect();
+    }
+
+    if (tracked.contains(page)) {
+        handled = true;
+        tracked[page]->dirty = true;
+        tracked[page]->callback((uptr)addr);
+        tracked[page]->unprotect();
+    }
+
+    if (!handled) {
+        signal(SIGSEGV, SIG_DFL);
+        raise(SIGSEGV);
+    }
+}
+
 #endif
 
 struct Allocation {
@@ -143,14 +179,21 @@ void init() {
     // Setup exception handler
 #ifdef _WIN32
     if (!AddVectoredExceptionHandler(0, exceptionHandler))
-        Helpers::panic("initTextureCache: failed to register exception handler");
+        Helpers::panic("BufferCache::init: failed to register exception handler");
 
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     page_size = si.dwPageSize;
     page_bits = std::bit_width(page_size - 1);
 #else
-    Helpers::panic("Unsupported platform\n");
+    struct sigaction sa {};
+    sa.sa_sigaction = exceptionHandler;
+    sa.sa_flags = SA_SIGINFO;
+    if (sigaction(SIGSEGV, &sa, nullptr))
+        Helpers::panic("BufferCache::init: failed to register exception handler");
+
+    page_size = sysconf(_SC_PAGESIZE);
+    page_bits = std::bit_width(page_size - 1);
 #endif
 
     allocations.reserve(4096);
