@@ -217,40 +217,40 @@ void VulkanRenderer::init() {
 
     // Choose a physical device
     std::vector<vk::raii::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
-    const auto dev_iter = std::ranges::find_if(devices, [&](auto const &device) {
+    std::vector<vk::raii::PhysicalDevice> supported_devices;
+    for (auto& device : devices) {
         // Check if the device supports the Vulkan 1.3 API version
         bool supports_vulkan1_3 = device.getProperties().apiVersion >= VK_API_VERSION_1_3;
 
         // Check if any of the queue families support graphics operations
         auto queue_families = device.getQueueFamilyProperties();
-        bool supports_graphics =
-            std::ranges::any_of(queue_families, [](auto const &qfp) { return !!(qfp.queueFlags & vk::QueueFlagBits::eGraphics); });
+        bool supports_graphics = std::ranges::any_of(queue_families, [](auto const &qfp) { return !!(qfp.queueFlags & vk::QueueFlagBits::eGraphics); });
 
         // Check if all required device extensions are available
         auto available_device_exts = device.enumerateDeviceExtensionProperties();
-        bool supports_all_required_exts = std::ranges::all_of(required_device_exts,
-        [&available_device_exts](auto const &required_device_exts) {
-            return std::ranges::any_of(available_device_exts,
-            [required_device_exts](auto const &availableDeviceExtension) { return strcmp(availableDeviceExtension.extensionName, required_device_exts) == 0; });
+        bool supports_all_required_exts = std::ranges::all_of(required_device_exts, [&available_device_exts](auto const &required_device_exts) {
+            return std::ranges::any_of(available_device_exts, [required_device_exts](auto const &availableDeviceExtension) { return strcmp(availableDeviceExtension.extensionName, required_device_exts) == 0; });
         });
 
-        auto features                 = device.template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT, vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>();
-        bool supports_all_required_features =    features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters
-                                        && features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering
-                                        && features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState
-                                        && features.template get<vk::PhysicalDeviceFeatures2>().features.depthClamp
-                                        && features.template get<vk::PhysicalDeviceFeatures2>().features.tessellationShader
-                                        && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
-                                        && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout;
-                                        //&& features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
+        auto features                       =  device.template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT, vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>();
+        bool supports_all_required_features =  features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters
+                                            && features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering
+                                            && features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState
+                                            && features.template get<vk::PhysicalDeviceFeatures2>().features.depthClamp
+                                            && features.template get<vk::PhysicalDeviceFeatures2>().features.tessellationShader
+                                            && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
+                                            && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout;
+                                            //&& features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
 
-        return supports_vulkan1_3 && supports_graphics && supports_all_required_exts && supports_all_required_features;
-    });
+        if (supports_vulkan1_3 && supports_graphics && supports_all_required_exts && supports_all_required_features)
+            supported_devices.push_back(std::move(device));
+    };
 
-    if (dev_iter != devices.end()) {
-        physical_device = *dev_iter;
-    }
-    else Helpers::panic("Vulkan: failed to find a suitable GPU!");
+    if (supported_devices.empty())
+        Helpers::panic("Vulkan: failed to find a suitable GPU!");
+
+    // TODO: Sort by score
+    physical_device = std::move(supported_devices.back());
 
     // Get the first index into queue_family_properties which supports both graphics and present
     std::vector<vk::QueueFamilyProperties> queue_family_properties = physical_device.getQueueFamilyProperties();
@@ -400,7 +400,7 @@ void VulkanRenderer::init() {
     curr_frame_pipelines.reserve(4096);
     curr_frame_compute_pipelines.reserve(4096);
 
-    log("Using device %s\n", physical_device.getProperties().deviceName);
+    printf("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
 }
 
@@ -438,8 +438,9 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
 
     // Check if any color or depth target was changed
     vk::Extent2D extent = { 0xffffffff, 0xffffffff };
-    if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {
-        for (int i = 0; i < 1; i++) {   // TODO: Stubbed to 1 color target
+    if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {  // CB_COLOR_CONTROL.MODE != CB_DISABLE
+    //if (true) {
+        for (int i = 0; i < 8; i++) {   // TODO: Stubbed to 1 color target
             if (new_rt[i].enabled) {
                 if (color_rt_dim[i].width  < extent.width)  extent.width  = color_rt_dim[i].width;
                 if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;
@@ -582,11 +583,10 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     if (&pipeline != last_draw_pipeline) {
         cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
         last_draw_pipeline = &pipeline;
-    }
 
-    // Viewport
-    if (pipeline.min_viewport_depth != last_viewport_min_depth || pipeline.max_viewport_depth != last_viewport_max_depth || extent != last_extent) {
-        cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        // Viewport
+        //cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        cmd_bufs[0].setViewport(0, pipeline.viewport);
         cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
         last_viewport_min_depth = pipeline.min_viewport_depth;
         last_viewport_max_depth = pipeline.max_viewport_depth;
@@ -615,12 +615,13 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
     
+    const u32 vtx_offs = regs[Reg::mmVGT_INDX_OFFSET];
     if (idx_buf_ptr) {
         cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
-        cmd_bufs[0].drawIndexed(cnt, 1, idx_offs, 0, 0);
+        cmd_bufs[0].drawIndexed(cnt, 1, idx_offs, vtx_offs, 0);
     }
     else {
-        cmd_bufs[0].draw(cnt, 1, 0, 0);
+        cmd_bufs[0].draw(cnt, 1, vtx_offs, 0);
     }
 }
 
@@ -848,6 +849,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         device.waitIdle();
         cmd_bufs[0].reset();
         recreateSwapChain();
+        advanceSwapchain();
         advanceSwapchain();
         cmd_bufs[0].begin({});
     };

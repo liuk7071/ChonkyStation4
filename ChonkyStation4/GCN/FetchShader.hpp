@@ -26,6 +26,7 @@ struct FetchShaderVertexBinding {
     u32 soffs = 0;
     u32 voffs = 0;
     u32 inst_offs = 0;
+    u32 instance_rate = 0;
 
     bool operator==(const FetchShaderVertexBinding& other) {
         return  vsharp_loc == other.vsharp_loc

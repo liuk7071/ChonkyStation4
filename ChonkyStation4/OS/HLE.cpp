@@ -61,6 +61,12 @@ s32 PS4_FUNC sceNetCtlGetState(s32* state) {
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceAudio3dPortPush() {
+    // TODO: Check for the blocking mode (sync or async)
+    while (true) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return SCE_OK;
+}
+
 namespace PS4::OS::HLE {
 
 // Create a dummy HLE module that only contains the symbol exports for HLE functions
@@ -135,6 +141,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("lhYCTQmBkds", "sceNpPartyInitialize", "libSceNpParty", "libSceNpParty");
     module->addSymbolStub("kA88gbv71ao", "sceNpPartyRegisterHandler", "libSceNpParty", "libSceNpParty");
     module->addSymbolStub("3e4k2mzLkmc", "sceNpPartyCheckCallback", "libSceNpParty", "libSceNpParty");
+    module->addSymbolStub("+v4fVHMwFWc", "sceNpPartyRegisterHandlerA", "libSceNpParty", "libSceNpParty");
     
     // libSceErrorDialog
     module->addSymbolStub("I88KChlynSs", "sceErrorDialogInitialize", "libSceErrorDialog", "libSceErrorDialog", 0);
@@ -230,6 +237,9 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceNpCommon
     module->addSymbolStub("i8UmXTSq7N4", "sceNpCmpNpId", "libSceNpCommon", "libSceNpCommon");
     
+    // libSceNpCommon
+    module->addSymbolStub("j7DlalBzHh8", "sceShareUtilityInitializeEx2", "libSceShareUtility", "libSceShareUtility");
+    
     // libSceNpWebApi
     module->addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
     module->addSymbolStub("79M-JqvvGo0", "sceNpWebApiCreateHandle", "libSceNpWebApi", "libSceNpWebApi", 1);
@@ -241,6 +251,16 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceAudioIn
     module->addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
     module->addSymbolExport("LozEOU8+anM", "sceAudioInInput", "libSceAudioIn", "libSceAudioIn", (void*)&sceAudioInInput);
+    
+    // libSceAudio3d
+    module->addSymbolStub("UmCvjSmuZIw", "sceAudio3dInitialize", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolStub("XeDDK0xJWQA", "sceAudio3dPortOpen", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolStub("jO2tec4dJ2M", "sceAudio3dObjectReserve", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolStub("4uyHN9q4ZeU", "sceAudio3dObjectSetAttributes", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolStub("YaaDbDwKpFM", "sceAudio3dPortGetQueueLevel", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolStub("Yq9bfUQ0uJg", "sceAudio3dPortSetAttribute", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolStub("lw0qrdSjZt8", "sceAudio3dPortAdvance", "libSceAudio3d", "libSceAudio3d");
+    module->addSymbolExport("VEVhZ9qd4ZY", "sceAudio3dPortPush", "libSceAudio3d", "libSceAudio3d", (void*)&sceAudio3dPortPush);
     
     // libSceVoice
     module->addSymbolStub("9TrhuGzberQ", "sceVoiceInit", "libSceVoice", "libSceVoice");

@@ -46,5 +46,6 @@ s32 PS4_FUNC scePlayGoGetLocus(ScePlayGoHandle handle, const ScePlayGoChunkId* c
 s32 PS4_FUNC scePlayGoGetProgress(ScePlayGoHandle handle, const ScePlayGoChunkId* chunk_ids, u32 n_entries, ScePlayGoProgress* out_progress);
 s32 PS4_FUNC scePlayGoGetToDoList(ScePlayGoHandle handle, ScePlayGoToDo* out_todo_list, u32 n_entries, u32* n_out_entries);
 s32 PS4_FUNC scePlayGoGetLanguageMask(ScePlayGoHandle handle, ScePlayGoLanguageMask* out_mask);
+s32 PS4_FUNC scePlayGoSetLanguageMask(ScePlayGoHandle handle, ScePlayGoLanguageMask mask);
 
 }   // End namespace PS4::OS::Libs::ScePlayGo

@@ -182,6 +182,11 @@ struct PipelineConfig {
 
     // Viewport
     ViewportTransformControl viewport_control;
+    // TODO: Other viewports
+    float x_offset = 0.0f;
+    float x_scale = 0.0f;
+    float y_offset = 0.0f;
+    float y_scale = 0.0f;   
     float z_offset = 0.0f;
     float z_scale  = 0.0f;
 
@@ -203,6 +208,7 @@ public:
     PipelineConfig cfg;
     float min_viewport_depth = 0.0f;
     float max_viewport_depth = 0.0f;
+    vk::Viewport viewport;  // TODO: Multiple viewports
     bool has_blend_constants = false;
 
     struct VertexBinding {

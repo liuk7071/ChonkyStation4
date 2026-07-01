@@ -197,6 +197,7 @@ void init(Module& module) {
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libScePosix", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
     module.addSymbolStub("fTx66l5iWIA", "sceKernelFsync", "libkernel", "libkernel");
+    module.addSymbolStub("naInUjYt3so", "sceKernelRmdir", "libkernel", "libkernel");
     
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libkernel", "libkernel", (void*)&kernel_getpid);
     module.addSymbolExport("HoLVWNanBBc", "getpid", "libScePosix", "libkernel", (void*)&kernel_getpid);
@@ -212,6 +213,7 @@ void init(Module& module) {
     module.addSymbolExport("yS8U2TGCe1A", "nanosleep", "libScePosix", "libkernel", (void*)&kernel_nanosleep);
     module.addSymbolExport("QcteRwbsnV0", "usleep", "libkernel", "libkernel", (void*)&sceKernelUsleep); // TODO: Technically should be a separate function, but the behavior should be the same
     module.addSymbolExport("QcteRwbsnV0", "usleep", "libScePosix", "libkernel", (void*)&sceKernelUsleep); // TODO: Technically should be a separate function, but the behavior should be the same
+    module.addSymbolExport("QvsZxomvUHs", "sceKernelNanosleep", "libkernel", "libkernel", (void*)&sceKernelNanosleep);
     module.addSymbolExport("1jfXLRVzisc", "sceKernelUsleep", "libkernel", "libkernel", (void*)&sceKernelUsleep);
     module.addSymbolExport("-ZR+hG7aDHw", "sceKernelSleep", "libkernel", "libkernel", (void*)&sceKernelSleep);
     module.addSymbolExport("lLMT9vJAck0", "clock_gettime", "libkernel", "libkernel", (void*)&kernel_clock_gettime);
@@ -226,6 +228,7 @@ void init(Module& module) {
     module.addSymbolExport("BNowx2l588E", "sceKernelGetProcessTimeCounterFrequency", "libkernel", "libkernel", (void*)&sceKernelGetProcessTimeCounterFrequency);
     module.addSymbolExport("-2IRUCO--PM", "sceKernelReadTsc", "libkernel", "libkernel", (void*)&sceKernelReadTsc);
     module.addSymbolExport("6XG4B33N09g", "sched_yield", "libkernel", "libkernel", (void*)&kernel_sched_yield);
+    module.addSymbolExport("6XG4B33N09g", "sched_yield", "libScePosix", "libkernel", (void*)&kernel_sched_yield);
     
     module.addSymbolExport("WslcK1FQcGI", "sceKernelIsNeoMode", "libkernel", "libkernel", (void*)&sceKernelIsNeoMode);
     module.addSymbolExport("959qrazPIrg", "sceKernelGetProcParam", "libkernel", "libkernel", (void*)&sceKernelGetProcParam);
@@ -236,7 +239,12 @@ void init(Module& module) {
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
     module.addSymbolExport("4R6-OvI2cEA", "sceKernelAddUserEvent", "libkernel", "libkernel", (void*)&sceKernelAddUserEvent);
+    module.addSymbolStub("WDszmSbWuDk", "sceKernelAddUserEventEdge", "libkernel", "libkernel");
     module.addSymbolExport("23CPPI1tyBY", "sceKernelGetEventFilter", "libkernel", "libkernel", (void*)&sceKernelGetEventFilter);
+    module.addSymbolExport("nh2IFMgKTv8", "kqueue", "libkernel", "libkernel", (void*)&kernel_kqueue);
+    module.addSymbolExport("nh2IFMgKTv8", "kqueue", "libScePosix", "libkernel", (void*)&kernel_kqueue);
+    module.addSymbolExport("RW-GEfpnsqg", "kevent", "libkernel", "libkernel", (void*)&kernel_kevent);
+    module.addSymbolExport("RW-GEfpnsqg", "kevent", "libScePosix", "libkernel", (void*)&kernel_kevent);
     module.addSymbolStub("jpFjmgAC5AE", "sceKernelDeleteEqueue", "libkernel", "libkernel");
     
     module.addSymbolExport("BpFoboUJoZU", "sceKernelCreateEventFlag", "libkernel", "libkernel", (void*)&sceKernelCreateEventFlag);
@@ -249,7 +257,7 @@ void init(Module& module) {
     module.addSymbolExport("4czppHBiriw", "sceKernelSignalSema", "libkernel", "libkernel", (void*)&sceKernelSignalSema);
     module.addSymbolExport("Zxa0VhQVTsk", "sceKernelWaitSema", "libkernel", "libkernel", (void*)&sceKernelWaitSema);
     module.addSymbolExport("12wOHk8ywb0", "sceKernelPollSema", "libkernel", "libkernel", (void*)&sceKernelPollSema);
-    module.addSymbolStub("4DM06U2BNEY", "sceKernelCancelSema", "libkernel", "libkernel");   // TODO: IMPORTANT!
+    module.addSymbolExport("4DM06U2BNEY", "sceKernelCancelSema", "libkernel", "libkernel", (void*)&sceKernelCancelSema);
     module.addSymbolStub("R1Jvn8bSCW8", "sceKernelDeleteSema", "libkernel", "libkernel");
     module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libkernel", "libkernel", (void*)&kernel_sem_init);
     module.addSymbolExport("pDuPEf3m4fI", "sem_init", "libScePosix", "libkernel", (void*)&kernel_sem_init);
@@ -309,14 +317,19 @@ void init(Module& module) {
     module.addSymbolStub("3BpP850hBT4", "pthread_condattr_setpshared", "libScePosix", "libkernel");
     module.addSymbolStub("EjllaAqAPZo", "pthread_condattr_setclock", "libkernel", "libkernel");
     module.addSymbolStub("EjllaAqAPZo", "pthread_condattr_setclock", "libScePosix", "libkernel");
+    module.addSymbolStub("532IaQguwMg", "scePthreadMutexattrSetprioceiling", "libkernel", "libkernel");
     module.addSymbolStub("i2ifZ3fS2fo", "scePthreadRwlockattrDestroy", "libkernel", "libkernel");
     module.addSymbolStub("BB+kb08Tl9A", "scePthreadRwlockDestroy", "libkernel", "libkernel");
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libkernel", "libkernel");
     module.addSymbolStub("euKRgm0Vn2M", "pthread_attr_setschedparam", "libScePosix", "libkernel");
     module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libkernel", "libkernel");
     module.addSymbolStub("qlk9pSLsUmM", "pthread_attr_getschedparam", "libScePosix", "libkernel");
+    module.addSymbolStub("JarMIy8kKEY", "pthread_attr_setschedpolicy", "libkernel", "libkernel");
+    module.addSymbolStub("JarMIy8kKEY", "pthread_attr_setschedpolicy", "libScePosix", "libkernel");
     module.addSymbolStub("Xs9hdiD7sAA", "pthread_setschedparam", "libkernel", "libkernel");
     module.addSymbolStub("Xs9hdiD7sAA", "pthread_setschedparam", "libScePosix", "libkernel");
+    module.addSymbolStub("FIs3-UQT9sg", "pthread_getschedparam", "libkernel", "libkernel");
+    module.addSymbolStub("FIs3-UQT9sg", "pthread_getschedparam", "libScePosix", "libkernel");
     module.addSymbolStub("P41kTWUS3EI", "scePthreadGetschedparam", "libkernel", "libkernel");
     module.addSymbolStub("oIRFTjoILbg", "scePthreadSetschedparam", "libkernel", "libkernel");
     module.addSymbolStub("8mql9OcQnd4", "sceKernelDeleteEventFlag", "libkernel", "libkernel");
@@ -363,6 +376,12 @@ void init(Module& module) {
     module.addSymbolStub("5dgOEPsEGqw", "scePthreadBarrierInit", "libkernel", "libkernel");
     module.addSymbolStub("t9vVyTglqHQ", "scePthreadBarrierWait", "libkernel", "libkernel");
     module.addSymbolStub("f7KBOafysXo", "sceKernelGetModuleInfoFromAddr", "libkernel", "libkernel");    // TODO: Important
+    module.addSymbolStub("hHlZQUnlxSM", "getrusage", "libkernel", "libkernel");
+    module.addSymbolStub("hHlZQUnlxSM", "getrusage", "libScePosix", "libkernel");
+    module.addSymbolStub("6BpEZuDT7YI", "pthread_key_delete", "libkernel", "libkernel");
+    module.addSymbolStub("6BpEZuDT7YI", "pthread_key_delete", "libScePosix", "libkernel");
+    module.addSymbolStub("4oXYe9Xmk0Q", "sceKernelGetGPI", "libkernel", "libkernel");
+    module.addSymbolStub("ca7v6Cxulzs", "sceKernelSetGPO", "libkernel", "libkernel");
     
     module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
     
@@ -395,6 +414,9 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
     size = (size + page_size - 1) & ~(page_size - 1);
 
     uptr cur_addr = reservation_start;
+    // Align up
+    cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+
     while (true) {
         MEMORY_BASIC_INFORMATION mbi;
         if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
@@ -425,6 +447,48 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
     
     return nullptr;
 }
+
+// Same as allocate, without committing physical memory.
+void* findNextFree(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
+    if (reservation_start >= reservation_end) return nullptr;
+    if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
+    if (size == 0) return nullptr;
+
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const size_t page_size = si.dwPageSize;
+    alignment = alignment < page_size ? page_size : alignment;
+    size = (size + page_size - 1) & ~(page_size - 1);
+
+    uptr cur_addr = reservation_start;
+    // Align up
+    cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+
+    while (true) {
+        MEMORY_BASIC_INFORMATION mbi;
+        if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
+            Helpers::panic("allocate: VirtualQuery failed\n");
+
+        if (mbi.State == MEM_RESERVE) {
+            uptr region_end = (uptr)mbi.BaseAddress + mbi.RegionSize;
+            if (cur_addr + size <= region_end) {
+                return (void*)cur_addr;
+            }
+
+            // Free area wasn't big enough
+        }
+        cur_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+        // Align up
+        cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+
+        if (cur_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
+    }
+
+
+    return nullptr;
+}
 #endif
 
 s32* PS4_FUNC kernel_error() {
@@ -452,6 +516,11 @@ s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp) 
         rmtp->tv_nsec = 0;
     }
     return 0;
+}
+
+s32 PS4_FUNC sceKernelNanosleep(const SceKernelTimespec* rqtp, SceKernelTimespec* rmtp) {
+    std::this_thread::sleep_for(std::chrono::nanoseconds(rqtp->tv_nsec) + std::chrono::seconds(rqtp->tv_sec));
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelUsleep(u32 us) {
@@ -667,6 +736,14 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 
     align = align ? align : 16_KB;
 
+    // Address is out of bounds. FIFA 14 does this, and expects it to work?
+    // This game doesn't request a fixed mapping so we can just treat it as in_addr == 0
+    if (in_addr > (void*)0xff'ffff'ffff) {
+        printf("sceKernelMapDirectMemory: in_addr is out of bounds\n");
+        //return SCE_KERNEL_ERROR_ENOMEM;
+        in_addr = nullptr;
+    }
+
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
 #ifdef _WIN32
     if (!in_addr) {
@@ -685,8 +762,12 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
         Helpers::panic("sceKernelMapDirectMemory: failed to allocate\n");
     }
 
-    if ((flags & 0x10) && *addr != in_addr)
-        Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag\n");
+    if ((flags & 0x10) && *addr != in_addr) {
+        Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
+        sceKernelMunmap(*addr, len);
+        *addr = nullptr;
+        return SCE_KERNEL_ERROR_ENOMEM;
+    }
 
     virt_dmem_map[*addr] = (u64)dmem_start;
     dmem_virt_map[(u64)dmem_start] = *addr;
@@ -730,19 +811,49 @@ s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, 
     return SCE_OK;
 }
 
+struct ReservedArea {
+    uptr start = 0;
+    size_t size = 0;
+};
+std::vector<ReservedArea> reserved_areas;
+
 s32 PS4_FUNC sceKernelReserveVirtualRange(void** addr, size_t len, s32 flags, size_t align) {
     log("sceKernelReserveVirtualRange(addr=*%p, len=0x%llx, flags=%d, align=0x%016llx)\n", addr, len, flags, align);
     log("in_addr=%p\n", *addr);
 
-    void* in_addr = *addr;  
+    // Search forwards from in_addr
+    void* in_addr = *addr;
+    void* out_addr = nullptr;
+    while (true) {
+        // Allocate memory, then decommit.
+        // If the address we got was already reserved continue searching
+        if ((u64)in_addr >= 0x8000'0000)
+            out_addr = findNextFree((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
+        else
+            // TODO
+            out_addr = findNextFree(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
+        sceKernelMunmap(out_addr, len);
+    
+        bool overlap = false;
+        for (auto& area : reserved_areas) {
+            if (   Helpers::inRangeSized<uptr>((uptr)out_addr, area.start, area.size)
+                || Helpers::inRangeSized<uptr>((uptr)area.start, (uptr)out_addr, len)
+               ) {
+                overlap = true;
+                break;
+            }
+        }
 
-    // Allocate memory, then decommit
-    if ((u64)in_addr >= 0x8000'0000)
-        *addr = allocate((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
-    else
-        // TODO
-        *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
-    sceKernelMunmap(*addr, len);
+        if (overlap) {
+            in_addr = (void*)((uptr)out_addr + len);
+            continue;
+        }
+
+        break;
+    }
+
+    *addr = out_addr;
+    reserved_areas.push_back({ .start = (uptr)out_addr, .size = len });
 
     log("out_addr=%p\n", *addr);
     return SCE_OK;
@@ -770,7 +881,7 @@ s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len) {
 }
 
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {
-    log("sceKernelMunmap(addr=%p, len=0x%llx)\n", addr, len);
+    //log("sceKernelMunmap(addr=%p, len=0x%llx)\n", addr, len);
 
 #ifdef _WIN32
     auto lk = std::unique_lock<std::mutex>(allocator_mtx);
@@ -797,7 +908,7 @@ size_t PS4_FUNC sceKernelGetDirectMemorySize() {
 }
 
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size) {
-    log("sceKernelVirtualQuery(addr=%p, flags=0x%x\n, info=*%p, info_size=%d)\n", addr, flags, info, info_size);
+    log("sceKernelVirtualQuery(addr=%p, flags=0x%x, info=*%p, info_size=%d)\n", addr, flags, info, info_size);
 
     // TODO: This is a very bad stub. I need to properly implement the memory map.
 #ifdef _WIN32
@@ -810,6 +921,11 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
     Helpers::panic("Unsupported platform\n");
 #endif
     
+    if (flags & 1) {
+        printf("sceKernelVirtualQuery: unhandled flag find_next\n");
+        //return SCE_KERNEL_ERROR_EACCES;
+    }
+
     bool is_dmem = false;
     if (virt_dmem_map.contains(info->start)) {
         is_dmem = true;
@@ -867,6 +983,11 @@ SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_
     log("sceKernelLoadStartModule(module_path=\"%s\", args=%d, argp=%p, flags=0x%x, opt=*%p, res=*%p)\n", module_path, args, argp, flags, opt, res);
 
     const fs::path host_module_path = FS::guestPathToHost(module_path);
+    if (!fs::exists(host_module_path)) {
+        printf("sceKernelLoadStartModule: module %s does not exist\n", module_path);
+        return SCE_KERNEL_ERROR_ENOENT;
+    }
+
     auto module = PS4::Loader::Linker::loadAndLinkLib(g_app, host_module_path);
     s32 ret = module->init_func(args, argp, nullptr);   // TODO: libkernel.sprx seems to pass the address of the module_start (nid=0xBaOKcng8g88) symbol as parameter
     

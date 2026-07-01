@@ -104,13 +104,13 @@ u64 open(fs::path path, u32& err, u32 flags) {
         SceKernelDirent dirent;
         dirent.d_fileno = fileno++;
         dirent.d_reclen = sizeof(SceKernelDirent);
-        dirent.d_type   = SCE_KERNEL_DT_DIR;
+        dirent.d_type   = SCE_KERNEL_DT_DIR >> 12;
         std::strcpy(dirent.d_name, ".");
         file_desc->dirents.push_back(dirent);
 
         dirent.d_fileno = fileno++;
-        //dirent.d_reclen = sizeof(SceKernelDirent);
-        //dirent.d_type = SCE_KERNEL_DT_DIR;
+        dirent.d_reclen = sizeof(SceKernelDirent);
+        dirent.d_type = SCE_KERNEL_DT_DIR >> 12;
         std::strcpy(dirent.d_name, "..");
         file_desc->dirents.push_back(dirent);
 
@@ -120,7 +120,7 @@ u64 open(fs::path path, u32& err, u32 flags) {
             auto& dirent = file_desc->dirents.emplace_back();
             dirent.d_fileno = fileno++;  // TODO: Proper implementation?
             dirent.d_reclen = sizeof(SceKernelDirent);
-            dirent.d_type = !entry.is_directory() ? SCE_KERNEL_DT_REG : SCE_KERNEL_DT_DIR;
+            dirent.d_type = (!entry.is_directory() ? SCE_KERNEL_DT_REG : SCE_KERNEL_DT_DIR) >> 12;
             dirent.d_namlen = name_str.length();
             std::strcpy(dirent.d_name, name_str.c_str());
         }

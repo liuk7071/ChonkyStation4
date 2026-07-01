@@ -313,7 +313,7 @@ std::pair<vk::Buffer, void*> getMappedBufferForFrame(size_t size) {
 // This function exists to allow us to track memory pages without necessarily tying them to a Vulkan buffer.
 // I use this in my texture cache, where I handle the Vulkan code separately.
 // TODO: If you overwrite a region, the callback is silently not updated.
-// Change this behavior if I ever use this anywhere other than the texture cache.
+// Change this behavior if I ever use this anywhere other than the texture cache (where the callback is always the same so it's not an issue).
 void track(void* base, size_t size, std::function<void(uptr)> callback) {
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)base, page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)base + size, page_size);

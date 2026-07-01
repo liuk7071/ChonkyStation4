@@ -52,5 +52,7 @@ s32 PS4_FUNC sceKernelCreateEqueue(SceKernelEqueue* eq, const char* name);
 s32 PS4_FUNC sceKernelWaitEqueue(SceKernelEqueue eq, SceKernelEvent* ev, s32 n_evs, s32* n_out, u32* timeout);
 s32 PS4_FUNC sceKernelAddUserEvent(SceKernelEqueue eq, s32 id);
 s32 PS4_FUNC sceKernelGetEventFilter(SceKernelEvent* ev);
+s32 PS4_FUNC kernel_kqueue();
+s32 PS4_FUNC kernel_kevent(s32 handle, SceKernelEvent* changelist, u64 n_changes, SceKernelEvent* eventlist, u64 n_events, SceKernelTimespec* timeout);
 
 };  // End namespace PS4::OS::Libs::Kernel

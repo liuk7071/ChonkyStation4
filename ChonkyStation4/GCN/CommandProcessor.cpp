@@ -151,6 +151,7 @@ void processCcb(u32* ccb, size_t ccb_size) {
 void* index_base = nullptr;
 s32   n_indices = 0;
 void* indirect_args_base = nullptr;
+u64 occlusion_pixel_counter = 0;
 
 void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     if (ccb) {
@@ -237,7 +238,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             job.n_threads_y = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Y];
             job.n_threads_z = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Z];
             job.addr = renderer->getCSPtr();
-            renderer->dispatch(job);
+            //renderer->dispatch(job);
             break;
         }
 
@@ -317,8 +318,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             };
 
             //while (!check()) {
-                // TODO: Use poll_interval
-                //std::this_thread::sleep_for(std::chrono::microseconds(1000));
+            //    // TODO: Use poll_interval
+            //    std::this_thread::sleep_for(std::chrono::microseconds(1000));
             //}
             break;
         }
@@ -333,6 +334,28 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             break;
         }
 
+        case PM4ItOpcode::EventWrite: {
+            const u32 event_ctrl = *args++;
+            const u32 addr_lo = *args++;
+            const u32 addr_hi = *args++;
+            void* dst_ptr = (void*)(addr_lo | ((u64)addr_hi << 32));
+            const auto event_type = (event_ctrl >> 0) & 0x3f;
+            const auto event_idx = (event_ctrl >> 8) & 0xf;
+
+            // From shadPS4 - FIFA 14 relies on this
+            if (event_idx == 1) {           // ZpassDone
+                if (event_type == 57) {     // PixelPipeStatDump
+                    u64* out = (u64*)dst_ptr;
+                    for (int i = 0; i < 8; i++) {
+                        *out = occlusion_pixel_counter | 0x8000000000000000ull;
+                        out += 2;
+                    }
+                    occlusion_pixel_counter += 0x2ffffffull;
+                }
+            }
+            break;
+        }
+
         case PM4ItOpcode::EventWriteEop: {
             const u32 event_ctrl = *args++;
             const u32 addr_lo = *args++;
@@ -340,18 +363,24 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             const u32 data_lo = *args++;
             const u32 data_hi = *args++;
 
-            void* ptr = (void*)(addr_lo | ((u64)(data_ctrl & 0xffff) << 32));
+            void* dst_ptr = (void*)(addr_lo | ((u64)(data_ctrl & 0xffff) << 32));
             const u64 data = data_lo | ((u64)data_hi << 32);
             const u32 int_sel = (data_ctrl >> 24) & 3;
             const u32 data_sel = (data_ctrl >> 29) & 7;
             switch (data_sel) {
-            case 0:                                             break;      // None
-            case 1: std::memcpy(ptr, &data_lo, sizeof(u32));    break;      // 32bit
-            case 2: std::memcpy(ptr, &data,    sizeof(u64));    break;      // 64bit
+            case 0:                                                 break;      // None
+            case 1: std::memcpy(dst_ptr, &data_lo, sizeof(u32));    break;      // 32bit
+            case 2: std::memcpy(dst_ptr, &data,    sizeof(u64));    break;      // 64bit
+            case 3: {
+                // TODO: gpu clock counter
+                const u64 dummy = std::chrono::system_clock::now().time_since_epoch().count();
+                std::memcpy(dst_ptr, &dummy, sizeof(u64));
+                break;
+            }
             case 4: {
                 // TODO: gpu perf counter
                 const u64 dummy = 100000;
-                std::memcpy(ptr, &dummy, sizeof(u64));
+                std::memcpy(dst_ptr, &dummy, sizeof(u64));
                 break;
             }
             default: Helpers::panic("EventWriteEop: unhandled data_sel %d\n", data_sel);
@@ -369,10 +398,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             const u32 cmd_ctrl = *args++;
             const u32 data = *args++;
 
-            void* ptr = (void*)(addr_lo | ((u64)(cmd_ctrl & 0xffff) << 32));
+            void* dst_ptr = (void*)(addr_lo | ((u64)(cmd_ctrl & 0xffff) << 32));
             const u32 cmd = (cmd_ctrl >> 29) & 7;
             switch (cmd) {
-            case 2: std::memcpy(ptr, &data, sizeof(u32));    break;
+            case 2: std::memcpy(dst_ptr, &data, sizeof(u32));   break;
             default: Helpers::panic("EventWriteEos: unhandled cmd %d\n", cmd);
             }
             break;

@@ -33,8 +33,10 @@ void TrackedTexture::transition(vk::ImageLayout new_layout) {
 }
 
 void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt) {
+    const bool is_3d = tsharp->type == 10;  // COLOR 3D
     const u32 width = tsharp->width + 1;
     const u32 height = tsharp->height + 1;
+    const u32 depth = is_3d ? std::max(tsharp->depth + 1, 1) : 1;
     const u32 pitch = tsharp->pitch + 1;
     //if (tsharp->pow2pad) pitch = std::bit_ceil(pitch);
 
@@ -69,8 +71,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         break;
     }
 
-    default: img_size = pitch * height * pixel_size; break;
+    default: img_size = pitch * height * pixel_size * depth; break;
     }
+
+    // TODO: Tiled 3D textures
 
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
@@ -118,7 +122,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                 0, 0, 1
             },
             .imageOffset = { 0, 0, 0 },
-            .imageExtent = { width, height, 1 }
+            .imageExtent = { width, height, depth }
         };
         cmd_bufs[0].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
     };
@@ -142,6 +146,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         for (auto& tracked_tex : tracked_textures[ptr]) {
             if (   tracked_tex->width  == width
                 && tracked_tex->height == height
+                && (tracked_tex->depth == depth || !is_3d)
                 && tracked_tex->tsharp.data_format == tsharp->data_format
                 && (tracked_tex->tsharp.num_format == tsharp->num_format || dont_match_num_format)
                ) {
@@ -155,6 +160,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
                 // If the texture was modified, reupload it
                 if (tex->dirty) {
+                    tex->tsharp = *tsharp;
                     // If the page this texture was in was just dirtied, dirty all textures that are part of this page.
                     tex->dirty = false;
                     reupload_tex(tex);
@@ -173,7 +179,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     }
 
     log("Tracking new texture\n");
-    log("texture size: width=%lld, height=%lld\n", (u32)tsharp->width + 1, (u32)tsharp->height + 1);
+    log("texture size: width=%lld, height=%lld, depth=%lld\n", (u32)tsharp->width + 1, (u32)tsharp->height + 1, (u32)tsharp->depth + 1);
     log("texture ptr: %p\n", ptr);
     log("texture dfmt: %d\n", (u32)tsharp->data_format);
     log("texture nfmt: %d\n", (u32)tsharp->num_format);
@@ -190,6 +196,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     tex->size = img_size;
     tex->width = width;
     tex->height = height;
+    tex->depth = depth;
     tex->page = page;
     tex->page_end = page_end;
     tex->is_depth_buffer = is_depth_buffer;
@@ -217,9 +224,9 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         attachment_bits = (!is_depth_buffer ? vk::ImageUsageFlagBits::eColorAttachment : vk::ImageUsageFlagBits::eDepthStencilAttachment) | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT;
 
     vk::ImageCreateInfo img_info = {
-        .imageType = vk::ImageType::e2D,
+        .imageType = !is_3d ? vk::ImageType::e2D : vk::ImageType::e3D,
         .format = vk_fmt,
-        .extent = { width, height, 1 },
+        .extent = { width, height, depth },
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
@@ -251,7 +258,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     auto& img_view = tex->view;
     vk::ImageViewCreateInfo view_info = {
         .image = *img,
-        .viewType = vk::ImageViewType::e2D,
+        .viewType = !is_3d ? vk::ImageViewType::e2D : vk::ImageViewType::e3D,
         .format = vk_fmt,
         .subresourceRange = {
             !is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth,

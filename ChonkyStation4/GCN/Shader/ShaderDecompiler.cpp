@@ -169,14 +169,14 @@ void addInSSBO(std::string name, int binding) {
     shader += std::format("layout(binding = {}, std430) buffer {}_t {{ uint data[]; }} {};\n", binding, name, name);
 }
 
-void addInSampler2D(std::string name, int binding) {
+void addInSampler(std::string type, std::string name, int binding) {
     if (in_samplers.contains(binding)) {
         // Extra check to be safe, this shouldn't ever happen
         Helpers::debugAssert(in_samplers[binding] == name, "ShaderDecompiler: tried to add an input sampler2D to an already used binding with a different name\n");
         return;
     }
     in_samplers[binding] = name;
-    shader += std::format("layout(binding = {}) uniform sampler2D {};\n", binding, name);
+    shader += std::format("layout(binding = {}) uniform {} {};\n", binding, type, name);
 }
 
 void addOutImage2D(std::string name, int binding) {
@@ -224,6 +224,17 @@ std::string getSGPR(int n) {
         initialization += std::format("uint {} = 0;\n", reg);
     }
     return reg;
+}
+
+std::unordered_map<u32, bool> lane_map;
+std::string getLane(int vgpr, int lane) {
+    const u32 backup_idx = (vgpr << 16) | lane;
+    const std::string var = std::format("lane{}_{}", vgpr, lane);
+    if (!lane_map.contains(backup_idx)) {
+        lane_map[backup_idx] = true;
+        initialization += std::format("uint {} = 0;\n", var);
+    }
+    return var;
 }
 
 std::string getType(int n_lanes, u32 nfmt) {
@@ -397,6 +408,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     has_fetch_buffer_func_map.clear();
     vgpr_map.clear();
     sgpr_map.clear();
+    lane_map.clear();
 
     shader += R"(
 #version 450
@@ -623,7 +635,14 @@ ivec3 unpackImageOffset(uint packed) {
                     }
                     default:
                         buf.is_image_store = false;
-                        addInSampler2D(name, buf.binding);
+                        
+                        std::string type = "sampler2D";
+                        auto* tsharp = buf.desc_info.asPtr<TSharp>();
+                        if (tsharp && tsharp->type == 10 /* COLOR 3D */) {
+                            type = "sampler3D";
+                        }
+
+                        addInSampler(type, name, buf.binding);
                         break;
                     }
                     //printf("Created binding for %s\nsgpr=%d, is_ptr=%d, offs=%d\n", name.c_str(), sgpr, is_ptr, offs);
@@ -1263,6 +1282,7 @@ ivec3 unpackImageOffset(uint packed) {
             const u32 lane = std::stoi(getSRC<Type::Uint>(instr.src[1]));
             main += "// TODO: V_READLANE_B32 ";
             main += std::format("dest: {} src: {} lane: {}\n", dest_sgpr, src_vgpr, lane);
+            main += std::format("{} = {};\n", getSGPR(dest_sgpr), getLane(src_vgpr, lane));
             break;
         }
 
@@ -1272,6 +1292,7 @@ ivec3 unpackImageOffset(uint packed) {
             const u32 lane = std::stoi(getSRC<Type::Uint>(instr.src[1]));
             main += "// TODO: V_WRITELANE_B32 ";
             main += std::format("dest: {} src: {} lane: {}\n", dest_vgpr, src_sgpr, lane);
+            main += std::format("{} = {};\n", getLane(dest_vgpr, lane), getSGPR(src_sgpr));
             break;
         }
 
@@ -1910,7 +1931,7 @@ ivec3 unpackImageOffset(uint packed) {
 
         case Shader::Opcode::IMAGE_STORE: {
             const auto buffer_mapping = buf_mapping_idx++;
-            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_SAMPLE: no buffer_mapping");  // Unreachable if everything works as intended
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_STORE: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
 
             const auto image_name = std::format("tex{}", buf->binding);
@@ -1966,6 +1987,10 @@ ivec3 unpackImageOffset(uint packed) {
             auto* buf = buffer_map[buffer_mapping];
             
             const auto sampler_name = std::format("tex{}", buf->binding);
+
+            // TODO: We use whatever T# the game set the first time the shader is compiled. In theory it can change.
+            auto* tsharp = buf->desc_info.asPtr<TSharp>();
+            const bool is_3d = tsharp ? tsharp->type == 10 : false;
             
             const auto flags = MimgModifierFlags(instr.control.mimg.mod);
             const bool offset = flags.test(MimgModifier::Offset);
@@ -1989,12 +2014,18 @@ ivec3 unpackImageOffset(uint packed) {
                 coord_reg_idx++;
 
             if (derivative)
-                coord_reg_idx += 2; // TODO: This should be 1 per dimension (i.e. 3 for 3D textures)
+                coord_reg_idx += !is_3d ? 2 : 3; // TODO: This should be 1 per dimension (i.e. 3 for 3D textures)
 
             std::string sample_op = "texture";
             
             // TODO: LoadBias, PCF, derivative
-            std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+            // TODO: Other dimensions
+            std::string texcoords;
+            if (!is_3d)
+                texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+            else
+                texcoords = std::format("vec3(u2f({}), u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1), getVGPR(coord_reg_idx + 2));
+
             main += std::format("// T# is in s{}\n", instr.src[2].code * 4);
             
             // Instead of using textureOffset we bake the offset into the coordinates, because textureOffset expects a constant offset
@@ -2049,9 +2080,15 @@ ivec3 unpackImageOffset(uint packed) {
             const auto buffer_mapping = buf_mapping_idx++;
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_LOAD: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
+            auto* tsharp = buf->desc_info.asPtr<TSharp>();
+            const bool is_3d = tsharp ? tsharp->type == 10 : false;
 
             const auto sampler_name = std::format("tex{}", buf->binding);
-            main += std::format("itmp.xy = textureSize({}, 0);\n", sampler_name);
+
+            if (!is_3d)
+                main += std::format("itmp.xy = textureSize({}, 0);\n", sampler_name);
+            else
+                main += std::format("itmp.xyz = textureSize({}, 0);\n", sampler_name);
 
             u32 dest_gpr_offs = 0;
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Width) & 1) {
@@ -2063,7 +2100,8 @@ ivec3 unpackImageOffset(uint packed) {
             }
 
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::Depth) & 1) {
-                main += std::format("{} = 1; // TODO: IMAGE_GET_RESINFO depth\n", getVGPR(instr.dst[0].code + dest_gpr_offs++));
+                if (!is_3d) Helpers::panic("IMAGE_GET_RESINFO: requested depth for 2d texture\n");
+                main += std::format("{} = itmp.z;\n", getVGPR(instr.dst[0].code + dest_gpr_offs++));
             }
 
             if ((instr.control.mimg.dmask >> (u32)ImageResComponent::MipCount) & 1) {

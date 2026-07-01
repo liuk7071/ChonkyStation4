@@ -56,6 +56,7 @@ s32* PS4_FUNC kernel_error();
 s32 PS4_FUNC kernel_getpagesize();
 void* PS4_FUNC __tls_get_addr(TLSIndex* tls_idx);
 s32 PS4_FUNC kernel_nanosleep(SceKernelTimespec* rqtp, SceKernelTimespec* rmtp);
+s32 PS4_FUNC sceKernelNanosleep(const SceKernelTimespec* rqtp, SceKernelTimespec* rmtp);
 s32 PS4_FUNC sceKernelUsleep(u32 us);
 s32 PS4_FUNC sceKernelSleep(u32 s);
 s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts);

@@ -71,6 +71,7 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("aPIZJTXC+cU", "sceGnmInsertPushColorMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("jiItzS6+22g", "sceGnmInsertSetMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("NfvOrNzy6sk", "sceGnmInsertDingDongMarker", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("ffrNQOshows", "sceGnmComputeWaitOnAddress", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("jg33rEKLfVs", "sceGnmIsUserPaEnabled", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("cFCp0NX8wf0", "sceGnmSetVgtControl", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("ZFqKFl23aMc", "sceGnmRegisterOwner", "libSceGnmDriver", "libSceGnmDriver");

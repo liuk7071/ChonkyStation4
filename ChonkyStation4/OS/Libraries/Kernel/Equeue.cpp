@@ -1,6 +1,8 @@
 #include "Equeue.hpp"
 #include <Logger.hpp>
+#include <OS/SceObj.hpp>
 #include <thread>
+#include <unordered_map>
 #ifdef _MSC_VER
 #include <intrin.h>
 #define RETURN_ADDRESS() _ReturnAddress()
@@ -137,6 +139,35 @@ s32 PS4_FUNC sceKernelAddUserEvent(SceKernelEqueue eq, s32 id) {
 s32 PS4_FUNC sceKernelGetEventFilter(SceKernelEvent* ev) {
     log("sceKernelGetEventFilter(eq=%p)\n", ev);
     return (s32)(s16)ev->filter;
+}
+
+// Posix queues
+std::unordered_map<u64, SceKernelEqueue> posix_eqs;
+std::mutex posix_eq_mtx;
+
+s32 PS4_FUNC kernel_kqueue() {
+    log("kqueue()\n");
+
+    // Request a new handle and create the equeue
+    auto handle = OS::requestHandle();
+    SceKernelEqueue eq = nullptr;
+    sceKernelCreateEqueue(&eq, std::format("kqueue_{}", handle).c_str());
+    
+    // Insert into map
+    {
+        const std::unique_lock<std::mutex> lk(posix_eq_mtx);
+        posix_eqs[handle] = eq;
+    }
+
+    return handle;
+}
+
+s32 PS4_FUNC kernel_kevent(s32 handle, SceKernelEvent* changelist, u64 n_changes, SceKernelEvent* eventlist, u64 n_events, SceKernelTimespec* timeout) {
+    log("kernel_kevent(handle=%d, changelist=*%p, n_changes=%lld, eventlist=*%p, n_events=%lld, timeout=*%p)\n", handle, changelist, n_changes, eventlist, n_events, timeout);
+
+    // TODO: Important
+    printf("TODO: kevent\n");
+    return SCE_OK;
 }
 
 };  // End namespace PS4::OS::Libs::Kernel

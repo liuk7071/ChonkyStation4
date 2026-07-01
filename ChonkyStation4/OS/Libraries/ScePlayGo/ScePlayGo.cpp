@@ -15,10 +15,10 @@ void init(Module& module) {
     module.addSymbolExport("-RJWNMK3fC8", "scePlayGoGetProgress", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoGetProgress);
     module.addSymbolExport("Nn7zKwnA5q0", "scePlayGoGetToDoList", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoGetToDoList);
     module.addSymbolExport("3OMbYZBaa50", "scePlayGoGetLanguageMask", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoGetLanguageMask);
+    module.addSymbolExport("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo", (void*)&scePlayGoSetLanguageMask);
     
     module.addSymbolStub("73fF1MFU8hA", "scePlayGoGetChunkId", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("-Q1-u1a7p0g", "scePlayGoPrefetch", "libScePlayGo", "libScePlayGo");
-    module.addSymbolStub("LosLlHOpNqQ", "scePlayGoSetLanguageMask", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("gUPGiOQ1tmQ", "scePlayGoSetToDoList", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("4AAcTU9R3XM", "scePlayGoSetInstallSpeed", "libScePlayGo", "libScePlayGo");
     module.addSymbolStub("rvBSfTimejE", "scePlayGoGetInstallSpeed", "libScePlayGo", "libScePlayGo");
@@ -28,10 +28,19 @@ void init(Module& module) {
 }
 
 ScePlayGoInitParams param;
+ScePlayGoLanguageMask lang_mask = 0;
+
+inline ScePlayGoLanguageMask PS4_FUNC scePlayGoConvertLanguage(s32 system_lang) {
+    return (system_lang >= 0 && system_lang < 48) ? (1ull << (64 - system_lang - 1)) : 0;
+}
 
 s32 PS4_FUNC scePlayGoInitialize(const ScePlayGoInitParams* init_param) {
     log("scePlayGoInitialize(init_param=*%p)\n", init_param);
     param = *init_param;
+
+    s32 lang = 0;
+    SceSystemService::sceSystemServiceParamGetInt(SceSystemService::SCE_SYSTEM_SERVICE_PARAM_ID_LANG, &lang);
+    lang_mask = scePlayGoConvertLanguage(lang);
     return SCE_OK;
 }
 
@@ -68,16 +77,17 @@ s32 PS4_FUNC scePlayGoGetToDoList(ScePlayGoHandle handle, ScePlayGoToDo* out_tod
     return SCE_OK;
 }
 
-inline ScePlayGoLanguageMask PS4_FUNC scePlayGoConvertLanguage(s32 system_lang) {
-    return (system_lang >= 0 && system_lang < 48) ? (1ull << (64 - system_lang - 1)) : 0;
-}
-
 s32 PS4_FUNC scePlayGoGetLanguageMask(ScePlayGoHandle handle, ScePlayGoLanguageMask* out_mask) {
     log("scePlayGoGetLanguageMask(handle=0x%x, out_mask=*%p)\n", handle, out_mask);
 
-    s32 lang = 0;
-    SceSystemService::sceSystemServiceParamGetInt(SceSystemService::SCE_SYSTEM_SERVICE_PARAM_ID_LANG, &lang);
-    *out_mask = scePlayGoConvertLanguage(lang);
+    *out_mask = lang_mask;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePlayGoSetLanguageMask(ScePlayGoHandle handle, ScePlayGoLanguageMask mask) {
+    log("scePlayGoSetLanguageMask(handle=0x%x, out_mask=*%p)\n", handle, mask);
+
+    lang_mask = mask;
     return SCE_OK;
 }
 

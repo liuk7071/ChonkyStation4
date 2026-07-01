@@ -87,6 +87,10 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
 
     // Viewport
     cfg.viewport_control.raw = regs[Reg::mmPA_CL_VTE_CNTL];
+    cfg.x_offset = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_XOFFSET]);
+    cfg.x_scale  = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_XSCALE]);
+    cfg.y_offset = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_YOFFSET]);
+    cfg.y_scale  = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_YSCALE]);
     cfg.z_offset = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_ZOFFSET]);
     cfg.z_scale  = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_ZSCALE]);
 
@@ -117,6 +121,10 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
         XXH3_64bits_update(state, &cfg.stencil_refmask_back,  sizeof(cfg.stencil_refmask_back));
     }
     XXH3_64bits_update(state, &cfg.viewport_control, sizeof(cfg.viewport_control));
+    if (cfg.viewport_control.x_offset_enable) XXH3_64bits_update(state, &cfg.x_offset, sizeof(cfg.x_offset));
+    if (cfg.viewport_control.x_scale_enable)  XXH3_64bits_update(state, &cfg.x_scale, sizeof(cfg.x_scale));
+    if (cfg.viewport_control.y_offset_enable) XXH3_64bits_update(state, &cfg.y_offset, sizeof(cfg.y_offset));
+    if (cfg.viewport_control.y_scale_enable)  XXH3_64bits_update(state, &cfg.y_scale, sizeof(cfg.y_scale));
     if (cfg.viewport_control.z_offset_enable) XXH3_64bits_update(state, &cfg.z_offset, sizeof(cfg.z_offset));
     if (cfg.viewport_control.z_scale_enable)  XXH3_64bits_update(state, &cfg.z_scale,  sizeof(cfg.z_scale));
     XXH3_64bits_update(state, &cfg.dx_clip_space_enable, sizeof(cfg.dx_clip_space_enable));

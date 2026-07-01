@@ -41,6 +41,7 @@ void init(Module& module) {
     module.addSymbolStub("zJGf8xjFnQE", "sceNetSocketAbort", "libSceNet", "libSceNet");
     module.addSymbolStub("45ggEzakPJQ", "sceNetSocketClose", "libSceNet", "libSceNet");
     module.addSymbolStub("6Oc0bLsIYe0", "sceNetGetMacAddress", "libSceNet", "libSceNet");
+    module.addSymbolStub("Inp1lfL+Jdw", "sceNetEpollDestroy", "libSceNet", "libSceNet");
     module.addSymbolStub("cTGkc6-TBlI", "sceNetTerm", "libSceNet", "libSceNet");
 }
 

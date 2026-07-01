@@ -126,7 +126,7 @@ static const TBuiltInResource DefaultTBuiltInResource = {
     }
 };
 
-//#define SHADER_DEBUG
+#define SHADER_DEBUG
 
 inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage) {
     glslang::InitializeProcess();
@@ -146,6 +146,7 @@ inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage
 
     if (shader.getInfoLog()[0] != '\0') {
         printf("%s\n\nShader error: %s\n", source.c_str(), shader.getInfoLog()); // get the log for parsing the shader
+        std::_Exit(0);
         std::vector<u32> empty;
         empty.clear();
         return empty;
@@ -155,8 +156,10 @@ inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage
     program.addShader(&shader);
     program.link(EShMsgDefault);    // link and report default error/warning messages
 
-    if (program.getInfoLog()[0] != '\0')
+    if (program.getInfoLog()[0] != '\0') {
         printf("Shader linker error: %s\n", program.getInfoLog()); // get the log for linking the program
+        std::_Exit(0);
+    }
 
     glslang::TIntermediate* intermediate = program.getIntermediate(stage);
 

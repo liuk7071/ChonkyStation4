@@ -68,10 +68,16 @@ FetchShader::FetchShader(const u8* data) {
             binding.dest_vgpr = instr.src[1].code;
             binding.n_elements = instr.control.mubuf.count;
             binding.soffs = instr.src[3].code;  // TODO: This is wrong, but I'm just ignoring soffs for now
-            binding.voffs = instr.src[0].code;  // TODO: Verify this, but I'm pretty sure
+            binding.instance_rate = instr.src[0].code;
             binding.inst_offs = instr.control.mtbuf.offset;
+            // TODO: voffs?
             log("Binding for VGPR %d: %d elements\n", binding.dest_vgpr, binding.n_elements);
             continue;
+        }
+
+        if (instr.opcode == Shader::Opcode::V_ADD_I32) {
+            printf("TODO: fetch shader vtxoffs\n");
+            break;
         }
 
         if (instr.opcode == Shader::Opcode::S_SETPC_B64) {

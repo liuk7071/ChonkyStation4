@@ -38,9 +38,9 @@ void SceVideoOutPort::signalFlip(u64 flip_arg) {
     const std::unique_lock<std::mutex>(flip_mtx);
     flip_ev_source.trigger(flip_arg);
     flip_status.count++;
-    //vblank_status.count++;
-    //vblank_status.process_time = SDL_GetTicks64();
-    //vblank_status.tsc = SDL_GetTicks64();
+    flip_status.flip_arg = flip_arg;
+    flip_status.process_time = Kernel::sceKernelGetProcessTime();
+    flip_status.tsc = Kernel::sceKernelReadTsc();
 }
 
 s32 PS4_FUNC sceVideoOutOpen(s32 uid, s32 bus_type, s32 idx, const void* param) {

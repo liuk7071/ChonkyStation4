@@ -25,7 +25,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         VSharp* vsharp = shader_binding.vsharp_loc.asPtr();
         auto& binding = bindings.emplace_back();
         auto& attrib = attribs.emplace_back();
-        binding = { n_binding, (u32)vsharp->stride, vk::VertexInputRate::eVertex };
+        binding = { n_binding, (u32)vsharp->stride, !shader_binding.instance_rate ? vk::VertexInputRate::eVertex : vk::VertexInputRate::eInstance };
         attrib = { shader_binding.idx, n_binding++, getBufFormatAndSize(vsharp->dfmt, vsharp->nfmt).first, 0 };
 
         auto& vtx_binding = vtx_binding_layout.emplace_back();
@@ -92,6 +92,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     vk::PipelineInputAssemblyStateCreateInfo input_assembly = { .topology = topology(cfg.prim_type) };
 
     // Viewport
+    // https://gitlab.freedesktop.org/mesa/mesa/-/blob/209a0ed/src/amd/vulkan/radv_pipeline_graphics.c#L673
     const auto z_offset = cfg.viewport_control.z_offset_enable ? cfg.z_offset : 0.0f;
     const auto z_scale = cfg.viewport_control.z_scale_enable ? cfg.z_scale : 1.0f;
     if (!cfg.dx_clip_space_enable) {
@@ -104,6 +105,22 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         min_viewport_depth = z_offset;
         max_viewport_depth = z_offset + z_scale;
     }
+
+    viewport.minDepth = min_viewport_depth;
+    viewport.maxDepth = max_viewport_depth;
+
+    const auto xoffset = cfg.viewport_control.x_offset_enable ? cfg.x_offset : 0.0f;
+    const auto xscale  = cfg.viewport_control.x_scale_enable  ? cfg.x_scale  : 1.0f;
+    const auto yoffset = cfg.viewport_control.x_offset_enable ? cfg.y_offset : 0.0f;
+    const auto yscale  = cfg.viewport_control.y_scale_enable  ? cfg.y_scale  : 1.0f;
+
+    // offset = x + scale       ->      x = offset - scale
+    viewport.x = xoffset - xscale;
+    viewport.y = yoffset - yscale;
+
+    // scale = dim * 0.5f       ->      dim = scale * 2.0f      
+    viewport.width  = xscale * 2.0f;
+    viewport.height = yscale * 2.0f;
 
     vk::PipelineViewportDepthClipControlCreateInfoEXT depth_clip_control = {
         .negativeOneToOne = !cfg.dx_clip_space_enable
@@ -354,7 +371,7 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
         VSharp* vsharp = vtx_binding.fetch_shader_binding.vsharp_loc.asPtr();
         // Setup vertex buffer and copy data
         const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
-        void* guest_vtx_buf_data = (void*)(vsharp->base + vtx_binding.fetch_shader_binding.voffs);
+        void* guest_vtx_buf_data = (void*)(vsharp->base /* + vtx_binding.fetch_shader_binding.voffs */ + vtx_binding.fetch_shader_binding.inst_offs);
         auto [buf, offs, was_dirty] = Cache::getBuffer(guest_vtx_buf_data, buf_size);
         vtx_binding.buf = buf;
         vtx_binding.offs_in_buf = offs;
