@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Common.hpp>
+#include <OS/Np/NpTypes.hpp>
 
 
 namespace PS4::OS::User {
@@ -12,6 +13,10 @@ public:
     u32         getID()       { return id; }
     std::string getUsername() { return username; }
     fs::path getHomeDir();
+
+    bool is_logged_in_psn = false;
+    std::string online_id;
+    Np::SceNpAccountId account_id;
 
 private:
     u32 id;

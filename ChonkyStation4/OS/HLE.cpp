@@ -6,6 +6,7 @@
 #include <OS/Libraries/SceUserService/SceUserService.hpp>
 #include <OS/Libraries/SceNpManager/SceNpManager.hpp>
 #include <OS/Libraries/SceNpMatching/SceNpMatching.hpp>
+#include <OS/Libraries/SceNpScore/SceNpScore.hpp>
 #include <OS/Libraries/SceSysmodule/SceSysmodule.hpp>
 #include <OS/Libraries/SceSaveData/SceSaveData.hpp>
 #include <OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.hpp>
@@ -81,6 +82,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceUserService::init(*module);
     PS4::OS::Libs::SceNpManager::init(*module);
     PS4::OS::Libs::SceNpMatching::init(*module);
+    PS4::OS::Libs::SceNpScore::init(*module);
     PS4::OS::Libs::SceSysmodule::init(*module);
     PS4::OS::Libs::SceSaveData::init(*module);
     PS4::OS::Libs::SceSaveDataDialog::init(*module);
@@ -125,17 +127,6 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceCommonDialog
     module->addSymbolStub("uoUpLGNkygk", "sceCommonDialogInitialize", "libSceCommonDialog", "libSceCommonDialog");
     module->addSymbolStub("BQ3tey0JmQM", "sceCommonDialogIsUsed", "libSceCommonDialog", "libSceCommonDialog", false);
-    
-    // libSceNpScore
-    module->addSymbolStub("KnNA1TEgtBI", "sceNpScoreCreateNpTitleCtx", "libSceNpScore", "libSceNpScore", 1);
-    module->addSymbolStub("GWnWQNXZH5M", "sceNpScoreCreateNpTitleCtxA", "libSceNpScore", "libSceNpScore", 1);
-    module->addSymbolStub("gW8qyjYrUbk", "sceNpScoreCreateRequest", "libSceNpScore", "libSceNpScore", 1);
-    module->addSymbolStub("ANJssPz3mY0", "sceNpScoreRecordScoreAsync", "libSceNpScore", "libSceNpScore", 0);
-    module->addSymbolStub("8kuIzUw6utQ", "sceNpScoreGetFriendsRanking", "libSceNpScore", "libSceNpScore", 0);
-    module->addSymbolStub("9mZEgoiEq6Y", "sceNpScoreGetRankingByNpId", "libSceNpScore", "libSceNpScore", 0);
-    module->addSymbolStub("KBHxDjyk-jA", "sceNpScoreGetRankingByRange", "libSceNpScore", "libSceNpScore", 0);
-    module->addSymbolStub("dK8-SgYf6r4", "sceNpScoreDeleteRequest", "libSceNpScore", "libSceNpScore", 0);
-    module->addSymbolStub("m1DfNRstkSQ", "sceNpScorePollAsync", "libSceNpScore", "libSceNpScore", 0);
     
     // libSceNpParty
     module->addSymbolStub("lhYCTQmBkds", "sceNpPartyInitialize", "libSceNpParty", "libSceNpParty");

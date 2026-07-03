@@ -5,6 +5,7 @@
 #include <OS/Thread.hpp>
 #include <OS/Filesystem.hpp>
 #include <OS/UserManagement.hpp>
+#include <PSN/PSN.hpp>
 #include <GCN/GCN.hpp>
 #include <thread>
 
@@ -36,6 +37,9 @@ void loadAndRun(const fs::path& path) {
         
         if (!OS::User::login(1))
             Helpers::panic("Failed to login");
+
+        // Login our user to PSN.
+        //PSN::psn->login(OS::User::getUser(1));
 
         // The threading system needs to be initialized before we run the app.
         // Everything else will be initialized in the init() function, which is called by g_app.run() from the app's main thread (NOT the host's)

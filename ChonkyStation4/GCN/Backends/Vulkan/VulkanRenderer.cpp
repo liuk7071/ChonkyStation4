@@ -82,7 +82,7 @@ void VulkanRenderer::recreateSwapChain() {
     swapchain = nullptr;
     auto surface_capabilities = physical_device.getSurfaceCapabilitiesKHR(*surface);
     swapchain_extent = chooseSwapExtent(window, surface_capabilities);
-    swapchain_surface_format = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
+    //swapchain_surface_format = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
     vk::SwapchainCreateInfoKHR swapchain_create_info = {
         .surface = *surface,
         .minImageCount = chooseSwapMinImageCount(surface_capabilities),
@@ -291,7 +291,7 @@ void VulkanRenderer::init() {
     // Create swapchain
     auto surface_capabilities = physical_device.getSurfaceCapabilitiesKHR(*surface);
     swapchain_extent          = chooseSwapExtent(window, surface_capabilities);
-    swapchain_surface_format   = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
+    swapchain_surface_format  = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
     vk::SwapchainCreateInfoKHR swapchain_create_info = {
         .surface          = *surface,
         .minImageCount    = chooseSwapMinImageCount(surface_capabilities),
@@ -849,7 +849,6 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         device.waitIdle();
         cmd_bufs[0].reset();
         recreateSwapChain();
-        advanceSwapchain();
         advanceSwapchain();
         cmd_bufs[0].begin({});
     };

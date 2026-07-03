@@ -25,6 +25,11 @@ struct SceNpRequest : SceObj {
     bool is_async   = false;
     State state     = State::Running;   // For async requests
     s32 result      = 0;                // For async requests
+
+    void finish(s32 res) {
+        state = State::Finished;
+        result = res;
+    }
 };
 
 s32 PS4_FUNC sceNpCheckCallback();
@@ -33,11 +38,13 @@ s32 PS4_FUNC sceNpGetNpId(SceUserService::SceUserServiceUserId uid, SceNpId* np_
 s32 PS4_FUNC sceNpHasSignedUp(SceUserService::SceUserServiceUserId uid, bool* has_signed_up);
 s32 PS4_FUNC sceNpGetAccountIdA(SceUserService::SceUserServiceUserId uid, SceNpAccountId* account_id);
 s32 PS4_FUNC sceNpGetOnlineId(SceUserService::SceUserServiceUserId uid, SceNpOnlineId* online_id);
+s32 PS4_FUNC sceNpGetUserIdByAccountId(SceNpAccountId account_id, SceUserService::SceUserServiceUserId* uid);
 s32 PS4_FUNC sceNpGetAccountCountryA(SceUserService::SceUserServiceUserId uid, SceNpCountryCode* country_code);
 s32 PS4_FUNC sceNpCreateRequest();
 s32 PS4_FUNC sceNpCreateAsyncRequest(const SceNpCreateAsyncRequestParameter* param);
 s32 PS4_FUNC sceNpPollAsync(s32 req_id, s32* result);
 s32 PS4_FUNC sceNpCheckPlus(s32 req_id, const SceNpCheckPlusParameter* param, SceNpCheckPlusResult* result);
 s32 PS4_FUNC sceNpGetParentalControlInfo(s32 req_id, SceNpOnlineId* online_id, s8* age, SceNpParentalControlInfo* info);
+s32 PS4_FUNC sceNpCheckNpAvailabilityA(s32 req_id, SceUserService::SceUserServiceUserId uid);
 
 }   // End namespace PS4::OS::Libs::SceNpManager

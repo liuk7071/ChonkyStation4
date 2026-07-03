@@ -7,6 +7,7 @@
 namespace PS4::OS::Np {
 
 static constexpr s32 SCE_NP_ERROR_SIGNED_OUT        = 0x80550006;
+static constexpr s32 SCE_NP_ERROR_USER_NOT_FOUND    = 0x80550007;
 static constexpr s32 SCE_NP_ERROR_REQUEST_NOT_FOUND = 0x80550014;
 
 static constexpr s32 SCE_NP_ONLINEID_MAX_LENGTH = 16;

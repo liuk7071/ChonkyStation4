@@ -25,3 +25,6 @@
 [submodule "Dependencies/miniz"]
 	path = Dependencies/miniz
 	url = https://github.com/richgel999/miniz.git
+[submodule "Dependencies/asio"]
+	path = Dependencies/asio
+	url = https://github.com/chriskohlhoff/asio.git
