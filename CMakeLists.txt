@@ -86,6 +86,7 @@ target_include_directories(ChonkyStation4 PUBLIC ChonkyStation4/Common)
 
 target_include_directories(ChonkyStation4 PUBLIC Dependencies/ELFIO)
 target_include_directories(ChonkyStation4 PUBLIC Dependencies/xbyak)
+target_include_directories(ChonkyStation4 PUBLIC Dependencies/CLI11)
 if(WIN32)
     target_include_directories(ChonkyStation4 PUBLIC Dependencies/pthread-win32)
 endif()

@@ -7,6 +7,7 @@
 
 namespace PS4::OS::User {
 
+static bool has_default_user = false;
 static u32 next_user_id = 1;
 std::deque<User> users;
 
@@ -38,17 +39,23 @@ void init() {
         users.emplace_back(id, username);
 
         if (id > highest_id) highest_id = id;
+
+        if (id == 1) has_default_user = true;
     }
     next_user_id = highest_id + 1;
 
     // Initialize PSN provider
     PSN::psn = std::make_unique<PSN::ChonkyNetProvider>();
-    PSN::psn->init();
+    //PSN::psn->init();
 }
 
 // Create a new user and return its id
 u32 createNew(std::string username) {
-    auto& user = users.emplace_back(next_user_id++, username);
+    // If we don't have a default user (uid 1), create one now.
+    u32 uid = !has_default_user ? 1 : next_user_id++;
+    has_default_user = true;
+
+    auto& user = users.emplace_back(uid, username);
     return user.getID();
 }
 

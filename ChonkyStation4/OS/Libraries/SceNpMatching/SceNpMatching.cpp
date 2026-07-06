@@ -23,6 +23,7 @@ void init(Module& module) {
     module.addSymbolStub("p+2EnxmaAMM", "sceNpMatching2RegisterRoomEventCallback", "libSceNpMatching2", "libSceNpMatching2");
     module.addSymbolStub("uBESzz4CQws", "sceNpMatching2RegisterRoomMessageCallback", "libSceNpMatching2", "libSceNpMatching2");
     module.addSymbolStub("0UMeWRGnZKA", "sceNpMatching2RegisterSignalingCallback", "libSceNpMatching2", "libSceNpMatching2");
+    module.addSymbolStub("Mqp3lJ+sjy4", "sceNpMatching2Terminate", "libSceNpMatching2", "libSceNpMatching2");
 }
 
 static s32 next_req_id = 1;

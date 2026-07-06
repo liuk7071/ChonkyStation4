@@ -18,7 +18,17 @@ std::unordered_map<u64, ComputePipeline*> compute_pipelines;
 
 Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, const u8* fetch_shader_code, const u32* regs) {
     // Compile shaders
-    GCN::FetchShader fetch_shader = FetchShader(fetch_shader_code);
+
+    auto check_fetch_shader = [&]() -> bool {
+        // The fetch shader jump is always a s_swappc_b64 at the second instruction
+        return *(u32*)(vert_shader_code + 0x8) == 0xbe802100;
+    };
+
+    auto fetch_ptr = fetch_shader_code;
+    if (!check_fetch_shader())
+        fetch_ptr = nullptr;
+
+    GCN::FetchShader fetch_shader = FetchShader(fetch_ptr);
 
     PipelineConfig cfg;
     const bool has_vs = vert_shader_code  != nullptr;

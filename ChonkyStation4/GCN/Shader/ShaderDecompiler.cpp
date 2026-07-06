@@ -381,12 +381,12 @@ template VSharp* DescriptorLocation::asPtr<VSharp>();
 template TSharp* DescriptorLocation::asPtr<TSharp>();
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job) {
-    std::ofstream out;
-    ////if (stage == ShaderStage::Fragment) {
-    //    out.open("shader.bin", std::ios::binary);
-    //    out.write((char*)data, 8_KB);
-    //    out.close();
-    ////}
+    //std::ofstream out;
+    //if (stage == ShaderStage::Vertex) {
+    //  out.open("shader.bin", std::ios::binary);
+    //  out.write((char*)data, 8_KB);
+    //  out.close();
+    //}
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
 
@@ -2199,8 +2199,8 @@ ivec3 unpackImageOffset(uint packed) {
         }
 
         default: {
-            //printf("Shader so far:\n%s\n", main.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            printf("Shader so far:\n%s\n", main.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
             main += "// TODO\n";
         }
         }

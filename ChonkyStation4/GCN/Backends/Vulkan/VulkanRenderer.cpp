@@ -738,7 +738,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
 void VulkanRenderer::dispatch(ComputeJob job) {
     log("Compute shader address: %p\n", job.addr);
     endRendering();
-
+    
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getComputePipeline(job);
     curr_frame_compute_pipelines.push_back(&pipeline);

@@ -211,6 +211,10 @@ public:
             rt[i].info.raw = regs[info_reg_offsets[i]];
             rt[i].width  = color_rt_dim[i].width;
             rt[i].height = color_rt_dim[i].height;
+
+            // Data format 0 implies the render target is disabled
+            if (rt[i].info.format == 0)
+                rt[i].enabled = false;
         }
     }
 

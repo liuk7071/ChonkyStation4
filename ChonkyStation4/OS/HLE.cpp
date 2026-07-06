@@ -109,6 +109,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("isruqthpYcw", "sceSharePlayInitialize", "libSceSharePlay", "libSceSharePlay");
     module->addSymbolStub("co2NCj--pnc", "sceSharePlaySetProhibition", "libSceSharePlay", "libSceSharePlay");
     module->addSymbolStub("OOrLKB0bSDs", "sceSharePlayGetCurrentConnectionInfo", "libSceSharePlay", "libSceSharePlay");
+    module->addSymbolStub("+MCXJlWdi+s", "sceSharePlayGetCurrentConnectionInfoA", "libSceSharePlay", "libSceSharePlay");
     
     // libSceMsgDialog
     module->addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
@@ -116,6 +117,9 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("6fIC3XKt2k0", "sceMsgDialogUpdateStatus", "libSceMsgDialog", "libSceMsgDialog", 3);
     module->addSymbolStub("CWVW78Qc3fI", "sceMsgDialogGetStatus", "libSceMsgDialog", "libSceMsgDialog");
     module->addSymbolStub("Lr8ovHH9l6A", "sceMsgDialogGetResult", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("Gc5k1qcK4fs", "sceMsgDialogProgressBarInc", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("6H-71OdrpXM", "sceMsgDialogProgressBarSetMsg", "libSceMsgDialog", "libSceMsgDialog");
+    module->addSymbolStub("wTpfglkmv34", "sceMsgDialogProgressBarSetValue", "libSceMsgDialog", "libSceMsgDialog");
     module->addSymbolStub("HTrcDKlFKuM", "sceMsgDialogClose", "libSceMsgDialog", "libSceMsgDialog");
     module->addSymbolStub("ePw-kqZmelo", "sceMsgDialogTerminate", "libSceMsgDialog", "libSceMsgDialog");
     
@@ -171,6 +175,7 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceNpAuth
     module->addSymbolStub("N+mr7GjTvr8", "sceNpAuthCreateAsyncRequest", "libSceNpAuth", "libSceNpAuth", 1);
     module->addSymbolStub("KxGkOrQJTqY", "sceNpAuthGetAuthorizationCode", "libSceNpAuth", "libSceNpAuth");   // TODO: At least store a dummy value in auth_code ptr
+    module->addSymbolStub("qAUXQ9GdWp8", "sceNpAuthGetAuthorizationCodeA", "libSceNpAuth", "libSceNpAuth");   // TODO: At least store a dummy value in auth_code ptr
     module->addSymbolStub("gjSyfzSsDcE", "sceNpAuthPollAsync", "libSceNpAuth", "libSceNpAuth");              // TODO: At least store a dummy value in result ptr
     module->addSymbolStub("H8wG9Bk-nPc", "sceNpAuthDeleteRequest", "libSceNpAuth", "libSceNpAuth");
     
@@ -207,6 +212,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("Kiwv9r4IZCc", "sceHttpCreateConnection", "libSceHttp", "libSceHttp");
     module->addSymbolStub("Aeu5wVKkF9w", "sceHttpCreateRequestWithURL", "libSceHttp", "libSceHttp");
     module->addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
+    module->addSymbolStub("f42K37mm5RM", "sceHttpsEnableOption", "libSceHttp", "libSceHttp");
     module->addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
     module->addSymbolStub("s2-NPIvz+iA", "sceHttpSetNonblock", "libSceHttp", "libSceHttp");
     module->addSymbolStub("6381dWF+xsQ", "sceHttpCreateEpoll", "libSceHttp", "libSceHttp");
@@ -216,12 +222,15 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("-xm7kZQNpHI", "sceHttpSetEpoll", "libSceHttp", "libSceHttp");
     module->addSymbolStub("T-mGo9f3Pu4", "sceHttpSetAutoRedirect", "libSceHttp", "libSceHttp");
     module->addSymbolStub("qFg2SuyTJJY", "sceHttpSetAuthEnabled", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("XNUoD2B9a6A", "sceHttpSetCookieEnabled", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("mSQCxzWTwVI", "sceHttpsDisableOption", "libSceHttp", "libSceHttp");
     module->addSymbolStub("1e2BNwI-XzE", "sceHttpSendRequest", "libSceHttp", "libSceHttp");
     module->addSymbolStub("0a2TBNfE3BU", "sceHttpGetStatusCode", "libSceHttp", "libSceHttp");
     module->addSymbolStub("aCYPMSUIaP8", "sceHttpGetAllResponseHeaders", "libSceHttp", "libSceHttp");
     module->addSymbolStub("yuO2H2Uvnos", "sceHttpGetResponseContentLength", "libSceHttp", "libSceHttp");
     module->addSymbolStub("P5pdoykPYTk", "sceHttpReadData", "libSceHttp", "libSceHttp");
     module->addSymbolStub("qISjDHrxONc", "sceHttpWaitRequest", "libSceHttp", "libSceHttp");
+    module->addSymbolStub("hPTXo3bICzI", "sceHttpParseResponseHeader", "libSceHttp", "libSceHttp", 1);
     module->addSymbolStub("4I8vEpuEhZ8", "sceHttpDeleteTemplate", "libSceHttp", "libSceHttp");
     module->addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
     
@@ -234,10 +243,21 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceNpWebApi
     module->addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
     module->addSymbolStub("79M-JqvvGo0", "sceNpWebApiCreateHandle", "libSceNpWebApi", "libSceNpWebApi", 1);
+    module->addSymbolStub("x1Y7yiYSk7c", "sceNpWebApiCreateContext", "libSceNpWebApi", "libSceNpWebApi", 1);
+    module->addSymbolStub("zk6c65xoyO0", "sceNpWebApiCreateContextA", "libSceNpWebApi", "libSceNpWebApi", 1);
     module->addSymbolStub("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
     module->addSymbolStub("rdgs5Z1MyFw", "sceNpWebApiCreateRequest", "libSceNpWebApi", "libSceNpWebApi");
     module->addSymbolStub("KjNeZ-29ysQ", "sceNpWebApiSendRequest2", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("CQtPRSF6Ds8", "sceNpWebApiReadData", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("gVNNyxf-1Sg", "sceNpWebApiCheckTimeout", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("qWcbJkBj1Lg", "sceNpWebApiSetRequestTimeout", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("M2BUB+DNEGE", "sceNpWebApiCreateExtdPushEventFilter", "libSceNpWebApi", "libSceNpWebApi", 1);
     module->addSymbolStub("PfSTDCgNMgc", "sceNpWebApiRegisterPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("jhXKGQJ4egI", "sceNpWebApiRegisterExtdPushEventCallbackA", "libSceNpWebApi", "libSceNpWebApi", 1);
+    module->addSymbolStub("PqCY25FMzPs", "sceNpWebApiUnregisterExtdPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("pfaJtb7SQ80", "sceNpWebApiDeleteExtdPushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("5Mn7TYwpl30", "sceNpWebApiDeleteHandle", "libSceNpWebApi", "libSceNpWebApi");
+    module->addSymbolStub("XUjdsSTTZ3U", "sceNpWebApiDeleteContext", "libSceNpWebApi", "libSceNpWebApi");
     
     // libSceAudioIn
     module->addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
@@ -309,6 +329,7 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceRemoteplay
     module->addSymbolStub("k1SwgkMSOM8", "sceRemoteplayInitialize", "libSceRemoteplay", "libSceRemoteplay");
     module->addSymbolStub("xQeIryTX7dY", "sceRemoteplayApprove", "libSceRemoteplay", "libSceRemoteplay");
+    module->addSymbolStub("mrNh78tBpmg", "sceRemoteplayProhibit", "libSceRemoteplay", "libSceRemoteplay");
     module->addSymbolStub("g3PNjYKWqnQ", "sceRemoteplayGetConnectionStatus", "libSceRemoteplay", "libSceRemoteplay");
     
     // libSceIme

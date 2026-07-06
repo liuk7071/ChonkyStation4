@@ -275,7 +275,7 @@ std::shared_ptr<Module> ELFLoader::load(const fs::path& path, bool is_partial_ll
         // Export symbol
         if (!is_partial_lle_module) {
             // Only export it if the HLE module did not already export it (partial HLE)
-            if (hle_module.get() && hle_module->findSymbolExport(tokens[0]))
+            if (hle_module.get() && hle_module->findSymbolExport(tokens[0], lib->name, mod->name))
                 continue;
             export_symbol();
         }

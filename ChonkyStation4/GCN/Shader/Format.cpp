@@ -3719,7 +3719,7 @@ InstFormat InstructionFormat(InstEncoding encoding, uint32_t opcode) {
     case InstEncoding::VOP2:
         return InstructionFormatVOP2[opcode];
     default: {}
-        Helpers::panic("Unreachable\n");
+        //Helpers::panic("Unreachable\n");
     }
     return {};
 }

@@ -109,8 +109,10 @@ GcnInst GcnDecodeContext::decodeInstruction(GcnCodeSlice& code) {
 
     InstEncoding encoding = GetInstructionEncoding(token);
     if (encoding == InstEncoding::ILLEGAL) {
-        Helpers::panic("illegal encoding");
-        return {};
+        //Helpers::panic("illegal encoding");
+        GcnInst inst;
+        inst.opcode = Opcode::S_ENDPGM;
+        return inst;
     }
 
     uint32_t encodingLen = getEncodingLength(encoding);

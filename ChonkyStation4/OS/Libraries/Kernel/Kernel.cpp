@@ -206,6 +206,7 @@ void init(Module& module) {
     module.addSymbolExport("m0iS6jNsXds", "sched_get_priority_min", "libkernel", "libkernel", (void*)&kernel_sched_get_priority_min);
     module.addSymbolExport("m0iS6jNsXds", "sched_get_priority_min", "libScePosix", "libkernel", (void*)&kernel_sched_get_priority_min);
     module.addSymbolExport("VkTAsrZDcJ0", "sigfillset", "libkernel", "libkernel", (void*)&sigfillset);
+    module.addSymbolExport("9JYNqN6jAKI", "sceKernelDebugOutText", "libkernel", "libkernel", (void*)&sceKernelDebugOutText);
     
     module.addSymbolExport("7NwggrWJ5cA", "__sys_regmgr_call", "libkernel", "libkernel", (void*)&__sys_regmgr_call);
 
@@ -304,6 +305,7 @@ void init(Module& module) {
     module.addSymbolStub("VHCS3rCd0PM", "sceKernelAddReadEvent", "libkernel", "libkernel"); // TODO: Important if not used for sockets
     module.addSymbolStub("qBDmpCyGssE", "scePthreadCancel", "libkernel", "libkernel");
     module.addSymbolStub("sCJd99Phct0", "scePthreadSetcanceltype", "libkernel", "libkernel");
+    module.addSymbolStub("oVZ+-KgZJGo", "scePthreadSetDefaultstacksize", "libkernel", "libkernel");
     module.addSymbolStub("AUXVxWeJU-A", "sceKernelUnlink", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
     module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
@@ -382,15 +384,16 @@ void init(Module& module) {
     module.addSymbolStub("6BpEZuDT7YI", "pthread_key_delete", "libScePosix", "libkernel");
     module.addSymbolStub("4oXYe9Xmk0Q", "sceKernelGetGPI", "libkernel", "libkernel");
     module.addSymbolStub("ca7v6Cxulzs", "sceKernelSetGPO", "libkernel", "libkernel");
+    module.addSymbolStub("wdUufa9g-D8", "dup2", "libkernel", "libkernel");
     
     module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
     
     module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
     module.addSymbolStub("EfqmKkirJF0", "sceKernelMlockall", "libkernel", "libkernel");
 
-    // libc.prx HLE. Move these to their own file later
-    //module.addSymbolExport("gQX+4GDQjpM", "malloc", "libc", "libc", (void*)&Kernel::malloc);
-    //module.addSymbolExport("tIhsqj0qsFE", "free", "libc", "libc", (void*)&Kernel::free);
+    // libSceLibcInternal HLE. Move these to their own file later
+    //module.addSymbolExport("gQX+4GDQjpM", "malloc", "libSceLibcInternal", "libSceLibcInternal", (void*)&Kernel::malloc);
+    //module.addSymbolExport("tIhsqj0qsFE", "free", "libSceLibcInternal", "libSceLibcInternal", (void*)&Kernel::free);
 
     proc_counter_start = SDL_GetPerformanceCounter();
 }
@@ -697,6 +700,10 @@ s32 PS4_FUNC sigfillset() {
     // TODO
     unimpl("sigfillset() TODO\n");
     return SCE_OK;
+}
+
+void PS4_FUNC sceKernelDebugOutText(s64 unknown, char* text) {
+    std::printf(text);
 }
 
 s32 PS4_FUNC __sys_regmgr_call() {
@@ -1014,12 +1021,12 @@ s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** a
 
 // libc.prx HLE
 
-void* malloc(size_t size) {
+void* PS4_FUNC malloc(size_t size) {
     printf("malloc\n");
     return std::malloc(size);
 }
 
-void free(void* ptr) {
+void PS4_FUNC free(void* ptr) {
     printf("free\n");
     std::free(ptr);
 }

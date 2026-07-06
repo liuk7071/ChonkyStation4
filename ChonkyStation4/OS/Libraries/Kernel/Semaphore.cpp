@@ -128,7 +128,9 @@ s32 PS4_FUNC sceKernelPollSema(SceKernelSema sem, s32 count) {
 s32 PS4_FUNC sceKernelCancelSema(SceKernelSema sem, s32 set_count, s32* n_released_threads) {
     log("sceKernelCancelSema(sem=%p, set_count=%d, n_released_threads=*%p)\n");
 
-    *n_released_threads = sem->cancel(set_count);
+    auto count = sem->cancel(set_count);
+    if (n_released_threads)
+        *n_released_threads = count;
     return SCE_OK;
 }
 

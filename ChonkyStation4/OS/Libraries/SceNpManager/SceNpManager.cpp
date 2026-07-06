@@ -25,6 +25,7 @@ void init(Module& module) {
     module.addSymbolExport("uqcPJLWL08M", "sceNpPollAsync", "libSceNpManager", "libSceNpManager", (void*)&sceNpPollAsync);
     module.addSymbolExport("r6MyYJkryz8", "sceNpCheckPlus", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckPlus);
     module.addSymbolExport("ilwLM4zOmu4", "sceNpGetParentalControlInfo", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetParentalControlInfo);
+    module.addSymbolExport("m9L3O6yst-U", "sceNpGetParentalControlInfoA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetParentalControlInfoA);
     module.addSymbolExport("8Z2Jc5GvGDI", "sceNpCheckNpAvailabilityA", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckNpAvailabilityA);
     
     module.addSymbolStub("Ec63y59l9tw", "sceNpSetNpTitleId", "libSceNpManager", "libSceNpManager");
@@ -213,6 +214,24 @@ s32 PS4_FUNC sceNpGetParentalControlInfo(s32 req_id, SceNpOnlineId* online_id, s
     info->chat_restriction      = false;
     info->ugc_restriction       = false;
     
+    if (req->is_async) {
+        req->state = SceNpRequest::State::Finished;
+        req->result = SCE_OK;
+    }
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceNpGetParentalControlInfoA(s32 req_id, SceUserService::SceUserServiceUserId uid, s8* age, SceNpParentalControlInfo* info) {
+    log("sceNpGetParentalControlInfoA(req_id=%d, uid=%d, age=*%p, info=*%p)\n", req_id, uid, age, info);
+
+    auto* req = OS::find<SceNpRequest>(req_id);
+    if (!req) return SCE_NP_ERROR_REQUEST_NOT_FOUND;
+
+    *age = 18;
+    info->content_restriction = false;
+    info->chat_restriction = false;
+    info->ugc_restriction = false;
+
     if (req->is_async) {
         req->state = SceNpRequest::State::Finished;
         req->result = SCE_OK;

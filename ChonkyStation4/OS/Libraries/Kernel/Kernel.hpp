@@ -79,6 +79,7 @@ s32 PS4_FUNC kernel_getpid();
 s32 PS4_FUNC kernel_sched_get_priority_max();
 s32 PS4_FUNC kernel_sched_get_priority_min();
 s32 PS4_FUNC sigfillset();
+void PS4_FUNC sceKernelDebugOutText(s64 unknown, char* text);
 
 s32 PS4_FUNC __sys_regmgr_call();
 
@@ -104,7 +105,7 @@ SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_
 s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** addr_ptr);
 
 // libc.prx HLE
-void* malloc(size_t size);
-void free(void* ptr);
+void* PS4_FUNC malloc(size_t size);
+void PS4_FUNC free(void* ptr);
 
 }   // End namespace PS4::OS::Libs::Kernel

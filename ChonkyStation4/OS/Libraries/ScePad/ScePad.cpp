@@ -21,6 +21,8 @@ void init(Module& module) {
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
     module.addSymbolStub("clVvL4ZDntw", "scePadSetMotionSensorState", "libScePad", "libScePad");
+    module.addSymbolStub("vDLMoJLde8I", "scePadSetTiltCorrectionState", "libScePad", "libScePad");
+    module.addSymbolStub("r44mAxdSG+U", "scePadSetAngularVelocityDeadbandState", "libScePad", "libScePad");
 }
 
 ScePadData pad_state;
@@ -145,6 +147,11 @@ s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param
 
     if (uid == Libs::SceUserService::SCE_USER_SERVICE_USER_ID_INVALID)
         return Libs::SceUserService::SCE_DEVICE_SERVICE_ERROR_INVALID_USER;
+
+    // Remote control (?)
+    if (type == 16) {
+        return 10;
+    }
 
     if (opened) return SCE_PAD_ERROR_ALREADY_OPENED;
     opened = true;

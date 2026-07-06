@@ -29,17 +29,8 @@ void init() {
 
 void loadAndRun(const fs::path& path) {
     try {
-        OS::User::init();
-
-        // For now we only support one user with id 1.
-        if (!OS::User::exists(1))
-            OS::User::createNew("ChonkyStation4");
-        
-        if (!OS::User::login(1))
-            Helpers::panic("Failed to login");
-
         // Login our user to PSN.
-        //PSN::psn->login(OS::User::getUser(1));
+        //PSN::psn->login(OS::User::current);
 
         // The threading system needs to be initialized before we run the app.
         // Everything else will be initialized in the init() function, which is called by g_app.run() from the app's main thread (NOT the host's)
