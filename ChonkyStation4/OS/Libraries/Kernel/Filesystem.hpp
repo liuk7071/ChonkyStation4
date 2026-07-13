@@ -62,5 +62,6 @@ s32 PS4_FUNC kernel_getdirentries(s32 fd, char* buf, s32 n_bytes, s64* basep);
 s32 PS4_FUNC sceKernelGetdirentries(s32 fd, char* buf, s32 n_bytes, s64* basep);
 s32 PS4_FUNC kernel_close(s32 fd);
 s32 PS4_FUNC sceKernelClose(s32 fd);
+const char* PS4_FUNC sceKernelGetFsSandboxRandomWord();
 
 };  // End namespace PS4::OS::Libs::Kernel

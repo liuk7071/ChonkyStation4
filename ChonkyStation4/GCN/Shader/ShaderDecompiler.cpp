@@ -1236,13 +1236,6 @@ ivec3 unpackImageOffset(uint packed) {
             main += std::format("vcc = uint({} < {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
             break;
         }
-
-        case Shader::Opcode::V_CMPX_GT_U32: {
-            // TODO: This can set other registers too I think?
-            // TODO: Exec
-            main += std::format("vcc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
         
         case Shader::Opcode::V_CMPX_EQ_U32: {
             // TODO: This can set other registers too I think?
@@ -1251,10 +1244,24 @@ ivec3 unpackImageOffset(uint packed) {
             break;
         }
 
+        case Shader::Opcode::V_CMPX_GT_U32: {
+            // TODO: This can set other registers too I think?
+            // TODO: Exec
+            main += std::format("vcc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_CMPX_NE_U32: {
             // TODO: This can set other registers too I think?
             // TODO: Exec
             main += std::format("vcc = uint({} != {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_CMPX_GE_U32: {
+            // TODO: This can set other registers too I think?
+            // TODO: Exec
+            main += std::format("vcc = uint({} >= {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
             break;
         }
 

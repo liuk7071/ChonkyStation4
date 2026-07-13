@@ -7,6 +7,7 @@
 #include <OS/Libraries/SceNpManager/SceNpManager.hpp>
 #include <OS/Libraries/SceNpMatching/SceNpMatching.hpp>
 #include <OS/Libraries/SceNpScore/SceNpScore.hpp>
+#include <OS/Libraries/SceNpWebApi/SceNpWebApi.hpp>
 #include <OS/Libraries/SceSysmodule/SceSysmodule.hpp>
 #include <OS/Libraries/SceSaveData/SceSaveData.hpp>
 #include <OS/Libraries/SceSaveDataDialog/SceSaveDataDialog.hpp>
@@ -56,12 +57,6 @@ s32 PS4_FUNC sceSslGetCaCerts(s32 ctx_id, SceSslCaCerts* certs) {
     return SCE_OK;
 }
 
-s32 PS4_FUNC sceNetCtlGetState(s32* state) {
-    //printf("sceNetCtlGetState()\n");
-    *state = 0; // Disconnected
-    return SCE_OK;
-}
-
 s32 PS4_FUNC sceAudio3dPortPush() {
     // TODO: Check for the blocking mode (sync or async)
     while (true) std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -87,6 +82,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceSaveData::init(*module);
     PS4::OS::Libs::SceSaveDataDialog::init(*module);
     PS4::OS::Libs::SceNpTrophy::init(*module);
+    PS4::OS::Libs::SceNpWebApi::init(*module);
     PS4::OS::Libs::ScePad::init(*module);
     PS4::OS::Libs::SceAudioOut::init(*module);
     PS4::OS::Libs::ScePlayGo::init(*module);
@@ -182,16 +178,6 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceNpSignaling
     module->addSymbolStub("3KOuC4RmZZU", "sceNpSignalingInitialize", "libSceNpSignaling", "libSceNpSignaling");
     
-    // libSceNetCtl
-    module->addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
-    module->addSymbolStub("gky0+oaNM4k", "sceNetCtlInit", "libSceNetCtl", "libSceNetCtl");
-    module->addSymbolStub("obuxdTiwkF8", "sceNetCtlGetInfo", "libSceNetCtl", "libSceNetCtl");
-    module->addSymbolStub("UJ+Z7Q+4ck0", "sceNetCtlRegisterCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
-    module->addSymbolStub("Rqm2OnZMCz0", "sceNetCtlUnregisterCallback", "libSceNetCtl", "libSceNetCtl");
-    module->addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
-    module->addSymbolStub("JO4yuTuMoKI", "sceNetCtlGetNatInfo", "libSceNetCtl", "libSceNetCtl");
-    module->addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
-    
     // libSceNpTus
     module->addSymbolStub("BIkMmUfNKWM", "sceNpTusCreateNpTitleCtx", "libSceNpTus", "libSceNpTus", 1);
     module->addSymbolStub("3bh2aBvvmvM", "sceNpTusCreateRequest", "libSceNpTus", "libSceNpTus", 1);
@@ -202,62 +188,48 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("u5oqtlIP+Fw", "sceNetCtlCheckCallbackForNpToolkit", "libSceNetCtlForNpToolkit", "libSceNetCtl");
 
     // libSceSsl
-    module->addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
     module->addSymbolExport("TDfQqO-gMbY", "sceSslGetCaCerts", "libSceSsl", "libSceSsl", (void*)&sceSslGetCaCerts);
+    module->addSymbolStub("hdpVEUDFW3s", "sceSslInit", "libSceSsl", "libSceSsl", 1);
+    module->addSymbolStub("P14ATpXc4J8", "sceSslCreateSslConnection", "libSceSsl", "libSceSsl");
+    module->addSymbolStub("w1+L-27nYas", "sceSslDisableOptionInternalInsecure", "libSceSsl", "libSceSsl");
+    module->addSymbolStub("g-zCwUKstEQ", "sceSslEnableOptionInternal", "libSceSsl", "libSceSsl");
     module->addSymbolStub("qIvLs0gYxi0", "sceSslFreeCaCerts", "libSceSsl", "libSceSsl");
+    module->addSymbolStub("zXvd6iNyfgc", "sceSslConnect", "libSceSsl", "libSceSsl");
+    module->addSymbolStub("p5bM5PPufFY", "sceSslSend", "libSceSsl", "libSceSsl");
     module->addSymbolStub("0K1yQ6Lv-Yc", "sceSslTerm", "libSceSsl", "libSceSsl");
     
     // libSceHttp
-    module->addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
-    module->addSymbolStub("Kiwv9r4IZCc", "sceHttpCreateConnection", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("Aeu5wVKkF9w", "sceHttpCreateRequestWithURL", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
-    module->addSymbolStub("f42K37mm5RM", "sceHttpsEnableOption", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("s2-NPIvz+iA", "sceHttpSetNonblock", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("6381dWF+xsQ", "sceHttpCreateEpoll", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("qgxDBjorUxs", "sceHttpCreateConnectionWithURL", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("Cnp77podkCU", "sceHttpCreateRequestWithURL2", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("EY28T2bkN7k", "sceHttpAddRequestHeader", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("-xm7kZQNpHI", "sceHttpSetEpoll", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("T-mGo9f3Pu4", "sceHttpSetAutoRedirect", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("qFg2SuyTJJY", "sceHttpSetAuthEnabled", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("XNUoD2B9a6A", "sceHttpSetCookieEnabled", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("mSQCxzWTwVI", "sceHttpsDisableOption", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("1e2BNwI-XzE", "sceHttpSendRequest", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("0a2TBNfE3BU", "sceHttpGetStatusCode", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("aCYPMSUIaP8", "sceHttpGetAllResponseHeaders", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("yuO2H2Uvnos", "sceHttpGetResponseContentLength", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("P5pdoykPYTk", "sceHttpReadData", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("qISjDHrxONc", "sceHttpWaitRequest", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("hPTXo3bICzI", "sceHttpParseResponseHeader", "libSceHttp", "libSceHttp", 1);
-    module->addSymbolStub("4I8vEpuEhZ8", "sceHttpDeleteTemplate", "libSceHttp", "libSceHttp");
-    module->addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("A9cVMUtEp4Y", "sceHttpInit", "libSceHttp", "libSceHttp", 1);
+    //module->addSymbolStub("Kiwv9r4IZCc", "sceHttpCreateConnection", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("Aeu5wVKkF9w", "sceHttpCreateRequestWithURL", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("0gYjPTR-6cY", "sceHttpCreateTemplate", "libSceHttp", "libSceHttp", 1);
+    //module->addSymbolStub("f42K37mm5RM", "sceHttpsEnableOption", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("htyBOoWeS58", "sceHttpsSetSslCallback", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("s2-NPIvz+iA", "sceHttpSetNonblock", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("6381dWF+xsQ", "sceHttpCreateEpoll", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("qgxDBjorUxs", "sceHttpCreateConnectionWithURL", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("Cnp77podkCU", "sceHttpCreateRequestWithURL2", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("EY28T2bkN7k", "sceHttpAddRequestHeader", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("-xm7kZQNpHI", "sceHttpSetEpoll", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("T-mGo9f3Pu4", "sceHttpSetAutoRedirect", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("qFg2SuyTJJY", "sceHttpSetAuthEnabled", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("XNUoD2B9a6A", "sceHttpSetCookieEnabled", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("mSQCxzWTwVI", "sceHttpsDisableOption", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("1e2BNwI-XzE", "sceHttpSendRequest", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("0a2TBNfE3BU", "sceHttpGetStatusCode", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("aCYPMSUIaP8", "sceHttpGetAllResponseHeaders", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("yuO2H2Uvnos", "sceHttpGetResponseContentLength", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("P5pdoykPYTk", "sceHttpReadData", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("qISjDHrxONc", "sceHttpWaitRequest", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("hPTXo3bICzI", "sceHttpParseResponseHeader", "libSceHttp", "libSceHttp", 1);
+    //module->addSymbolStub("4I8vEpuEhZ8", "sceHttpDeleteTemplate", "libSceHttp", "libSceHttp");
+    //module->addSymbolStub("Ik-KpLTlf7Q", "sceHttpTerm", "libSceHttp", "libSceHttp");
     
     // libSceNpCommon
     module->addSymbolStub("i8UmXTSq7N4", "sceNpCmpNpId", "libSceNpCommon", "libSceNpCommon");
     
     // libSceNpCommon
     module->addSymbolStub("j7DlalBzHh8", "sceShareUtilityInitializeEx2", "libSceShareUtility", "libSceShareUtility");
-    
-    // libSceNpWebApi
-    module->addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module->addSymbolStub("79M-JqvvGo0", "sceNpWebApiCreateHandle", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module->addSymbolStub("x1Y7yiYSk7c", "sceNpWebApiCreateContext", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module->addSymbolStub("zk6c65xoyO0", "sceNpWebApiCreateContextA", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module->addSymbolStub("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("rdgs5Z1MyFw", "sceNpWebApiCreateRequest", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("KjNeZ-29ysQ", "sceNpWebApiSendRequest2", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("CQtPRSF6Ds8", "sceNpWebApiReadData", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("gVNNyxf-1Sg", "sceNpWebApiCheckTimeout", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("qWcbJkBj1Lg", "sceNpWebApiSetRequestTimeout", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("M2BUB+DNEGE", "sceNpWebApiCreateExtdPushEventFilter", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module->addSymbolStub("PfSTDCgNMgc", "sceNpWebApiRegisterPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("jhXKGQJ4egI", "sceNpWebApiRegisterExtdPushEventCallbackA", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module->addSymbolStub("PqCY25FMzPs", "sceNpWebApiUnregisterExtdPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("pfaJtb7SQ80", "sceNpWebApiDeleteExtdPushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("5Mn7TYwpl30", "sceNpWebApiDeleteHandle", "libSceNpWebApi", "libSceNpWebApi");
-    module->addSymbolStub("XUjdsSTTZ3U", "sceNpWebApiDeleteContext", "libSceNpWebApi", "libSceNpWebApi");
     
     // libSceAudioIn
     module->addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);

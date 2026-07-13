@@ -28,3 +28,6 @@
 [submodule "Dependencies/asio"]
 	path = Dependencies/asio
 	url = https://github.com/chriskohlhoff/asio.git
+[submodule "Dependencies/cpp-httplib"]
+	path = Dependencies/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git

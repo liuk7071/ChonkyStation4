@@ -46,7 +46,9 @@ void linkSysmodules(::App& app) {
         "libSceFreeTypeOt.sprx",
         "libSceCesCs.sprx",
         "libSceFiber.sprx",
-        "libSceJson2.sprx"
+        "libSceJson2.sprx",
+        "libSceHttp.sprx",
+        "libSceHttp2.sprx",
     };
 
     const std::string partial_lle_sysmodules_to_load[] = {

@@ -323,6 +323,7 @@ std::string deviceToString(Device device) {
     case Device::SAVEDATA0:     return "savedata0";
     case Device::DEV:           return "dev";
     case Device::TEMP0:         return "temp0";
+    case Device::SANDBOX:       return "sandbox";
     }
 }
 
@@ -331,6 +332,7 @@ Device stringToDevice(std::string device) {
     else if (device == "savedata0")     return Device::SAVEDATA0;
     else if (device == "dev")           return Device::DEV;
     else if (device == "temp0")         return Device::TEMP0;
+    else if (device == "sandbox")       return Device::SANDBOX;
     else return Device::INVALID;
 }
 

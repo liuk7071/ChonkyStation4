@@ -49,6 +49,36 @@ struct SceKernelVirtualQueryInfo {
     char name[32];
 };
 
+struct SceKernelTitleWorkaround {
+    s32 version;
+    s32 align;
+    u64 ids[2];
+};
+
+struct SceKernelAppInfo {
+    s32 app_id;
+    s32 mmap_flags;
+    s32 attribute_exe;
+    s32 attribute2;
+    char cusa_name[10];
+    u8 debug_level;
+    u8 slv_flags;
+    u8 mini_app_dmem_flags;
+    u8 render_mode;
+    u8 mdbg_out;
+    u8 required_hdcp_type;
+    u64 preload_prx_flags;
+    s32 attribute1;
+    s32 has_param_sfo;
+    SceKernelTitleWorkaround title_workaround;
+};
+
+struct SceKernelSwVersion {
+    u64 struct_size;
+    char text[0x1c];
+    u32 hex;
+};
+
 struct SceKernelLoadModuleOpt;
 using SceKernelModule = s32;
 
@@ -74,6 +104,9 @@ void* PS4_FUNC sceKernelGetProcParam();
 s32 PS4_FUNC sceKernelGetProcessType();
 void PS4_FUNC _sceKernelRtldSetApplicationHeapAPI(void* api[]);
 u64 PS4_FUNC sceKernelGetTscFrequency();
+s32 PS4_FUNC sceKernelGetAppInfo(s32 pid, SceKernelAppInfo* app_info);
+s32 PS4_FUNC sceKernelTitleWorkaroundIsEnabled(SceKernelTitleWorkaround* workaround, s32 bit, s32* result);
+s32 PS4_FUNC sceKernelGetSystemSwVersion(SceKernelSwVersion* ver);
 
 s32 PS4_FUNC kernel_getpid();
 s32 PS4_FUNC kernel_sched_get_priority_max();

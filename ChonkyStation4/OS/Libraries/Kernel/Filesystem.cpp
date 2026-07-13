@@ -330,4 +330,9 @@ s32 PS4_FUNC sceKernelClose(s32 fd) {
     return res;
 }
 
+const char* PS4_FUNC sceKernelGetFsSandboxRandomWord() {
+    log("sceKernelGetFsSandboxRandomWord()\n");
+    return "sandbox";
+}
+
 }   // End namespace PS4::OS::Libs::Kernel

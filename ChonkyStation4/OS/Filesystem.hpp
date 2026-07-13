@@ -37,6 +37,7 @@ enum class Device {
     SAVEDATA0,
     DEV,
     TEMP0,
+    SANDBOX,
     INVALID
 };
 

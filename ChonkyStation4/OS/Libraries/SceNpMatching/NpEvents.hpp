@@ -9,6 +9,7 @@ static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_GET_WORLD_INFO_LIST         
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SET_ROOM_DATA_EXTERNAL                  = 0x0004;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_GET_LOBBY_INFO_LIST                     = 0x0006;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SET_USER_INFO                           = 0x0007;
+static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM                        = 0x0101;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_LEAVE_ROOM                              = 0x0103;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_GRANT_ROOM_OWNER                        = 0x0104;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_KICKOUT_ROOM_MEMBER                     = 0x0105;
@@ -23,11 +24,14 @@ static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_LEAVE_LOBBY                 
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SEND_LOBBY_CHAT_MESSAGE                 = 0x0203;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SET_LOBBY_MEMBER_DATA_INTERNAL          = 0x0205;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SIGNALING_GET_PING_INFO                 = 0x0e01;
+static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_MEMBER_JOINED                              = 0x1101;
 static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_KICKEDOUT                                  = 0x1103;
 static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_ROOM_DESTROYED                             = 0x1104;
 static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_ROOM_OWNER_CHANGED                         = 0x1105;
 static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_UPDATED_ROOM_DATA_INTERNAL                 = 0x1106;
+static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_UPDATED_ROOM_MEMBER_DATA_INTERNAL          = 0x1107;
 static constexpr s32 SCE_NP_MATCHING2_ROOM_EVENT_UPDATED_SIGNALING_OPT_PARAM                = 0x1108;
+static constexpr s32 SCE_NP_MATCHING2_ROOM_MSG_EVENT_MESSAGE                                = 0x2102;
 static constexpr s32 SCE_NP_MATCHING2_LOBBY_EVENT_LOBBY_DESTROYED                           = 0x3203;
 static constexpr s32 SCE_NP_MATCHING2_SIGNALING_EVENT_DEAD                                  = 0x5101;
 static constexpr s32 SCE_NP_MATCHING2_SIGNALING_EVENT_ESTABLISHED                           = 0x5102;

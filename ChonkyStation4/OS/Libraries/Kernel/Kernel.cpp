@@ -136,6 +136,7 @@ void init(Module& module) {
     module.addSymbolExport("Jmi+9w9u0E4", "pthread_create_name_np", "libScePosix", "libkernel", (void*)&scePthreadCreate);
     module.addSymbolExport("6UgtwV+0zb4", "scePthreadCreate", "libkernel", "libkernel", (void*)&scePthreadCreate);
     module.addSymbolExport("GBUY7ywdULE", "scePthreadRename", "libkernel", "libkernel", (void*)&scePthreadRename);
+    module.addSymbolExport("How7B8Oet6k", "scePthreadGetname", "libkernel", "libkernel", (void*)&scePthreadGetname);
     module.addSymbolExport("+U1R4WtXvoc", "pthread_detach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
     module.addSymbolExport("4qGrR6eoP9Y", "scePthreadDetach", "libkernel", "libkernel", (void*)&kernel_pthread_detach);
     module.addSymbolExport("7Xl257M4VNI", "pthread_equal", "libkernel", "libkernel", (void*)&kernel_pthread_equal);
@@ -196,6 +197,7 @@ void init(Module& module) {
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libkernel", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("bY-PO6JhzhQ", "close", "libScePosix", "libkernel", (void*)&kernel_close);
     module.addSymbolExport("UK2Tl2DWUns", "sceKernelClose", "libkernel", "libkernel", (void*)&sceKernelClose);
+    module.addSymbolExport("JGfTMBOdUJo", "sceKernelGetFsSandboxRandomWord", "libkernel", "libkernel", (void*)&sceKernelGetFsSandboxRandomWord);
     module.addSymbolStub("fTx66l5iWIA", "sceKernelFsync", "libkernel", "libkernel");
     module.addSymbolStub("naInUjYt3so", "sceKernelRmdir", "libkernel", "libkernel");
     
@@ -236,6 +238,9 @@ void init(Module& module) {
     module.addSymbolExport("+g+UP8Pyfmo", "sceKernelGetProcessType", "libkernel", "libkernel", (void*)&sceKernelGetProcessType);
     module.addSymbolExport("p5EcQeEeJAE", "_sceKernelRtldSetApplicationHeapAPI", "libkernel", "libkernel", (void*)&_sceKernelRtldSetApplicationHeapAPI);
     module.addSymbolExport("1j3S3n-tTW4", "sceKernelGetTscFrequency", "libkernel", "libkernel", (void*)&sceKernelGetTscFrequency);
+    module.addSymbolExport("G-MYv5erXaU", "sceKernelGetAppInfo", "libkernel", "libkernel", (void*)&sceKernelGetAppInfo);
+    module.addSymbolExport("1yca4VvfcNA", "sceKernelTitleWorkaroundIsEnabled", "libkernel", "libkernel", (void*)&sceKernelTitleWorkaroundIsEnabled);
+    module.addSymbolExport("Mv1zUObHvXI", "sceKernelGetSystemSwVersion", "libkernel", "libkernel", (void*)&sceKernelGetSystemSwVersion);
 
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
@@ -384,6 +389,7 @@ void init(Module& module) {
     module.addSymbolStub("6BpEZuDT7YI", "pthread_key_delete", "libScePosix", "libkernel");
     module.addSymbolStub("4oXYe9Xmk0Q", "sceKernelGetGPI", "libkernel", "libkernel");
     module.addSymbolStub("ca7v6Cxulzs", "sceKernelSetGPO", "libkernel", "libkernel");
+    module.addSymbolStub("igMefp4SAv0", "get_authinfo", "libkernel", "libkernel");
     module.addSymbolStub("wdUufa9g-D8", "dup2", "libkernel", "libkernel");
     
     module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
@@ -679,6 +685,30 @@ u64 PS4_FUNC sceKernelGetTscFrequency() {
 
     log("freq: %lld\n", tsc_freq);
     return tsc_freq;
+}
+
+s32 PS4_FUNC sceKernelGetAppInfo(s32 pid, SceKernelAppInfo* app_info) {
+    log("sceKernelGetAppInfo(pid=%d, app_info=*%p)\n", pid, app_info);
+
+    // We assume pid is the current process and we only return the title ID
+    std::memset(app_info, 0, sizeof(SceKernelAppInfo));
+    app_info->has_param_sfo = true;
+    std::strncpy(app_info->cusa_name, g_app.title_id.c_str(), 10);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelTitleWorkaroundIsEnabled(SceKernelTitleWorkaround* workaround, s32 bit, s32* result) {
+    log("sceKernelTitleWorkaroundIsEnabled(workaround=*%p, bit=%d, result=*%p)\n", workaround, bit, result);
+    *result = 0;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelGetSystemSwVersion(SceKernelSwVersion* ver) {
+    log("sceKernelGetSystemSwVersion(ver=*%p)\n", ver);
+
+    ver->hex = 0x11500001;
+    std::strcpy(ver->text, "11.500.001");
+    return SCE_OK;
 }
 
 s32 PS4_FUNC kernel_getpid() {
