@@ -380,6 +380,26 @@ T* DescriptorLocation::asPtr() {
 template VSharp* DescriptorLocation::asPtr<VSharp>();
 template TSharp* DescriptorLocation::asPtr<TSharp>();
 
+template<Type type>
+std::string V_CMP(const PS4::GCN::Shader::GcnInst & instr, std::string op) {
+    std::string dst;
+    if (instr.dst[1].field == OperandField::ScalarGPR) {
+        dst = getSGPR(instr.dst[1].code);
+    }
+    else if (instr.dst[1].field == OperandField::VccLo) {
+        dst = "vcc";
+    }
+    else {
+        Helpers::panic("v_cmp_f32: unimplemented operand field");
+    }
+
+    auto decompiled = std::format("{} = uint({} {} {});\n", dst, getSRC<type>(instr.src[0]), op, getSRC<type>(instr.src[1]));
+    if (instr.IsCmpx()) {
+        decompiled += std::format("exec = {};\n", dst);
+    }
+    return decompiled;
+};
+
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job) {
     //std::ofstream out;
     //if (stage == ShaderStage::Vertex) {
@@ -741,21 +761,6 @@ ivec3 unpackImageOffset(uint packed) {
 
     main += "\n";
 
-    auto v_cmp_f32 = [](const PS4::GCN::Shader::GcnInst& instr, std::string op) -> std::string {
-        std::string dst;
-        if (instr.dst[1].field == OperandField::ScalarGPR) {
-            dst = getSGPR(instr.dst[1].code);
-        }
-        else if (instr.dst[1].field == OperandField::VccLo) {
-            dst = "vcc";
-        }
-        else {
-            Helpers::panic("v_cmp_f32: unimplemented operand field");
-        }
-        
-        return std::format("{} = uint({} {} {});\n", dst, getSRC(instr.src[0]), op, getSRC(instr.src[1]));
-    };
-
     auto s_buffer_load_dword_offset = [&](const PS4::GCN::Shader::GcnInst& instr) -> std::string {
         if (instr.control.smrd.imm)
             return std::format("{}", instr.control.smrd.offset);
@@ -965,7 +970,7 @@ ivec3 unpackImageOffset(uint packed) {
         }
 
         case Shader::Opcode::S_SWAPPC_B64: {
-            main += "// S_SWAPPC_B64\n";
+            main += std::format("// S_SWAPPC_B64 {}\n", instr.src[0].code);
             break;
         }
 
@@ -1062,38 +1067,17 @@ ivec3 unpackImageOffset(uint packed) {
         }
 
         case Shader::Opcode::V_CMP_NGE_F32:
-        case Shader::Opcode::V_CMP_LT_F32: {
-            main += v_cmp_f32(instr, "<");
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_EQ_F32: {
-            main += v_cmp_f32(instr, "==");
-            break;
-        }
-        
+        case Shader::Opcode::V_CMP_LT_F32:      main += V_CMP<Type::Float>(instr, "<");     break;
+        case Shader::Opcode::V_CMP_NLG_F32:
+        case Shader::Opcode::V_CMP_EQ_F32:      main += V_CMP<Type::Float>(instr, "==");    break;
         case Shader::Opcode::V_CMP_NGT_F32:
-        case Shader::Opcode::V_CMP_LE_F32: {
-            main += v_cmp_f32(instr, "<=");
-            break;
-        }
-        
+        case Shader::Opcode::V_CMP_LE_F32:      main += V_CMP<Type::Float>(instr, "<=");    break;
         case Shader::Opcode::V_CMP_NLE_F32:
-        case Shader::Opcode::V_CMP_GT_F32: {
-            main += v_cmp_f32(instr, ">");
-            break;
-        }
-
+        case Shader::Opcode::V_CMP_GT_F32:      main += V_CMP<Type::Float>(instr, ">");     break;
         case Shader::Opcode::V_CMP_NLT_F32:
-        case Shader::Opcode::V_CMP_GE_F32: {
-            main += v_cmp_f32(instr, ">=");
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_NEQ_F32: {
-            main += v_cmp_f32(instr, "!=");
-            break;
-        }
+        case Shader::Opcode::V_CMP_GE_F32:      main += V_CMP<Type::Float>(instr, ">=");    break;
+        case Shader::Opcode::V_CMP_LG_F32:
+        case Shader::Opcode::V_CMP_NEQ_F32:     main += V_CMP<Type::Float>(instr, "!=");    break;
         
         case Shader::Opcode::S_CBRANCH_SCC0: {
             main += "// TODO: S_CBRANCH_SCC0\n";
@@ -1110,160 +1094,39 @@ ivec3 unpackImageOffset(uint packed) {
             break;
         }
 
-        case Shader::Opcode::V_CMPX_LT_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, "<");
-            break;
-        }
+        case Shader::Opcode::V_CMPX_NGE_F32:
+        case Shader::Opcode::V_CMPX_LT_F32:     main += V_CMP<Type::Float>(instr, "<");     break;
+        case Shader::Opcode::V_CMPX_NLG_F32:
+        case Shader::Opcode::V_CMPX_EQ_F32:     main += V_CMP<Type::Float>(instr, "==");    break;
+        case Shader::Opcode::V_CMPX_NGT_F32:
+        case Shader::Opcode::V_CMPX_LE_F32:     main += V_CMP<Type::Float>(instr, "<=");    break;
+        case Shader::Opcode::V_CMPX_NLE_F32:
+        case Shader::Opcode::V_CMPX_GT_F32:     main += V_CMP<Type::Float>(instr, ">");     break;
+        case Shader::Opcode::V_CMPX_NLT_F32:
+        case Shader::Opcode::V_CMPX_GE_F32:     main += V_CMP<Type::Float>(instr, ">=");    break;
+        case Shader::Opcode::V_CMPX_LG_F32:
+        case Shader::Opcode::V_CMPX_NEQ_F32:    main += V_CMP<Type::Float>(instr, "!=");    break;
 
-        case Shader::Opcode::V_CMPX_EQ_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, "==");
-            break;
-        }
+        case Shader::Opcode::V_CMP_LT_I32:      main += V_CMP<Type::Int>(instr, "<");       break;
+        case Shader::Opcode::V_CMP_EQ_I32:      main += V_CMP<Type::Int>(instr, "==");      break;
+        case Shader::Opcode::V_CMP_LE_I32:      main += V_CMP<Type::Int>(instr, "<=");      break;
+        case Shader::Opcode::V_CMP_GT_I32:      main += V_CMP<Type::Int>(instr, ">");       break;
+        case Shader::Opcode::V_CMP_GE_I32:      main += V_CMP<Type::Int>(instr, ">=");      break;
+        case Shader::Opcode::V_CMP_NE_I32:      main += V_CMP<Type::Int>(instr, "!=");      break;
 
-        case Shader::Opcode::V_CMPX_LE_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, "<=");
-            break;
-        }
+        case Shader::Opcode::V_CMP_LT_U32:      main += V_CMP<Type::Uint>(instr, "<");      break;
+        case Shader::Opcode::V_CMP_EQ_U32:      main += V_CMP<Type::Uint>(instr, "==");     break;
+        case Shader::Opcode::V_CMP_LE_U32:      main += V_CMP<Type::Uint>(instr, "<=");     break;
+        case Shader::Opcode::V_CMP_GT_U32:      main += V_CMP<Type::Uint>(instr, ">");      break;
+        case Shader::Opcode::V_CMP_GE_U32:      main += V_CMP<Type::Uint>(instr, ">=");     break;
+        case Shader::Opcode::V_CMP_NE_U32:      main += V_CMP<Type::Uint>(instr, "!=");     break;
 
-        case Shader::Opcode::V_CMPX_GT_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, ">");
-            break;
-        }
-        
-        case Shader::Opcode::V_CMPX_LG_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, "!=");
-            break;
-        }
-
-        case Shader::Opcode::V_CMPX_GE_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, ">=");
-            break;
-        }
-
-        case Shader::Opcode::V_CMPX_NGE_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, "<");
-            break;
-        }
-        
-        case Shader::Opcode::V_CMPX_NLE_F32: {
-            // TODO: Exec
-            main += v_cmp_f32(instr, ">");
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_LT_I32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} < {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_EQ_I32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} == {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_LE_I32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} <= {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_GT_I32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} > {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
-            break;
-        }
-        
-        case Shader::Opcode::V_CMP_NE_I32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} != {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
-            break;
-        }
-        
-        case Shader::Opcode::V_CMP_GE_I32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} >= {});\n", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_LT_U32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} < {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_EQ_U32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} == {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-        
-        case Shader::Opcode::V_CMP_LE_U32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} <= {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_GT_U32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_NE_U32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} != {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMP_GE_U32: {
-            // TODO: This can set other registers too I think?
-            main += std::format("vcc = uint({} >= {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-        
-        case Shader::Opcode::V_CMPX_LT_U32: {
-            // TODO: This can set other registers too I think?
-            // TODO: Exec
-            main += std::format("vcc = uint({} < {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-        
-        case Shader::Opcode::V_CMPX_EQ_U32: {
-            // TODO: This can set other registers too I think?
-            // TODO: Exec
-            main += std::format("vcc = uint({} == {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMPX_GT_U32: {
-            // TODO: This can set other registers too I think?
-            // TODO: Exec
-            main += std::format("vcc = uint({} > {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMPX_NE_U32: {
-            // TODO: This can set other registers too I think?
-            // TODO: Exec
-            main += std::format("vcc = uint({} != {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
-
-        case Shader::Opcode::V_CMPX_GE_U32: {
-            // TODO: This can set other registers too I think?
-            // TODO: Exec
-            main += std::format("vcc = uint({} >= {});\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
-            break;
-        }
+        case Shader::Opcode::V_CMPX_LT_U32:     main += V_CMP<Type::Uint>(instr, "<");      break;
+        case Shader::Opcode::V_CMPX_EQ_U32:     main += V_CMP<Type::Uint>(instr, "==");     break;
+        case Shader::Opcode::V_CMPX_LE_U32:     main += V_CMP<Type::Uint>(instr, "<=");     break;
+        case Shader::Opcode::V_CMPX_GT_U32:     main += V_CMP<Type::Uint>(instr, ">");      break;
+        case Shader::Opcode::V_CMPX_GE_U32:     main += V_CMP<Type::Uint>(instr, ">=");     break;
+        case Shader::Opcode::V_CMPX_NE_U32:     main += V_CMP<Type::Uint>(instr, "!=");     break;
 
         case Shader::Opcode::V_CNDMASK_B32: {
             std::string cond;
@@ -1463,6 +1326,11 @@ ivec3 unpackImageOffset(uint packed) {
             main += std::format("else if ({} < -{}) tmp.x = -{};\n", src0, INT32_MAX, INT32_MAX);
             main += std::format("else               tmp.x =  {};\n", src0);
             main += setDST<Type::Uint>(instr.dst[0], "int(tmp.x)");
+            break;
+        }
+
+        case Shader::Opcode::V_CVT_F16_F32: {
+            main += setDST<Type::Float>(instr.dst[0], std::format("(packHalf2x16(vec2({}, 0.0f)) & 0xffffu)", getSRC<Type::Float>(instr.src[0])));
             break;
         }
 

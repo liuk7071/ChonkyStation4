@@ -14,7 +14,14 @@ void init(Module& module);
 
 using namespace OS::Np;
 
+static constexpr s32 SCE_NP_LANGUAGE_CODE_MAX_LEN = 5;
+
 struct SceNpCreateAsyncRequestParameter;
+
+struct SceNpLanguageCode {
+    char code[SCE_NP_LANGUAGE_CODE_MAX_LEN + 1];
+    u8 padding[10];
+};
 
 struct SceNpRequest : SceObj {
     enum class State {
@@ -46,6 +53,7 @@ s32 PS4_FUNC sceNpPollAsync(s32 req_id, s32* result);
 s32 PS4_FUNC sceNpCheckPlus(s32 req_id, const SceNpCheckPlusParameter* param, SceNpCheckPlusResult* result);
 s32 PS4_FUNC sceNpGetParentalControlInfo(s32 req_id, SceNpOnlineId* online_id, s8* age, SceNpParentalControlInfo* info);
 s32 PS4_FUNC sceNpGetParentalControlInfoA(s32 req_id, SceUserService::SceUserServiceUserId uid, s8* age, SceNpParentalControlInfo* info);
+s32 PS4_FUNC sceNpGetAccountLanguageA(s32 req_id, SceUserService::SceUserServiceUserId uid, s8* age, SceNpLanguageCode* lang_code);
 s32 PS4_FUNC sceNpCheckNpAvailabilityA(s32 req_id, SceUserService::SceUserServiceUserId uid);
 
 }   // End namespace PS4::OS::Libs::SceNpManager

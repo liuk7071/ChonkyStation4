@@ -47,6 +47,13 @@ s32 PS4_FUNC sceKernelCheckReachability(const char* path) {
 s32 PS4_FUNC kernel_mkdir(const char* path, u16 mode) {
     log("mkdir(path=\"%s\", mode=%o)\n", path, mode);
 
+    // Device must be valid
+    if (!FS::isDeviceMounted(path)) {
+        log("invalid device\n");
+        *Kernel::kernel_error() = POSIX_ENOENT;
+        return -1;
+    }
+
     // Parent directory must exist
     if (!fs::exists(fs::path(path).parent_path())) {
         *Kernel::kernel_error() = POSIX_ENOENT;
@@ -276,6 +283,7 @@ s32 PS4_FUNC kernel_getdents(s32 fd, char* buf, s32 n_bytes) {
         if (file.cur_dirent >= file.dirents.size()) break;
 
         std::memcpy(buf, &file.dirents[file.cur_dirent], sizeof(FS::SceKernelDirent));
+        buf += sizeof(FS::SceKernelDirent);
         file.cur_dirent++;
         written_size += sizeof(FS::SceKernelDirent);
     }

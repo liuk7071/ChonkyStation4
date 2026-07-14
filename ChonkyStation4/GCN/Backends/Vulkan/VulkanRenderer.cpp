@@ -250,7 +250,7 @@ void VulkanRenderer::init() {
         Helpers::panic("Vulkan: failed to find a suitable GPU!");
 
     // TODO: Sort by score
-    physical_device = std::move(supported_devices.back());
+    physical_device = std::move(supported_devices.front());
 
     // Get the first index into queue_family_properties which supports both graphics and present
     std::vector<vk::QueueFamilyProperties> queue_family_properties = physical_device.getQueueFamilyProperties();

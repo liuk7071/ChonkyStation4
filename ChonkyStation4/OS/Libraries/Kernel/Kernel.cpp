@@ -409,6 +409,7 @@ static thread_local s32 posix_errno = 0;
 #ifdef _WIN32
 std::mutex allocator_mtx;
 
+static constexpr uptr SYSTEM_MAPPING_AREA = 0x0010'0000'0000;
 void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
     auto lk = std::unique_lock<std::mutex>(allocator_mtx);
     
@@ -546,6 +547,8 @@ s32 PS4_FUNC kernel_clock_gettime(u32 clock_id, SceKernelTimespec* ts) {
     log("clock_gettime(clock_id=%d, ts=*%p)\n", clock_id, ts);
 
     switch (clock_id) {
+    case SCE_KERNEL_CLOCK_MONOTONIC_PRECISE:
+    case SCE_KERNEL_CLOCK_MONOTONIC_FAST:
     case SCE_KERNEL_CLOCK_MONOTONIC: {
         auto counter = SDL_GetPerformanceCounter();
         auto freq = SDL_GetPerformanceFrequency();
@@ -746,6 +749,7 @@ s32 PS4_FUNC __sys_regmgr_call() {
 
 std::unordered_map<void*, u64> virt_dmem_map;
 std::unordered_map<u64, void*> dmem_virt_map;
+std::unordered_map<u64, size_t> dmem_size_map;
 
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
@@ -808,6 +812,7 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 
     virt_dmem_map[*addr] = (u64)dmem_start;
     dmem_virt_map[(u64)dmem_start] = *addr;
+    dmem_size_map[(u64)dmem_start] = len;
 
     // Clear allocated memory
     std::memset(*addr, 0, len);
@@ -858,18 +863,30 @@ s32 PS4_FUNC sceKernelReserveVirtualRange(void** addr, size_t len, s32 flags, si
     log("sceKernelReserveVirtualRange(addr=*%p, len=0x%llx, flags=%d, align=0x%016llx)\n", addr, len, flags, align);
     log("in_addr=%p\n", *addr);
 
+    // Quick hack: if MAP_FIXED is specified and MAP_NO_OVERWRITE isn't, just reserve the input address directly
+    if ((flags & 0x10) && !(flags & 0x80)) {
+        if (!*addr) {
+            Helpers::panic("sceKernelReserveVirtualRange: MAP_FIXED was specified but *addr is null\n");
+        }
+
+        // Leave *addr unchanged
+        
+        reserved_areas.push_back({ .start = (uptr)*addr, .size = len });
+        log("out_addr=%p [skipped]\n", *addr);
+        return SCE_OK;
+    }
+
     // Search forwards from in_addr
     void* in_addr = *addr;
+    void* original_addr = in_addr;
     void* out_addr = nullptr;
     while (true) {
-        // Allocate memory, then decommit.
         // If the address we got was already reserved continue searching
         if ((u64)in_addr >= 0x8000'0000)
             out_addr = findNextFree((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
         else
-            // TODO
-            out_addr = findNextFree(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
-        sceKernelMunmap(out_addr, len);
+            // TODO                   
+            out_addr = findNextFree(SYSTEM_MAPPING_AREA, SYSTEM_MAPPING_AREA + 2000_GB, len, align);
     
         bool overlap = false;
         for (auto& area : reserved_areas) {
@@ -889,10 +906,27 @@ s32 PS4_FUNC sceKernelReserveVirtualRange(void** addr, size_t len, s32 flags, si
         break;
     }
 
+    // Check for fixed mapping and error only if the NO_OVERWRITE flag is specified
+    if ((flags & 0x10) && out_addr != original_addr) {
+        if (flags & 0x80) {     // SCE_KERNEL_MAP_NO_OVERWRITE
+#ifdef _WIN32
+            MEMORY_BASIC_INFORMATION mbi;
+            VirtualQuery(in_addr, &mbi, sizeof(mbi));
+
+            log("Could not reserve area at %p. Memory was reserved from %p to %p with state 0x%x\n", in_addr, mbi.BaseAddress, (uptr)mbi.BaseAddress + mbi.RegionSize, mbi.State);
+#endif
+            Helpers::panic("sceKernelReserveVirtualRange: could not allocate memory at fixed mapping (in_addr=%p, out_addr=%p)\n", in_addr, out_addr);
+        }
+        else {
+            // Just use the input address since we can overwrite it
+            out_addr = original_addr;
+        }
+    }
+
     *addr = out_addr;
     reserved_areas.push_back({ .start = (uptr)out_addr, .size = len });
 
-    log("out_addr=%p\n", *addr);
+    log("out_addr=%p\n", out_addr);
     return SCE_OK;
 }
 
@@ -906,6 +940,7 @@ s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
         sceKernelMunmap(virt_addr, len);
         virt_dmem_map.erase(virt_addr);
         dmem_virt_map.erase((u64)addr);
+        dmem_size_map.erase((u64)addr);
     }
     return SCE_OK;
 }
@@ -913,8 +948,8 @@ s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
 s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len) {
     log("sceKernelCheckedReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
 
-    // TODO
-    return SCE_OK;
+    // TODO: Check if an unallocated area is included
+    return sceKernelReleaseDirectMemory(addr, len);
 }
 
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len) {

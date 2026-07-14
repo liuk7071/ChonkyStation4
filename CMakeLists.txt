@@ -66,7 +66,7 @@ target_sources(ChonkyStation4 PRIVATE
  "ChonkyStation4/OS/Libraries/SceRandom/SceRandom.cpp" "ChonkyStation4/OS/Libraries/SceRandom/SceRandom.hpp"
  "ChonkyStation4/GCN/HostTessShaders.cpp" "ChonkyStation4/GCN/HostTessShaders.hpp"
  "ChonkyStation4/OS/Libraries/SceNpMatching/SceNpMatching.cpp" "ChonkyStation4/OS/Libraries/SceNpMatching/SceNpMatching.hpp"
- "ChonkyStation4/OS/Libraries/SceVideodec/SceVideodec.cpp" "ChonkyStation4/OS/Libraries/SceVideodec/SceVideodec.hpp" "ChonkyStation4/OS/Libraries/SceAjm/SceAjm.cpp" "ChonkyStation4/OS/Libraries/SceAjm/SceAjm.hpp" "ChonkyStation4/GCN/Backends/Vulkan/ComputePipeline.cpp" "ChonkyStation4/OS/Libraries/SceAppContent/SceAppContent.cpp"  "ChonkyStation4/OS/Libraries/SceZlib/SceZlib.cpp" "ChonkyStation4/OS/Libraries/SceNpScore/SceNpScore.cpp" "ChonkyStation4/PSN/Providers/ChonkyNet/ChonkyNet.cpp" "ChonkyStation4/OS/Libraries/SceNpWebApi/SceNpWebApi.cpp")
+ "ChonkyStation4/OS/Libraries/SceVideodec/SceVideodec.cpp" "ChonkyStation4/OS/Libraries/SceVideodec/SceVideodec.hpp" "ChonkyStation4/OS/Libraries/SceAjm/SceAjm.cpp" "ChonkyStation4/OS/Libraries/SceAjm/SceAjm.hpp" "ChonkyStation4/GCN/Backends/Vulkan/ComputePipeline.cpp" "ChonkyStation4/OS/Libraries/SceAppContent/SceAppContent.cpp"  "ChonkyStation4/OS/Libraries/SceZlib/SceZlib.cpp" "ChonkyStation4/OS/Libraries/SceNpScore/SceNpScore.cpp" "ChonkyStation4/PSN/Providers/ChonkyNet/ChonkyNet.cpp" "ChonkyStation4/OS/Libraries/SceNpWebApi/SceNpWebApi.cpp" "ChonkyStation4/OS/Libraries/SceAudio3d/SceAudio3d.cpp")
 
 option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_EXAMPLES "" OFF)

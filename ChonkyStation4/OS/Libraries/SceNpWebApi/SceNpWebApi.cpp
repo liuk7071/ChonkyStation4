@@ -80,6 +80,8 @@ s32 PS4_FUNC sceNpWebApiSendRequest2(s64 req_id, const void* data, size_t data_s
     log("Sending WebApi request %s %s\n", method_to_str(req->method).c_str(), req->url.c_str());
 
     httplib::Client http(req->server);
+
+    // TODO: Other methods
     if (auto res = http.Get(req->path)) {
         log("HTTP status code: %d\n", res->status);
         log("HTTP Response body:\n%s\n", res->body.c_str());

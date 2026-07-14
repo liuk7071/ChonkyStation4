@@ -14,6 +14,7 @@
 #include <OS/Libraries/SceNpTrophy/SceNpTrophy.hpp>
 #include <OS/Libraries/ScePad/ScePad.hpp>
 #include <OS/Libraries/SceAudioOut/SceAudioOut.hpp>
+#include <OS/Libraries/SceAudio3d/SceAudio3d.hpp>
 #include <OS/Libraries/ScePlayGo/ScePlayGo.hpp>
 #include <OS/Libraries/SceRtc/SceRtc.hpp>
 #include <OS/Libraries/SceNet/SceNet.hpp>
@@ -57,12 +58,6 @@ s32 PS4_FUNC sceSslGetCaCerts(s32 ctx_id, SceSslCaCerts* certs) {
     return SCE_OK;
 }
 
-s32 PS4_FUNC sceAudio3dPortPush() {
-    // TODO: Check for the blocking mode (sync or async)
-    while (true) std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    return SCE_OK;
-}
-
 namespace PS4::OS::HLE {
 
 // Create a dummy HLE module that only contains the symbol exports for HLE functions
@@ -85,6 +80,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceNpWebApi::init(*module);
     PS4::OS::Libs::ScePad::init(*module);
     PS4::OS::Libs::SceAudioOut::init(*module);
+    PS4::OS::Libs::SceAudio3d::init(*module);
     PS4::OS::Libs::ScePlayGo::init(*module);
     PS4::OS::Libs::SceRtc::init(*module);
     PS4::OS::Libs::SceNet::init(*module);
@@ -234,16 +230,6 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceAudioIn
     module->addSymbolStub("5NE8Sjc7VC8", "sceAudioInOpen", "libSceAudioIn", "libSceAudioIn", 1);
     module->addSymbolExport("LozEOU8+anM", "sceAudioInInput", "libSceAudioIn", "libSceAudioIn", (void*)&sceAudioInInput);
-    
-    // libSceAudio3d
-    module->addSymbolStub("UmCvjSmuZIw", "sceAudio3dInitialize", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolStub("XeDDK0xJWQA", "sceAudio3dPortOpen", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolStub("jO2tec4dJ2M", "sceAudio3dObjectReserve", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolStub("4uyHN9q4ZeU", "sceAudio3dObjectSetAttributes", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolStub("YaaDbDwKpFM", "sceAudio3dPortGetQueueLevel", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolStub("Yq9bfUQ0uJg", "sceAudio3dPortSetAttribute", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolStub("lw0qrdSjZt8", "sceAudio3dPortAdvance", "libSceAudio3d", "libSceAudio3d");
-    module->addSymbolExport("VEVhZ9qd4ZY", "sceAudio3dPortPush", "libSceAudio3d", "libSceAudio3d", (void*)&sceAudio3dPortPush);
     
     // libSceVoice
     module->addSymbolStub("9TrhuGzberQ", "sceVoiceInit", "libSceVoice", "libSceVoice");

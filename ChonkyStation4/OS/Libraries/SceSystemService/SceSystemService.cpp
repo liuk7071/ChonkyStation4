@@ -9,6 +9,7 @@ MAKE_LOG_FUNCTION(log, lib_sceSystemService);
 
 void init(Module& module) {
     module.addSymbolExport("fZo48un7LK4", "sceSystemServiceParamGetInt", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceParamGetInt);
+    module.addSymbolExport("SsC-m-S9JTA", "sceSystemServiceParamGetString", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceParamGetString);
     module.addSymbolExport("rPo6tV8D9bM", "sceSystemServiceGetStatus", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceGetStatus);
     module.addSymbolExport("1n37q1Bvc5Y", "sceSystemServiceGetDisplaySafeAreaInfo", "libSceSystemService", "libSceSystemService", (void*)&sceSystemServiceGetDisplaySafeAreaInfo);
     
@@ -34,6 +35,19 @@ s32 PS4_FUNC sceSystemServiceParamGetInt(SceSystemServiceParamId param_id, s32* 
     }
 
     *val = ret;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceSystemServiceParamGetString(SceSystemServiceParamId param_id, char* buf, size_t buf_size) {
+    log("sceSystemServiceParamGetString(param_id=%d, buf=*%p, buf_size=%lld)\n", param_id, buf, buf_size);
+
+    switch (param_id) {
+    case SCE_SYSTEM_SERVICE_PARAM_ID_SYSTEM_NAME:   std::strncpy(buf, "PS4", buf_size);     break;
+
+    default:
+        Helpers::panic("sceSystemServiceParamGetString: unhandled param_id=%d\n", param_id);
+    }
+
     return SCE_OK;
 }
 

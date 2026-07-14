@@ -84,6 +84,7 @@ static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData      
 static Logger lib_sceSaveDataDialog = Logger<true> ("[Lib    ][SceSaveDataDialog] ");
 static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad           ] ");
 static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut      ] ");
+static Logger lib_sceAudio3d        = Logger<true> ("[Lib    ][SceAudio3d       ] ");
 static Logger lib_scePlayGo         = Logger<true> ("[Lib    ][ScePlayGo        ] ");
 static Logger lib_sceRtc            = Logger<true> ("[Lib    ][SceRtc           ] ");
 static Logger lib_sceNet            = Logger<1> ("[Lib    ][SceNet           ] ");
