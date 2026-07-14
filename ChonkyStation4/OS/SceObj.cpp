@@ -1,11 +1,12 @@
 #include "SceObj.hpp"
+#include <atomic>
 
 
 namespace PS4::OS {
 
 std::mutex mtx;
-u64 next_handle16   = 0x100;
-u64 next_handle     = UINT16_MAX + 1;
+std::atomic<u64> next_handle16   = 0x100;
+std::atomic<u64> next_handle     = UINT16_MAX + 1;
 
 SceObj::SceObj(bool handle16bit) {
     const std::lock_guard<std::mutex> lock(mtx);

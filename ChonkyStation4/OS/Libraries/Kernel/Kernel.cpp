@@ -370,8 +370,6 @@ void init(Module& module) {
     module.addSymbolStub("Tz4RNUCBbGI", "_sceKernelRtldThreadAtexitIncrement", "libkernel", "libkernel");
     module.addSymbolStub("DGMG3JshrZU", "sceKernelSetVirtualRangeName", "libkernel", "libkernel");
     module.addSymbolStub("PfccT7qURYE", "ioctl", "libkernel", "libkernel");
-    module.addSymbolStub("TU-d9PfIHPM", "socket", "libkernel", "libkernel");
-    module.addSymbolStub("TU-d9PfIHPM", "socket", "libScePosix", "libkernel");
     module.addSymbolStub("fFxGkxF2bVo", "setsockopt", "libkernel", "libkernel");
     module.addSymbolStub("fFxGkxF2bVo", "setsockopt", "libScePosix", "libkernel");
     module.addSymbolStub("T8fER+tIGgk", "select", "libkernel", "libkernel");

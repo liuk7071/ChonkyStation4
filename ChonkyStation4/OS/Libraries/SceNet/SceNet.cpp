@@ -36,6 +36,10 @@ void init(Module& module) {
     module.addSymbolExport("beRjXBn-z+o", "sceNetSend", "libSceNet", "libSceNet", (void*)&sceNetSend);
     module.addSymbolExport("9wO9XrMsNhc", "sceNetRecv", "libSceNet", "libSceNet", (void*)&sceNetRecv);
     module.addSymbolExport("xphrZusl78E", "sceNetGetsockopt", "libSceNet", "libSceNet", (void*)&sceNetGetsockopt);
+
+    module.addSymbolExport("TU-d9PfIHPM", "socket", "libkernel", "libkernel", (void*)&kernel_socket);
+    module.addSymbolExport("TU-d9PfIHPM", "socket", "libScePosix", "libkernel", (void*)&kernel_socket);
+
     module.addSymbolExport("C4UgDHHPvdw", "sceNetResolverCreate", "libSceNet", "libSceNet", (void*)&sceNetResolverCreate);
     module.addSymbolExport("Nd91WaWmG2w", "sceNetResolverStartNtoa", "libSceNet", "libSceNet", (void*)&sceNetResolverStartNtoa);
     
@@ -403,6 +407,12 @@ s32 PS4_FUNC sceNetGetsockopt(SceNetId s, s32 level, s32 option_name, void* val,
     return SCE_OK;
 }
 
+// TODO: It should be the opposite (sceNet calls libkernel socket functions)
+s32 PS4_FUNC kernel_socket(s32 family, s32 type, s32 protocol) {
+    log("socket(family=%d, type=%d, protocol=%d) [forwarding to sceNetSocket]\n");
+    return sceNetSocket("unnamed", family, type, protocol);
+}
+
 SceNetId PS4_FUNC sceNetResolverCreate(const char* name, s32 memid, s32 flags) {
     log("sceNetResolverCreate(name=\"%s\", memid=%d, flags=%d)\n", name, memid, flags);
 
@@ -468,8 +478,8 @@ SceNetId /* doesn't actually return an id */ PS4_FUNC sceNetResolverGetError(Sce
 
 s32 PS4_FUNC sceNetCtlGetState(s32* state) {
     log("sceNetCtlGetState()\n");
-    //*state = 0; // Disconnected
-    *state = 3; // IP Obtained
+    *state = 0; // Disconnected
+    //*state = 3; // IP Obtained
     return SCE_OK;
 }
 

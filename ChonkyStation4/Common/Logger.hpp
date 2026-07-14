@@ -75,11 +75,11 @@ static Logger lib_sceGnmDriver      = Logger<true> ("[Lib    ][SceGnmDriver     
 static Logger lib_sceSystemService  = Logger<true> ("[Lib    ][SceSystemService ] ");
 static Logger lib_sceUserService    = Logger<true> ("[Lib    ][SceUserService   ] ");
 static Logger lib_sceSysmodule      = Logger<true> ("[Lib    ][SceSysmodule     ] ");
-static Logger lib_sceNpManager      = Logger<1> ("[Lib    ][SceNpManager     ] ");
-static Logger lib_sceNpMatching     = Logger<1> ("[Lib    ][SceNpMatching    ] ");
-static Logger lib_sceNpScore        = Logger<1> ("[Lib    ][SceNpScore       ] ");
+static Logger lib_sceNpManager      = Logger<true> ("[Lib    ][SceNpManager     ] ");
+static Logger lib_sceNpMatching     = Logger<true> ("[Lib    ][SceNpMatching    ] ");
+static Logger lib_sceNpScore        = Logger<true> ("[Lib    ][SceNpScore       ] ");
 static Logger lib_sceNpTrophy       = Logger<true> ("[Lib    ][SceNpTrophy      ] ");
-static Logger lib_sceNpWebApi       = Logger<1> ("[Lib    ][SceNpWebApi      ] ");
+static Logger lib_sceNpWebApi       = Logger<true> ("[Lib    ][SceNpWebApi      ] ");
 static Logger lib_sceSaveData       = Logger<true> ("[Lib    ][SceSaveData      ] ");
 static Logger lib_sceSaveDataDialog = Logger<true> ("[Lib    ][SceSaveDataDialog] ");
 static Logger lib_scePad            = Logger<true> ("[Lib    ][ScePad           ] ");
@@ -87,7 +87,7 @@ static Logger lib_sceAudioOut       = Logger<true> ("[Lib    ][SceAudioOut      
 static Logger lib_sceAudio3d        = Logger<true> ("[Lib    ][SceAudio3d       ] ");
 static Logger lib_scePlayGo         = Logger<true> ("[Lib    ][ScePlayGo        ] ");
 static Logger lib_sceRtc            = Logger<true> ("[Lib    ][SceRtc           ] ");
-static Logger lib_sceNet            = Logger<1> ("[Lib    ][SceNet           ] ");
+static Logger lib_sceNet            = Logger<true> ("[Lib    ][SceNet           ] ");
 static Logger lib_sceRandom         = Logger<true> ("[Lib    ][SceRandom        ] ");
 static Logger lib_sceVideodec       = Logger<true> ("[Lib    ][SceVideodec      ] ");
 static Logger lib_sceAjm            = Logger<true> ("[Lib    ][SceAjm           ] ");
@@ -102,7 +102,7 @@ static Logger gcn_vulkan_renderer   = Logger<false>("[GCN    ][VulkanRenderer   
 // Other
 static Logger filesystem            = Logger<true> ("[Other  ][Filesystem       ] ");
 static Logger force_enable          = Logger<1>    ("[Other  ][Debug            ] ");
-static Logger unimplemented         = Logger<1> ("[Other  ][Unimplemented    ] ");
+static Logger unimplemented         = Logger<true> ("[Other  ][Unimplemented    ] ");
 
 #undef true
 #undef false
