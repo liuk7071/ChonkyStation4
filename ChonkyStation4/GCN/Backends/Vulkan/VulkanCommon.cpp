@@ -26,13 +26,13 @@ void beginRendering(vk::RenderingInfo render_info) {
         endRendering();
 
     is_recording_render_block = true;
-    cmd_bufs[0].beginRendering(render_info);
+    cmd_bufs[frame_idx].beginRendering(render_info);
 }
 
 void endRendering() {
     if (is_recording_render_block) {
         is_recording_render_block = false;
-        cmd_bufs[0].endRendering();
+        cmd_bufs[frame_idx].endRendering();
     }
 }
 
@@ -123,7 +123,7 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
     };
 
     if (!cmd_buf)
-        cmd_buf = &cmd_bufs[0];
+        cmd_buf = &cmd_bufs[frame_idx];
 
     auto [src_access_mask, src_stage] = get_access_and_stage_bits(old_layout);
     auto [dst_access_mask, dst_stage] = get_access_and_stage_bits(new_layout);

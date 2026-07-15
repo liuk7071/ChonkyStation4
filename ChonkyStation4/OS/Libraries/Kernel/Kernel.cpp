@@ -803,6 +803,7 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
 
     if ((flags & 0x10) && *addr != in_addr) {
         Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
+        //printf("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
         sceKernelMunmap(*addr, len);
         *addr = nullptr;
         return SCE_KERNEL_ERROR_ENOMEM;

@@ -6,6 +6,7 @@
 #include <GCN/FetchShader.hpp>
 #include <GCN/Shader/ShaderDecompiler.hpp>
 #include <GCN/Backends/Vulkan/ShaderCache.hpp>
+#include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <deque>
 #include "vk_mem_alloc.h"
 
@@ -243,8 +244,8 @@ private:
     // Each time we gather vertices, create a copy of the above vertex binding "layout"
     // The VertexBinding struct is basically FetchShaderVertexBinding with Vulkan buffers added on top.
     // The Vulkan buffers will be populated every time gatherVertices is called and added to this vector.
-    std::deque<std::vector<VertexBinding>> vtx_bindings;
-    std::deque<vk::DescriptorBufferInfo> buffer_info;
+    std::deque<std::vector<VertexBinding>> vtx_bindings[FRAMES_IN_FLIGHT];
+    std::deque<vk::DescriptorBufferInfo> buffer_info[FRAMES_IN_FLIGHT];
     PushConstants push_constants;
 };
 

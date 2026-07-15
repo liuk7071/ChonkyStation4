@@ -3,6 +3,7 @@
 #define NOMINMAX
 #include "VulkanRenderer.hpp"
 #include <Logger.hpp>
+#include <Profiler.hpp>
 #include <Loaders/App.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/PipelineCache.hpp>
@@ -27,8 +28,8 @@ MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 constexpr bool enable_validation_layers = false;
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
-std::vector<Pipeline*> curr_frame_pipelines;
-std::vector<ComputePipeline*> curr_frame_compute_pipelines;
+std::vector<Pipeline*> curr_frame_pipelines[FRAMES_IN_FLIGHT];
+std::vector<ComputePipeline*> curr_frame_compute_pipelines[FRAMES_IN_FLIGHT];
 
 const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
@@ -109,7 +110,7 @@ void VulkanRenderer::recreateSwapChain() {
 
 void VulkanRenderer::advanceSwapchain() {
     while (true) {
-        auto [result, image_idx] = swapchain.acquireNextImage(UINT64_MAX, *present_sema, nullptr);
+        auto [result, image_idx] = swapchain.acquireNextImage(UINT64_MAX, *present_sema[frame_idx], nullptr);
         current_swapchain_image_idx = image_idx;
 
         if (result == vk::Result::eErrorOutOfDateKHR) {
@@ -322,18 +323,23 @@ void VulkanRenderer::init() {
     cmd_pool = vk::raii::CommandPool(device, pool_info);
 
     // Create command buffer
-    vk::CommandBufferAllocateInfo alloc_info = { .commandPool = *cmd_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
+    vk::CommandBufferAllocateInfo alloc_info = { .commandPool = *cmd_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = FRAMES_IN_FLIGHT };
     cmd_bufs = vk::raii::CommandBuffers(device, alloc_info);
 
     // Create sync objects
-    present_sema = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo());
-    render_sema = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo());
-    draw_fence = vk::raii::Fence(device, vk::FenceCreateInfo());
-    device.resetFences(*draw_fence);
+    for(int i = 0; i < swapchain_images.size(); i++)
+        render_sema.emplace_back(device, vk::SemaphoreCreateInfo());
+    
+    for (int i = 0; i < FRAMES_IN_FLIGHT; i++) {
+        present_sema.emplace_back(device, vk::SemaphoreCreateInfo());
+        draw_fence.emplace_back(device, vk::FenceCreateInfo { .flags = vk::FenceCreateFlagBits::eSignaled });
+    }
 
-    cmd_bufs[0].reset();
+    device.resetFences(*draw_fence[0]);
+
+    cmd_bufs[frame_idx].reset();
     advanceSwapchain();
-    cmd_bufs[0].begin({});
+    cmd_bufs[frame_idx].begin({});
 
     // Get host memory import alignment
     VkPhysicalDeviceExternalMemoryHostPropertiesEXT host_props = {
@@ -397,8 +403,11 @@ void VulkanRenderer::init() {
     // Initialize the buffer cache
     Cache::init();
 
-    curr_frame_pipelines.reserve(4096);
-    curr_frame_compute_pipelines.reserve(4096);
+    for (auto& pipelines : curr_frame_pipelines)
+        pipelines.reserve(4096);
+
+    for (auto& pipelines : curr_frame_compute_pipelines)
+        pipelines.reserve(4096);
 
     printf("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
@@ -529,8 +538,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
-    curr_frame_pipelines.push_back(&pipeline);
-
+    curr_frame_pipelines[frame_idx].push_back(&pipeline);
+    
     // Create index buffer (if needed)
     vk::Buffer vk_idx_buf = nullptr;
     size_t idx_buf_offs = 0;
@@ -544,7 +553,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     // Setup rendering attachments
     bool has_depth = false;
     auto extent = setupRenderingAttachments(&pipeline, has_depth);
-
+    
     // Gather vertex data
     auto* vtx_bindings = pipeline.gatherVertices();
 
@@ -571,7 +580,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
         };
 
         beginRendering(render_info);
-        //cmd_bufs[0].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
+        //cmd_bufs[frame_idx].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
     }
 
     // HACK: Skip feedback loops
@@ -581,13 +590,13 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     // ---- Draw ----
 
     if (&pipeline != last_draw_pipeline) {
-        cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
+        cmd_bufs[frame_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
         last_draw_pipeline = &pipeline;
 
         // Viewport
-        //cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
-        cmd_bufs[0].setViewport(0, pipeline.viewport);
-        cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+        //cmd_bufs[frame_idx].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        cmd_bufs[frame_idx].setViewport(0, pipeline.viewport);
+        cmd_bufs[frame_idx].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
         last_viewport_min_depth = pipeline.min_viewport_depth;
         last_viewport_max_depth = pipeline.max_viewport_depth;
         last_extent = extent;
@@ -600,28 +609,30 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
         blend_constants[1] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_GREEN]);
         blend_constants[2] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_BLUE]);
         blend_constants[3] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_ALPHA]);
-        cmd_bufs[0].setBlendConstants(blend_constants);
+        cmd_bufs[frame_idx].setBlendConstants(blend_constants);
     }
 
     // Primitive restart (TODO: You can configure the restart value)
-    cmd_bufs[0].setPrimitiveRestartEnable(regs[Reg::mmVGT_MULTI_PRIM_IB_RESET_EN] & 1);
+    cmd_bufs[frame_idx].setPrimitiveRestartEnable(regs[Reg::mmVGT_MULTI_PRIM_IB_RESET_EN] & 1);
 
     if (descriptor_writes.size())
-        cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
+        cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
     
     // I couldn't figure out how to use the RAII version of this...
-    vkCmdPushConstants(*cmd_bufs[0], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
+    vkCmdPushConstants(*cmd_bufs[frame_idx], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
 
     for (int i = 0; i < vtx_bindings->size(); i++)
-        cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
+        cmd_bufs[frame_idx].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
     
+    Cache::barrier();
+
     const u32 vtx_offs = regs[Reg::mmVGT_INDX_OFFSET];
     if (idx_buf_ptr) {
-        cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
-        cmd_bufs[0].drawIndexed(cnt, 1, idx_offs, vtx_offs, 0);
+        cmd_bufs[frame_idx].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
+        cmd_bufs[frame_idx].drawIndexed(cnt, 1, idx_offs, vtx_offs, 0);
     }
     else {
-        cmd_bufs[0].draw(cnt, 1, vtx_offs, 0);
+        cmd_bufs[frame_idx].draw(cnt, 1, vtx_offs, 0);
     }
 }
 
@@ -641,7 +652,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
-    curr_frame_pipelines.push_back(&pipeline);
+    curr_frame_pipelines[frame_idx].push_back(&pipeline);
 
     // Create index buffer (if needed)
     vk::Buffer vk_idx_buf = nullptr;
@@ -684,7 +695,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
         };
 
         beginRendering(render_info);
-        cmd_bufs[0].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
+        cmd_bufs[frame_idx].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
     }
 
     // HACK: Skip feedback loops
@@ -694,14 +705,14 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     // ---- Draw ----
 
     if (&pipeline != last_draw_pipeline) {
-        cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
+        cmd_bufs[frame_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
         last_draw_pipeline = &pipeline;
     }
 
     // Viewport
     if (pipeline.min_viewport_depth != last_viewport_min_depth || pipeline.max_viewport_depth != last_viewport_max_depth || extent != last_extent) {
-        cmd_bufs[0].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
-        cmd_bufs[0].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+        cmd_bufs[frame_idx].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        cmd_bufs[frame_idx].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
         last_viewport_min_depth = pipeline.min_viewport_depth;
         last_viewport_max_depth = pipeline.max_viewport_depth;
         last_extent = extent;
@@ -714,21 +725,23 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
         blend_constants[1] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_GREEN]);
         blend_constants[2] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_BLUE]);
         blend_constants[3] = reinterpret_cast<float&>(regs[Reg::mmCB_BLEND_ALPHA]);
-        cmd_bufs[0].setBlendConstants(blend_constants);
+        cmd_bufs[frame_idx].setBlendConstants(blend_constants);
     }
 
     if (descriptor_writes.size())
-        cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
+        cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
 
     // I couldn't figure out how to use the RAII version of this...
-    vkCmdPushConstants(*cmd_bufs[0], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
+    vkCmdPushConstants(*cmd_bufs[frame_idx], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
 
     for (int i = 0; i < vtx_bindings->size(); i++)
-        cmd_bufs[0].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
+        cmd_bufs[frame_idx].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
+
+    Cache::barrier();
 
     if (is_indexed) {
-        cmd_bufs[0].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
-        cmd_bufs[0].drawIndexedIndirect(param_buf, param_buf_offs, cnt, sizeof(vk::DrawIndexedIndirectCommand));
+        cmd_bufs[frame_idx].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
+        cmd_bufs[frame_idx].drawIndexedIndirect(param_buf, param_buf_offs, cnt, sizeof(vk::DrawIndexedIndirectCommand));
     }
     else {
         Helpers::panic("TODO: Non-indexed indirect draw\n");
@@ -741,18 +754,18 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getComputePipeline(job);
-    curr_frame_compute_pipelines.push_back(&pipeline);
-    cmd_bufs[0].bindPipeline(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipeline());
+    curr_frame_compute_pipelines[frame_idx].push_back(&pipeline);
+    cmd_bufs[frame_idx].bindPipeline(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipeline());
 
     // Upload buffers and get descriptor writes, as well as the push constants
     ComputePipeline::PushConstants* push_constants;
     auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants, color_attachments[0].tex, &has_feedback_loop);
 
     if (descriptor_writes.size())
-        cmd_bufs[0].pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
+        cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
 
-    vkCmdPushConstants(*cmd_bufs[0], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eCompute), 0, sizeof(Pipeline::PushConstants), push_constants);
-    cmd_bufs[0].dispatch(job.dim_x, job.dim_y, job.dim_z);
+    vkCmdPushConstants(*cmd_bufs[frame_idx], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eCompute), 0, sizeof(Pipeline::PushConstants), push_constants);
+    cmd_bufs[frame_idx].dispatch(job.dim_x, job.dim_y, job.dim_z);
 
     // TODO: Don't add a barrier after every dispatch...
     VkMemoryBarrier barrier{
@@ -764,7 +777,7 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     };
 
     vkCmdPipelineBarrier(
-        *cmd_bufs[0],
+        *cmd_bufs[frame_idx],
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         0,
@@ -820,7 +833,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     getVulkanImageInfoForTSharp(&tsharp, &out_tex, true);
 
     out_tex->transition(vk::ImageLayout::eTransferSrcOptimal);
-    transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferDstOptimal, &cmd_bufs[0]);
+    transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferDstOptimal, &cmd_bufs[frame_idx]);
 
     vk::ImageBlit blit = {};
     blit.srcSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
@@ -837,20 +850,20 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
     blit.dstOffsets[1] = vk::Offset3D(swapchain_extent.width, swapchain_extent.height, 1);
     
-    cmd_bufs[0].blitImage(out_tex->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_images[current_swapchain_image_idx], vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
-    transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, &cmd_bufs[0]);
-    cmd_bufs[0].end();
+    cmd_bufs[frame_idx].blitImage(out_tex->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_images[current_swapchain_image_idx], vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
+    transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, &cmd_bufs[frame_idx]);
+    cmd_bufs[frame_idx].end();
 
     vk::PipelineStageFlags wait_dest_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-    const vk::SubmitInfo  submit_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*present_sema, .pWaitDstStageMask = &wait_dest_stage_mask, .commandBufferCount = 1, .pCommandBuffers = &*cmd_bufs[0], .signalSemaphoreCount = 1, .pSignalSemaphores = &*render_sema };
-    queue.submit(submit_info, *draw_fence);
+    const vk::SubmitInfo  submit_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*present_sema[frame_idx], .pWaitDstStageMask = &wait_dest_stage_mask, .commandBufferCount = 1, .pCommandBuffers = &*cmd_bufs[frame_idx], .signalSemaphoreCount = 1, .pSignalSemaphores = &*render_sema[current_swapchain_image_idx] };
+    queue.submit(submit_info, *draw_fence[frame_idx]);
 
     auto recreate_swapchain = [&]() {
         device.waitIdle();
-        cmd_bufs[0].reset();
+        cmd_bufs[frame_idx].reset();
         recreateSwapChain();
         advanceSwapchain();
-        cmd_bufs[0].begin({});
+        cmd_bufs[frame_idx].begin({});
     };
 
     if (force_recreate_swapchain) {
@@ -859,7 +872,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     }
     else {
         try {
-            const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema, .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
+            const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema[current_swapchain_image_idx], .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
             auto result = queue.presentKHR(present_info);
             if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebuffer_resized) {
                 framebuffer_resized = false;
@@ -931,29 +944,30 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         frame_count = 0;
     }
 
+    frame_idx = (frame_idx + 1) % FRAMES_IN_FLIGHT;
+
     // Wait for rendering to be done
-    //auto gpu_time = std::chrono::steady_clock::now();
-    while (vk::Result::eTimeout == device.waitForFences(*draw_fence, vk::True, UINT64_MAX));
-    device.resetFences(*draw_fence);
-    //auto gpu_time_end = std::chrono::steady_clock::now();
-    //auto gpu_time_dur = std::chrono::duration<double, std::milli>(gpu_time_end - gpu_time).count();
+    while (vk::Result::eTimeout == device.waitForFences(*draw_fence[frame_idx], vk::True, UINT64_MAX));
+    device.resetFences(*draw_fence[frame_idx]);
    
     // Cleanup
-    for (auto& pipeline : curr_frame_pipelines)
+    for (auto& pipeline : curr_frame_pipelines[frame_idx])
         pipeline->clearBuffers();
-    for (auto& pipeline : curr_frame_compute_pipelines)
+    for (auto& pipeline : curr_frame_compute_pipelines[frame_idx])
         pipeline->clearBuffers();
     
-    curr_frame_pipelines.clear();
-    curr_frame_compute_pipelines.clear();
+    curr_frame_pipelines[frame_idx].clear();
+    curr_frame_compute_pipelines[frame_idx].clear();
     last_draw_pipeline = nullptr;
     last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
     Cache::clear();
     RenderTarget::reset();
 
-    cmd_bufs[0].reset();
+    cmd_bufs[frame_idx].reset();
     advanceSwapchain();
-    cmd_bufs[0].begin({});
+    cmd_bufs[frame_idx].begin({});
+
+    //Profiler::printAndReset();
 }
 
 }   // End namespace PS4::GCN::Vulkan

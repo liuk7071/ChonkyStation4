@@ -1,6 +1,7 @@
 #define NOMINMAX
 #include "TextureCache.hpp"
 #include <Logger.hpp>
+#include <Profiler.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/Detiler/gpuaddr.h>
@@ -101,6 +102,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         auto detiled_buf = std::make_unique<u8[]>(img_size);
 
         if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL) {
+            Profiler::add("Detiled textures", 1);
+            Profiler::Scope profiler("Detiler time");
             const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
             GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
             img_ptr = detiled_buf.get();
@@ -124,7 +127,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             .imageOffset = { 0, 0, 0 },
             .imageExtent = { width, height, depth }
         };
-        cmd_bufs[0].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
+        cmd_bufs[frame_idx].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
     };
 
     auto invalidate = [&](uptr addr) {
@@ -138,7 +141,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         }
     };
 
-    auto lk = std::unique_lock<std::mutex>(cache_mtx);
+    //auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
     // Check if we are already tracking this texture
     if (tracked_textures.contains(ptr)) {
@@ -279,8 +282,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     // Create image sampler
     auto& sampler = tex->sampler;
     vk::SamplerCreateInfo sampler_info = {
-        .magFilter = vk::Filter::eNearest,
-        .minFilter = vk::Filter::eNearest,
+        .magFilter = vk::Filter::eLinear,
+        .minFilter = vk::Filter::eLinear,
         .mipmapMode = vk::SamplerMipmapMode::eNearest,
 
         // Hack for Tomb Raider, fix when I implement samplers

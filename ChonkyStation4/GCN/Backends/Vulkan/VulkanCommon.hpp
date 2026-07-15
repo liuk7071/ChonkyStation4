@@ -8,6 +8,9 @@
 
 namespace PS4::GCN::Vulkan {
 
+static constexpr s32 FRAMES_IN_FLIGHT = 3;
+inline s32 frame_idx = 0;
+
 inline vk::raii::PhysicalDevice             physical_device = nullptr;
 inline vk::raii::Device                     device = nullptr;
 inline vk::raii::Queue                      queue = nullptr;

@@ -1,5 +1,6 @@
 #include "Pipeline.hpp"
 #include <Logger.hpp>
+#include <Profiler.hpp>
 #include <GCN/HostTessShaders.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
@@ -358,7 +359,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
 
 std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
     // Create a new vertex binding array and initialize it with the fetch shader bindings
-    auto& new_vtx_bindings = vtx_bindings.emplace_back();
+    auto& new_vtx_bindings = vtx_bindings[frame_idx].emplace_back();
     new_vtx_bindings.reserve(32);
     for (auto& vtx_binding_layout_element : vtx_binding_layout) {
         auto& binding = new_vtx_bindings.emplace_back();
@@ -383,7 +384,7 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
 std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConstants** push_constants_ptr, TrackedTexture* rt, bool* has_feedback_loop) {
     // Create and upload buffers required by each shader
     std::vector<vk::WriteDescriptorSet> descriptor_writes;
-    descriptor_writes.reserve(32);
+    descriptor_writes.reserve(64);
     std::memset(&push_constants, 0, sizeof(PushConstants));
 
     *has_feedback_loop = false;
@@ -402,7 +403,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                 if ((u64)guest_buf_data < 0x10000) continue;
                 auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);
 
-                buffer_info.push_back({
+                buffer_info[frame_idx].push_back({
                     .buffer = cached_buf,
                     .offset = offs,
                     .range = buf_size,
@@ -413,7 +414,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = vk::DescriptorType::eStorageBuffer,
-                    .pBufferInfo = &buffer_info.back()
+                    .pBufferInfo = &buffer_info[frame_idx].back()
                 });
 
                 // Write push constants for this buffer
@@ -452,7 +453,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
             }
             }
         }
-        };
+    };
 
     create_buffers(vert_shader->data);
     
@@ -464,8 +465,8 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
 }
 
 void Pipeline::clearBuffers() {
-    vtx_bindings.clear();
-    buffer_info.clear();
+    vtx_bindings[frame_idx].clear();
+    buffer_info[frame_idx].clear();
 }
 
 }   // End namespace PS4::GCN::Vulkan

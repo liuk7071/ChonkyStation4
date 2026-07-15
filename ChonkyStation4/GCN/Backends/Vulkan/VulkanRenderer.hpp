@@ -33,9 +33,9 @@ private:
     std::vector<vk::Image>           swapchain_images;
     std::vector<vk::raii::ImageView> swapchain_image_views;
 
-    vk::raii::Semaphore present_sema = nullptr;
-    vk::raii::Semaphore render_sema = nullptr;
-    vk::raii::Fence draw_fence = nullptr;
+    std::vector<vk::raii::Semaphore> present_sema;
+    std::vector<vk::raii::Semaphore> render_sema;
+    std::vector<vk::raii::Fence> draw_fence;
     u32 sema_idx = 0;
     u32 curr_frame = 0;
     u32 current_swapchain_image_idx = 0;

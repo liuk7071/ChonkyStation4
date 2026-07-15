@@ -11,7 +11,7 @@
 namespace PS4::GCN::Vulkan::RenderTarget {
 
 // Hack: keep track of the color targets we used within a frame to set LoadOp to clear the first time they're used
-std::unordered_map<TrackedTexture*, bool> used_bufs;
+std::unordered_map<TrackedTexture*, bool> used_bufs[FRAMES_IN_FLIGHT];
 
 Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enable, bool* save) {
     Attachment attachment;
@@ -73,8 +73,8 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enabl
 
     *save = true;
     vk::AttachmentLoadOp load_op = vk::AttachmentLoadOp::eLoad;
-    if (!used_bufs.contains(out_info)) {
-        used_bufs[out_info] = true;
+    if (!used_bufs[frame_idx].contains(out_info)) {
+        used_bufs[frame_idx][out_info] = true;
         load_op = vk::AttachmentLoadOp::eClear;
         *save = false;
     }
@@ -157,8 +157,8 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
     // Clear hack
     *save = true;
     vk::AttachmentLoadOp load_op = vk::AttachmentLoadOp::eLoad;
-    if (!used_bufs.contains(out_info)) {
-        used_bufs[out_info] = true;
+    if (!used_bufs[frame_idx].contains(out_info)) {
+        used_bufs[frame_idx][out_info] = true;
         load_op = vk::AttachmentLoadOp::eClear;
         *save = false;
     }
@@ -178,9 +178,9 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
 }
 
 void reset() {
-    for (auto& [tex, bound] : used_bufs)
+    for (auto& [tex, bound] : used_bufs[frame_idx])
         tex->was_targeted = false;
-    used_bufs.clear();
+    used_bufs[frame_idx].clear();
 }
 
 }   // End namespace PS4::GCN::Vulkan::RenderTarget

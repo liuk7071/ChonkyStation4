@@ -1,5 +1,6 @@
 #include "BufferCache.hpp"
 #include <Logger.hpp>
+#include <Profiler.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <xxhash.h>
 #include <unordered_map>
@@ -95,7 +96,7 @@ struct TrackedRegion {
 std::mutex cache_mtx;
 std::unordered_map<u64, CachedBuffer*> cache;
 std::unordered_map<u64, TrackedRegion*> tracked;
-std::unordered_map<u64, CachedBuffer*> hash_cache;
+std::unordered_map<u64, CachedBuffer*> hash_cache[FRAMES_IN_FLIGHT];
 
 #ifdef _WIN32
 
@@ -132,12 +133,10 @@ static LONG CALLBACK exceptionHandler(EXCEPTION_POINTERS* info) noexcept {
 #endif
 
 struct Allocation {
-    vk::Buffer staging_buf;
     vk::Buffer buf;
-    VmaAllocation staging_alloc;
     VmaAllocation alloc;
 };
-std::vector<Allocation> allocations;
+std::vector<Allocation> allocations_to_clear[FRAMES_IN_FLIGHT];
 
 void init() {
     // Setup exception handler
@@ -153,10 +152,11 @@ void init() {
     Helpers::panic("Unsupported platform\n");
 #endif
 
-    allocations.reserve(4096);
+    for (auto& allocations : allocations_to_clear)
+        allocations.reserve(10000);
 }
 
-void updateBuffer(CachedBuffer* buf) {
+void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
     auto& staging_vk_buf    = buf->staging_buf;
     auto& vk_buf            = buf->buf;
     auto& staging_alloc     = buf->staging_alloc;
@@ -186,36 +186,49 @@ void updateBuffer(CachedBuffer* buf) {
         Helpers::panic("Cache::updateBuffer: could not allocate full buffer");
     }
 
-    // Create device local buffer
-    alloc_create_info = { .pool = device_vma_pool };
-    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-    alloc_create_info.flags = 0;
-    vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
-    vk_buf = vk::Buffer(raw_buf);
+    // Create device local buffer if needed
+    if (recreate_vk_buf) {
+        if (vk_buf) {
+            allocations_to_clear[frame_idx].push_back({ .buf = vk_buf, .alloc = alloc });
+        }
+
+        alloc_create_info = { .pool = device_vma_pool };
+        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        alloc_create_info.flags = 0;
+        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
+        vk_buf = vk::Buffer(raw_buf);
+    }
 
     // Update the buffer
     std::memcpy(info.pMappedData, (void*)buf->base, buf->size);
+
     // Copy staging buffer to device local buffer
     endRendering();
-    cmd_bufs[0].copyBuffer(staging_vk_buf, vk_buf, vk::BufferCopy{ 0, 0, buf->size });
-    VkMemoryBarrier barrier {
-        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    cmd_bufs[frame_idx].copyBuffer(staging_vk_buf, vk_buf, vk::BufferCopy{ 0, 0, buf->size });
+
+    VkBufferMemoryBarrier barrier{
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
         nullptr,
         VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT
+        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        vk_buf,
+        0,
+        buf->size
     };
 
     vkCmdPipelineBarrier(
-        *cmd_bufs[0],
+        *cmd_bufs[frame_idx],
         VK_PIPELINE_STAGE_TRANSFER_BIT,
         VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         0,
-        1, &barrier,
         0, nullptr,
+        1, &barrier,
         0, nullptr
     );
 
-    allocations.push_back({ .staging_buf = staging_vk_buf, .buf = vk_buf, .staging_alloc = staging_alloc, .alloc = alloc });
+    allocations_to_clear[frame_idx].push_back({ .buf = staging_vk_buf, .alloc = staging_alloc });
 }
 
 std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
@@ -226,13 +239,14 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     const u64    page           = aligned_base >> page_bits;
     const u64    page_end       = page + size_in_pages;
     
-    auto lk = std::unique_lock<std::mutex>(cache_mtx);
+    //auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
     // Check if we already cached this buffer
     if (size >= page_size / 8) {
-        if (cache.contains(page)) {
+        auto it = cache.find(page);
+        if (it != cache.end()) {
             // Check if we need to reupload the buffer
-            auto* buf = cache[page];
+            auto* buf = it->second;
             const bool size_changed = page_end > buf->page_end;
             const bool was_dirty = buf->dirty || size_changed;
 
@@ -246,7 +260,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
                 }
 
                 buf->dirty = false;
-                updateBuffer(buf);
+                updateBuffer(buf, size_changed);
                 buf->protect();
             }
 
@@ -256,8 +270,8 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     }
     else {
         const u64 hash = XXH3_64bits(base, size);
-        if (hash_cache.contains(hash)) {
-            auto* buf = hash_cache[hash];
+        if (hash_cache[frame_idx].contains(hash)) {
+            auto* buf = hash_cache[frame_idx][hash];
             return { buf->buf, 0, false };
         }
     }
@@ -277,15 +291,34 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
         buf->base = base;
         buf->size = size;
         buf->hash = XXH3_64bits(base, size);
-        hash_cache[buf->hash] = buf;
+        hash_cache[frame_idx][buf->hash] = buf;
     }
 
     // TODO: Page faulting doesn't work correctly on Windows when the game code uses the stack's red zone (negative rsp offsets), because this is not allowed on Windows
     // and the kernel's exception handling stuff ends up corrupting it (it pushes data on the same stack as the faulting instruction).
     // As a workaround, for buffers smaller than 1 page we fallback to hashing to reduce the chances of hitting exceptions near red zone code.
     // There is no fix for this because the corruption happens before my exception handler is even called.
-    updateBuffer(buf);
+    updateBuffer(buf, true);
     return { buf->buf, (uptr)base - (uptr)buf->base, true };
+}
+
+void barrier() {
+    VkMemoryBarrier barrier {
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT
+    };
+
+    vkCmdPipelineBarrier(
+        *cmd_bufs[frame_idx],
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        0,
+        1, &barrier,
+        0, nullptr,
+        0, nullptr
+    );
 }
 
 // This function returns an empty mapped buffer that is cleared at the end of the frame (when clear() is called)
@@ -306,7 +339,7 @@ std::pair<vk::Buffer, void*> getMappedBufferForFrame(size_t size) {
     vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, &info);
     vk::Buffer vk_buf = vk::Buffer(raw_buf);
 
-    allocations.push_back({ .buf = vk_buf, .alloc = alloc });
+    allocations_to_clear[frame_idx].push_back({ .buf = vk_buf, .alloc = alloc });
     return { vk_buf, (void*)info.pMappedData };
 }
 
@@ -407,18 +440,14 @@ bool isDirty(void* base, size_t size) {
 void clear() {
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
-    for (auto& alloc : allocations) {
-        vmaDestroyBuffer(allocator, alloc.staging_buf, alloc.staging_alloc);
+    for (auto& alloc : allocations_to_clear[frame_idx]) {
         vmaDestroyBuffer(allocator, alloc.buf, alloc.alloc);
     }
-    allocations.clear();
+    allocations_to_clear[frame_idx].clear();
 
-    for (auto& buf : cache)
-        buf.second->dirty = true;
-
-    for (auto& buf : hash_cache)
+    for (auto& buf : hash_cache[frame_idx])
         delete buf.second;
-    hash_cache.clear();
+    hash_cache[frame_idx].clear();
 }
 
 }   // End namespace PS4::GCN::Vulkan::Cache
