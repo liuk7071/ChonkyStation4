@@ -24,6 +24,7 @@ std::unordered_map<int, std::string> in_samplers;
 std::unordered_map<int, std::string> out_imgs;
 
 struct BasicBlock {
+    u32 pc = 0;
     std::string code;
     bool is_end = false;
     
@@ -639,6 +640,7 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
 
 std::vector<std::unique_ptr<BasicBlock>> blocks;
 std::unordered_map<u32, BasicBlock*> block_map;
+std::unordered_set<u32> block_entries;
 
 void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock& block);
 BasicBlock* getOrCreateBlock(u32* data, u32 pc, ShaderStage stage) {
@@ -647,9 +649,42 @@ BasicBlock* getOrCreateBlock(u32* data, u32 pc, ShaderStage stage) {
         return block_map[pc];
 
     auto* block = blocks.emplace_back(std::make_unique<BasicBlock>()).get();
+    block->pc = pc;
     block_map[pc] = block;
     decompileBasicBlock(data, pc, stage, *block);
     return block;
+}
+
+void discoverBasicBlockEntries(u32* data, u32 pc) {
+    if (!block_entries.insert(pc).second)
+        return;
+
+    Shader::GcnDecodeContext decoder;
+    Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)((u8*)data + pc), data + std::numeric_limits<u32>::max());
+
+    bool done = false;
+    while (!code_slice.atEnd() && !done) {
+        const auto instr = decoder.decodeInstruction(code_slice);
+
+        switch (instr.opcode) {
+        case Shader::Opcode::S_ENDPGM: {
+            done = true;
+            continue;
+        }
+        }
+
+        if (instr.IsConditionalBranch()) {
+            discoverBasicBlockEntries(data, instr.BranchTarget(pc));
+            discoverBasicBlockEntries(data, pc + instr.length);
+            return;
+        }
+        else if (instr.IsUnconditionalBranch()) {
+            discoverBasicBlockEntries(data, instr.BranchTarget(pc));
+            return;
+        }
+
+        pc += instr.length;
+    }
 }
 
 void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock& block) {
@@ -675,8 +710,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
     bool done = false;
     while (!code_slice.atEnd() && !done) {
         // If the current PC is the start of another block, stop.
-        if (block_map.contains(pc) && block_map[pc] != &block) {
-            block.fallthrough = block_map[pc];
+        if (block_entries.contains(pc) && pc != block.pc) {
+            block.fallthrough = getOrCreateBlock(data, pc, stage);
             done = true;
             continue;
         }
@@ -2027,8 +2062,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         default: {
-            printf("BasicBlock so far:\n%s\n", code.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //printf("BasicBlock so far:\n%s\n", code.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
             code += "// TODO\n";
         }
         }
@@ -2127,6 +2162,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     shader.reserve(256_KB);  // Avoid reallocations
     blocks.clear();
     block_map.clear();
+    block_entries.clear();
     emitted_blocks.clear();
     const_tables.clear();
     const_tables.reserve(1_KB);
@@ -2262,6 +2298,9 @@ ivec3 unpackImageOffset(uint packed) {
 
     main += "\n";
 
+    // Discover basic block entry points
+    discoverBasicBlockEntries(data, 0);
+
     BasicBlock* start = blocks.emplace_back(std::make_unique<BasicBlock>()).get();
     decompileBasicBlock(data, 0, stage, *start);
     
@@ -2361,6 +2400,12 @@ ivec3 unpackImageOffset(uint packed) {
 
     shader += "\n";
     shader += const_tables;
+    shader += "\n";
+
+    // Print immediate post-dominators
+    for (auto& block : blocks) {
+        shader += std::format("// immediate post dominator of {}: {}\n", block->pc, block->immediate_post_dominator ? std::format("{}", block->immediate_post_dominator->pc) : "nullptr");
+    }
     shader += "\n";
 
     main = initialization + "\n" + main;

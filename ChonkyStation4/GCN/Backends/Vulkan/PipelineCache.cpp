@@ -20,10 +20,13 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     // Compile shaders
 
     auto check_fetch_shader = [&]() -> bool {
-        // The fetch shader jump is always a s_swappc_b64 at the second instruction.
-        // Sometimes, there are shaders that do not start with a s_mov_b32 vcc_hi instruction,
-        // in which case the fetch shader jump could be at the first instruction. So check that too.
-        return *(u32*)(vert_shader_code + 0x0) == 0xbe802100 || *(u32*)(vert_shader_code + 0x8) == 0xbe802100;
+        // The fetch shader jump is always a s_swappc_b64, but it's not always at the second instruction (most of the time it is).
+        // Check the first 0x20 bytes.
+        for (int i = 0; i < 0x20; i += 4) {
+            if (*(u32*)(vert_shader_code + i) == 0xbe802100)
+                return true;
+        }
+        return false;
     };
 
     auto fetch_ptr = fetch_shader_code;

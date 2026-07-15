@@ -11,10 +11,10 @@ void init(Module& module) {
     module.addSymbolExport("XbkjbobZlCY", "sceNpTrophyCreateContext", "libSceNpTrophy", "libSceNpTrophy", (void*)&sceNpTrophyCreateContext);
     module.addSymbolExport("q7U6tEAQf7c", "sceNpTrophyCreateHandle", "libSceNpTrophy", "libSceNpTrophy", (void*)&sceNpTrophyCreateHandle);
     module.addSymbolExport("LHuSmO3SLd8", "sceNpTrophyGetTrophyUnlockState", "libSceNpTrophy", "libSceNpTrophy", (void*)&sceNpTrophyGetTrophyUnlockState);
+    module.addSymbolExport("YYP3f2W09og", "sceNpTrophyGetGameInfo", "libSceNpTrophy", "libSceNpTrophy", (void*)&sceNpTrophyGetGameInfo);
+    module.addSymbolExport("qqUVGDgQBm0", "sceNpTrophyGetTrophyInfo", "libSceNpTrophy", "libSceNpTrophy", (void*)&sceNpTrophyGetTrophyInfo);
     
     module.addSymbolStub("TJCAxto9SEU", "sceNpTrophyRegisterContext", "libSceNpTrophy", "libSceNpTrophy");
-    module.addSymbolStub("qqUVGDgQBm0", "sceNpTrophyGetTrophyInfo", "libSceNpTrophy", "libSceNpTrophy");
-    module.addSymbolStub("YYP3f2W09og", "sceNpTrophyGetGameInfo", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("28xmRUFao68", "sceNpTrophyUnlockTrophy", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("GNcF4oidY0Y", "sceNpTrophyDestroyHandle", "libSceNpTrophy", "libSceNpTrophy");
     module.addSymbolStub("aTnHs7W-9Uk", "sceNpTrophyAbortHandle", "libSceNpTrophy", "libSceNpTrophy");
@@ -24,7 +24,7 @@ void init(Module& module) {
 s32 PS4_FUNC sceNpTrophyCreateContext(SceNpTrophyContext* ctx, SceUserService::SceUserServiceUserId uid, Np::SceNpServiceLabel service_label, u64 options) {
     log("sceNpTrophyCreateContext(ctx=*%p, uid=%d, service_label=%d, options=%lld)\n", ctx, uid, service_label, options);
 
-    *ctx = 100;
+    //*ctx = 100;
     return SCE_OK;
 }
 
@@ -43,4 +43,28 @@ s32 PS4_FUNC sceNpTrophyGetTrophyUnlockState(SceNpTrophyContext ctx, SceNpTrophy
     return SCE_OK;
 }
 
-}   // End namespace PS4::OS::Libs::SceSysmodule
+s32 PS4_FUNC sceNpTrophyGetGameInfo(SceNpTrophyContext ctx, SceNpTrophyHandle handle, SceNpTrophyGameDetails* details, SceNpTrophyGameData* data) {
+    log("sceNpTrophyGetGameInfo(ctx=%d, handle=%d, details=*%p, data=*%p)\n", ctx, handle, details, data);
+
+    if (details)
+        std::memset(details, 0, sizeof(SceNpTrophyGameDetails));
+
+    if (data)
+        std::memset(data, 0, sizeof(SceNpTrophyGameData));
+
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceNpTrophyGetTrophyInfo(SceNpTrophyContext ctx, SceNpTrophyHandle handle, SceNpTrophyId trophy_id, SceNpTrophyDetails* details, SceNpTrophyData* data) {
+    log("sceNpTrophyGetTrophyInfo(ctx=%d, handle=%d, trophy_id=%d, details=*%p, data=*%p)\n", ctx, handle, trophy_id, details, data);
+
+    if (details)
+        std::memset(details, 0, sizeof(SceNpTrophyDetails));
+
+    if (data)
+        std::memset(data, 0, sizeof(SceNpTrophyData));
+
+    return SCE_OK;
+}
+
+}   // End namespace PS4::OS::Libs::SceNpTrophy
