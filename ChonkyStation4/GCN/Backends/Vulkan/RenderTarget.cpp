@@ -94,6 +94,8 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enabl
 
 Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stencil, bool* save) {
     auto get_dfmt_nfmt = [&]() -> std::pair<DataFormat, NumberFormat> {
+        if (has_stencil) return { DataFormat::Format32, NumberFormat::Float };
+
         switch (depth->z_info.format) {
         case 1: return { DataFormat::Format16, NumberFormat::Unorm };
         case 3: return { DataFormat::Format32, NumberFormat::Float };
@@ -118,8 +120,8 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
             //case 1: return vk::Format::eD16UnormS8Uint; // TODO: This format is not widely supported
             case 1: return vk::Format::eD16Unorm;
             case 3: return vk::Format::eD32SfloatS8Uint;
-            default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
-            //default: return vk::Format::eD32SfloatS8Uint;
+            //default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
+            default: return vk::Format::eD32SfloatS8Uint;
             }
         }
     };

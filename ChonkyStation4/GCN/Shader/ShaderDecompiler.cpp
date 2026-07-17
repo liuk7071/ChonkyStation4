@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <deque>
+#include <stack>
 
 
 namespace PS4::GCN::Shader {
@@ -26,13 +27,20 @@ std::unordered_map<int, std::string> out_imgs;
 struct BasicBlock {
     u32 pc = 0;
     std::string code;
+    bool is_start = false;
     bool is_end = false;
     
     GcnInst branch_instr;
     BasicBlock* branch_to = nullptr;
     BasicBlock* fallthrough = nullptr;
-    std::vector<BasicBlock*> predecessors;
+    
+    bool is_loop_header = false;
+    std::unordered_set<BasicBlock*> loop_body;
+    std::unordered_set<BasicBlock*> loop_exits;
 
+    std::vector<BasicBlock*> predecessors;
+    std::unordered_set<BasicBlock*> dominators;
+    BasicBlock* immediate_dominator = nullptr;
     std::unordered_set<BasicBlock*> post_dominators;
     BasicBlock* immediate_post_dominator = nullptr;
 };
@@ -154,6 +162,23 @@ void addFetchBufferByteFunc(int binding) {
         "}\n";
 }
 
+std::unordered_map<int, bool> has_store_buffer_func_map;
+void addStoreBufferByteFunc(int binding) {
+    if (has_store_buffer_func_map.contains(binding)) return;
+    has_store_buffer_func_map[binding] = true;
+
+    const auto ssbo_name = std::format("ssbo{}", binding);
+    shader += ""
+        "void storeBufferByte" + std::to_string(binding) + "(uint offs, uint value) {\n"
+        "    uint idx = offs >> 2u;\n"
+        "    uint word  = " + ssbo_name + ".data[idx];\n"
+        "    uint shift = (offs & 3u) << 3u;\n"
+        "    word &= ~(0xffu << shift);\n"
+        "    word |= (value & 0xffu) << shift;\n"
+        "    " + ssbo_name + ".data[idx] = word;\n"
+        "}\n";
+}
+
 void addInAttr(std::string name, std::string type, int location) {
     if (in_attrs.contains(location)) {
         // Extra check to be safe, this shouldn't ever happen
@@ -219,6 +244,14 @@ void addFloatConstTable(std::string name, float* table, size_t size) {
         if (i != size - 1) const_tables += ", ";
     }
     const_tables += ");\n";
+}
+
+bool has_lds = false;
+void addLDS() {
+    if (has_lds) return;
+
+    shader += "shared uint lds[8192];\n";  // 32 KB / sizeof(uint)
+    has_lds = true;
 }
 
 std::unordered_map<int, bool> vgpr_map;
@@ -321,7 +354,7 @@ std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
     case OperandField::M0:                  src = "0 /* TODO: M0 */";                                                   break;
     case OperandField::ExecLo:              src = "exec";                                                               break;
     case OperandField::VccLo:               src = "vcc";                                                                break;
-    case OperandField::VccHi:               src = "f2u(1.0f) /* TODO: VccHi */";                                        break;
+    case OperandField::VccHi:               src = "vcchi";                                                              break;
     default:    Helpers::panic("Unhandled SRC %d\n", op.code);
     }
 
@@ -361,7 +394,7 @@ std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
     case OperandField::ScalarGPR:           code = std::format("{} = {};\n", getSGPR(op.code), src);    break;
     case OperandField::VectorGPR:           code = std::format("{} = {};\n", getVGPR(op.code), src);    break;
     case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                     break;
-    case OperandField::VccHi:               code = "// TODO: Set VccHi\n";                              break;
+    case OperandField::VccHi:               code = std::format("vcchi = {};\n", src);                   break;
     case OperandField::M0:                  code = "// TODO: Set M0\n";                                 break;
     case OperandField::ExecLo:              code = std::format("exec = {};\n", src);                    break;
     case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                             break;
@@ -407,7 +440,7 @@ std::string V_CMP(const PS4::GCN::Shader::GcnInst & instr, std::string op) {
     else {
         Helpers::panic("v_cmp_f32: unimplemented operand field");
     }
-
+   
     auto decompiled = std::format("{} = uint({} {} {});\n", dst, getSRC<type>(instr.src[0]), op, getSRC<type>(instr.src[1]));
     if (instr.IsCmpx()) {
         decompiled += std::format("exec = {};\n", dst);
@@ -437,6 +470,18 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
     backup_descs.clear();
     buffer_map.clear();
 
+    auto s_load_dword_offset = [](const GcnInst& instr) -> u32 {
+        if (instr.control.smrd.imm) {
+            return instr.control.smrd.offset;
+        }
+        else if (instr.control.smrd.offset == 0xff) {
+            return instr.src[1].code;
+        }
+        else {
+            Helpers::panic("trackAndCreateBuffers: s_load_dword non-imm and non-literal offset\n");
+        }
+    };
+
     u32 pc = 0;
     bool done = false;
     while (!code_slice.atEnd() && !done) {
@@ -452,25 +497,25 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         case Shader::Opcode::S_LOAD_DWORDX4: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair] = { sgpr_pair, instr.control.smrd.offset, true };
+            descs[dest_pair] = { sgpr_pair, s_load_dword_offset(instr), true};
             break;
         }
 
         case Shader::Opcode::S_LOAD_DWORDX8: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair + 0] = { sgpr_pair, instr.control.smrd.offset + 0u, true };
-            descs[dest_pair + 4] = { sgpr_pair, instr.control.smrd.offset + 4u, true };
+            descs[dest_pair + 0] = { sgpr_pair, s_load_dword_offset(instr) + 0u, true };
+            descs[dest_pair + 4] = { sgpr_pair, s_load_dword_offset(instr) + 4u, true };
             break;
         }
 
         case Shader::Opcode::S_LOAD_DWORDX16: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair + 0] = { sgpr_pair, instr.control.smrd.offset + 0u, true };
-            descs[dest_pair + 4] = { sgpr_pair, instr.control.smrd.offset + 4u, true };
-            descs[dest_pair + 8] = { sgpr_pair, instr.control.smrd.offset + 8u, true };
-            descs[dest_pair + 12] = { sgpr_pair, instr.control.smrd.offset + 12u, true };
+            descs[dest_pair +  0] = { sgpr_pair, s_load_dword_offset(instr) + 0u, true };
+            descs[dest_pair +  4] = { sgpr_pair, s_load_dword_offset(instr) + 4u, true };
+            descs[dest_pair +  8] = { sgpr_pair, s_load_dword_offset(instr) + 8u, true };
+            descs[dest_pair + 12] = { sgpr_pair, s_load_dword_offset(instr) + 12u, true };
             break;
         }
 
@@ -535,7 +580,11 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         case Shader::Opcode::BUFFER_LOAD_FORMAT_X:
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XY:
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZ:
-        case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW: {
+        case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW:
+        case Shader::Opcode::BUFFER_STORE_FORMAT_X:
+        case Shader::Opcode::BUFFER_STORE_FORMAT_XY:
+        case Shader::Opcode::BUFFER_STORE_FORMAT_XYZ:
+        case Shader::Opcode::BUFFER_STORE_FORMAT_XYZW: {
             auto get_buffer = [&](u32 sgpr, bool is_ptr, u32 offs, DescriptorType type, bool is_image_store = false) -> Buffer& {
                 // Check if the buffer already exists
                 for (auto& buf : out_data.buffers) {
@@ -815,6 +864,12 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::S_ORN2_B64: {
+            code += setDST<Type::Uint>(instr.dst[0], std::format("{} | ~{}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+
         case Shader::Opcode::S_NAND_B64: {
             code += setDST<Type::Uint>(instr.dst[0], std::format("~({} & {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
@@ -835,6 +890,12 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
         case Shader::Opcode::S_LSHR_B32: {
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+            break;
+        }
+
+        case Shader::Opcode::S_ASHR_I32: {
+            code += setDST<Type::Int>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
@@ -874,6 +935,15 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             const s16 imm16 = instr.control.sopk.simm;
             const s32 imm32 = (s32)imm16;
             code += setDST<Type::Int>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.dst[0]), imm32));
+            // TODO: scc = overflow
+            break;
+        }
+
+        case Shader::Opcode::S_MULK_I32: {
+            const s16 imm16 = instr.control.sopk.simm;
+            const s32 imm32 = (s32)imm16;
+            code += setDST<Type::Int>(instr.dst[0], std::format("{} * {}", getSRC<Type::Int>(instr.dst[0]), imm32));
+            // TODO: scc = overflow
             break;
         }
 
@@ -1096,6 +1166,13 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         case Shader::Opcode::V_CMP_GE_I32:      code += V_CMP<Type::Int>(instr, ">=");      break;
         case Shader::Opcode::V_CMP_NE_I32:      code += V_CMP<Type::Int>(instr, "!=");      break;
 
+        case Shader::Opcode::V_CMPX_LT_I32:     code += V_CMP<Type::Int>(instr, "<");      break;
+        case Shader::Opcode::V_CMPX_EQ_I32:     code += V_CMP<Type::Int>(instr, "==");     break;
+        case Shader::Opcode::V_CMPX_LE_I32:     code += V_CMP<Type::Int>(instr, "<=");     break;
+        case Shader::Opcode::V_CMPX_GT_I32:     code += V_CMP<Type::Int>(instr, ">");      break;
+        case Shader::Opcode::V_CMPX_GE_I32:     code += V_CMP<Type::Int>(instr, ">=");     break;
+        case Shader::Opcode::V_CMPX_NE_I32:     code += V_CMP<Type::Int>(instr, "!=");     break;
+
         case Shader::Opcode::V_CMP_LT_U32:      code += V_CMP<Type::Uint>(instr, "<");      break;
         case Shader::Opcode::V_CMP_EQ_U32:      code += V_CMP<Type::Uint>(instr, "==");     break;
         case Shader::Opcode::V_CMP_LE_U32:      code += V_CMP<Type::Uint>(instr, "<=");     break;
@@ -1109,6 +1186,23 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         case Shader::Opcode::V_CMPX_GT_U32:     code += V_CMP<Type::Uint>(instr, ">");      break;
         case Shader::Opcode::V_CMPX_GE_U32:     code += V_CMP<Type::Uint>(instr, ">=");     break;
         case Shader::Opcode::V_CMPX_NE_U32:     code += V_CMP<Type::Uint>(instr, "!=");     break;
+
+        case Shader::Opcode::V_CMP_CLASS_F32: {
+            code += "// TODO: V_CMP_CLASS_F32\n";
+            std::string dst;
+            if (instr.dst[1].field == OperandField::ScalarGPR) {
+                dst = getSGPR(instr.dst[1].code);
+            }
+            else if (instr.dst[1].field == OperandField::VccLo) {
+                dst = "vcc";
+            }
+            else {
+                Helpers::panic("v_cmp_class_f32: unimplemented operand field");
+            }
+
+            code += std::format("{} = uint(v_cmp_class_f32({}, {}));\n", dst, getSRC<Type::Float>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
 
         case Shader::Opcode::V_CNDMASK_B32: {
             std::string cond;
@@ -1170,7 +1264,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::V_MUL_I32_I24: {
-            code += setDST<Type::Int>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff)", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            code += setDST<Type::Int>(instr.dst[0], std::format("sext24({} & 0xffffff) * sext24({} & 0xffffff)", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             break;
         }
 
@@ -1208,6 +1302,11 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
         case Shader::Opcode::V_MAX_U32: {
             code += setDST<Type::Uint>(instr.dst[0], std::format("max({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+
+        case Shader::Opcode::V_LSHR_B32: {
+            code += setDST<Type::Uint>(instr.dst[0], std::format("{} >> ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
 
@@ -1444,6 +1543,11 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::V_MAD_I32_I24: {
+            code += setDST<Type::Uint>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff) + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
+            break;
+        }
+
         case Shader::Opcode::V_MAD_U32_U24: {
             code += setDST<Type::Uint>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff) + {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
             break;
@@ -1670,17 +1774,60 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::DS_WRITE_B32: {
-            code += "// TODO: DS_WRITE_B32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_WRITE_B32: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
             break;
         }
 
         case Shader::Opcode::DS_WRITE2_B32: {
-            code += "// TODO: DS_WRITE2_B32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_WRITE2_B32: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+            
+            // For pair instructions, the offsets are 32/64bit offsets instead of byte.
+            // The addr register is still a byte offset.
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 * 4);
+            const auto addr1 = std::format("({} + {})", addr, instr.control.ds.offset1 * 4);
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            const auto data1 = getVGPR(instr.src[2].code);
+
+            code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
+            code += std::format("lds[{} >> 2] = {};\n", addr1, data1);
             break;
         }
 
         case Shader::Opcode::DS_WRITE2ST64_B32: {
-            code += "// TODO: DS_WRITE2ST64_B32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_WRITE2ST64_B32: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+
+            // For pair instructions, the offsets are 32/64bit offsets instead of byte.
+            // The addr register is still a byte offset.
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 * 4 * 64);
+            const auto addr1 = std::format("({} + {})", addr, instr.control.ds.offset1 * 4 * 64);
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            const auto data1 = getVGPR(instr.src[2].code);
+            code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
+            code += std::format("lds[{} >> 2] = {};\n", addr1, data1);
             break;
         }
 
@@ -1690,22 +1837,81 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::DS_READ_B32: {
-            code += "// TODO: DS_READ_B32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_READ_B32: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+            code += std::format("addr0 = {} >> 2;\n", addr0);
+            code += std::format("{} = lds[addr0];\n", getVGPR(instr.dst[0].code));
             break;
         }
 
         case Shader::Opcode::DS_READ2_B32: {
-            code += "// TODO: DS_READ2_B32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_READ_B32: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+            
+            // For pair instructions, the offsets are 32/64bit offsets instead of byte.
+            // The addr register is still a byte offset.
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 * 4);
+            const auto addr1 = std::format("({} + {})", addr, instr.control.ds.offset1 * 4);
+
+            code += std::format("addr0 = {} >> 2;\n", addr0);
+            code += std::format("addr1 = {} >> 2;\n", addr1);
+            code += std::format("{} = lds[addr0];\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = lds[addr1];\n", getVGPR(instr.dst[0].code + 1));
             break;
         }
 
         case Shader::Opcode::DS_READ2ST64_B32: {
-            code += "// TODO: DS_READ2ST64_B32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_READ_B32: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+
+            // For pair instructions, the offsets are 32/64bit offsets instead of byte.
+            // The addr register is still a byte offset.
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 * 4 * 64);
+            const auto addr1 = std::format("({} + {})", addr, instr.control.ds.offset1 * 4 * 64);
+
+            code += std::format("addr0 = {} >> 2;\n", addr0);
+            code += std::format("addr1 = {} >> 2;\n", addr1);
+            code += std::format("{} = lds[addr0];\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = lds[addr1];\n", getVGPR(instr.dst[0].code + 1));
             break;
         }
 
         case Shader::Opcode::DS_READ2_B64: {
-            code += "// TODO: DS_READ2_B64\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_READ2_B64: GDS write\n";
+                break;
+            }
+            addLDS();
+
+            const auto addr = getVGPR(instr.src[0].code);
+
+            // For pair instructions, the offsets are 32/64bit offsets instead of byte.
+            // The addr register is still a byte offset.
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 * 8);
+            const auto addr1 = std::format("({} + {})", addr, instr.control.ds.offset1 * 8);
+
+            code += std::format("addr0 = {} >> 2;\n", addr0);
+            code += std::format("addr1 = {} >> 2;\n", addr1);
+            code += std::format("{} = lds[addr0 + 0];\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = lds[addr0 + 1];\n", getVGPR(instr.dst[0].code + 1));
+            code += std::format("{} = lds[addr1 + 0];\n", getVGPR(instr.dst[0].code + 2));
+            code += std::format("{} = lds[addr1 + 1];\n", getVGPR(instr.dst[0].code + 3));
             break;
         }
 
@@ -1745,8 +1951,26 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         case Shader::Opcode::BUFFER_STORE_FORMAT_XY:
         case Shader::Opcode::BUFFER_STORE_FORMAT_XYZ:
         case Shader::Opcode::BUFFER_STORE_FORMAT_XYZW: {
-            code += "// TODO: BUFFER_STORE_FORMAT\n";
-            printf("TODO: BUFFER_STORE_FORMAT\n");
+            const auto buffer_mapping = pc;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_STORE_FORMAT_XYZW: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+            addStoreBufferByteFunc(buf->binding);
+            code += std::format("// DFMT: {} NFMT: {}\n", instr.control.mtbuf.dfmt, instr.control.mtbuf.nfmt);
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const std::string idx = instr.control.mtbuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
+            const std::string voffset = instr.control.mtbuf.offen ? getVGPR(instr.control.mtbuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
+            const std::string instr_offs = std::format("{}", instr.control.mtbuf.offset);
+            code += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {};\n", idx, buf->binding, voffset, instr_offs);
+            // TODO: soffset ???
+            // TODO: Format conversion
+            for (int elem = 0; elem < instr.control.mtbuf.count; elem++) {
+                const std::string elem_addr = std::format("tmp_u + ({} << 2u)", elem);  // elem * sizeof(u32)
+                code += std::format("storeBufferByte{}({} + 0, {} >>  0u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                code += std::format("storeBufferByte{}({} + 1, {} >>  8u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                code += std::format("storeBufferByte{}({} + 2, {} >> 16u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                code += std::format("storeBufferByte{}({} + 3, {} >> 24u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+            }
             break;
         }
 
@@ -2088,16 +2312,57 @@ std::string branchCondition(GcnInst& instr) {
     }
 }
 
+std::string emit(BasicBlock* from, BasicBlock* to, bool indent, bool is_in_loop, BasicBlock* loop_header, bool ignore_loop_header);
+std::string emitLoop(BasicBlock* header) {
+    std::string code;
+    code += "while (true) {\n";
+    code += emit(header, nullptr, true, true, header, true);
+    code += "}\n";
+    return code;
+}
+
 // Keep track of emitted blocks
 std::unordered_set<BasicBlock*> emitted_blocks;
-std::string emit(BasicBlock* from, BasicBlock* to) {
+std::string emit(BasicBlock* from, BasicBlock* to, bool indent = false, bool is_in_loop = false, BasicBlock* loop_header = nullptr, bool ignore_loop_header = false) {
+    auto do_indent = [](const std::string& str) -> std::string {
+        std::string tmp;
+        std::istringstream stream(str);
+        for (std::string line; std::getline(stream, line); )
+            tmp += "\t" + line + "\n";
+        return tmp;
+    };
+
     std::string code;
     if (from != to) {
         if (emitted_blocks.contains(from))
             return "";
 
-        const bool is_conditional = from->branch_to && from->fallthrough;
+        if (from->is_loop_header && !ignore_loop_header) {
+            code += emitLoop(from);
+
+            if (from->loop_exits.size() > 1) {
+                Helpers::panic("Shader::emit: detected non-structured control flow (loop has multiple exits)\n");
+            }
+
+            code += emit(*from->loop_exits.begin(), to, false);
+            return code;
+        }
+        
         code += from->code;
+
+        auto loop_check_emit = [](BasicBlock* from, BasicBlock* to, bool indent = false, bool is_in_loop = false, BasicBlock* loop_header = nullptr) -> std::string {
+            if (is_in_loop) {
+                if (from == loop_header) {
+                    return !indent ? "continue;\n" : "\tcontinue;\n";
+                }
+                else if (!loop_header->loop_body.contains(from)) {
+                    return !indent ? "break;\n" : "\tbreak;\n";
+                }
+            }
+            return emit(from, to, indent, is_in_loop, loop_header);
+        };
+
+        const bool is_conditional = from->branch_to && from->fallthrough;
         emitted_blocks.insert(from);
 
         if (is_conditional) {
@@ -2113,31 +2378,31 @@ std::string emit(BasicBlock* from, BasicBlock* to) {
                 const auto negated_cond = "!(" + cond + ")";
 
                 code += std::format("if ({}) {{\n", negated_cond);
-                code += emit(from->fallthrough, merge);     // Emit until the merge block
+                code += loop_check_emit(from->fallthrough, merge, true, is_in_loop, loop_header);     // Emit until the merge block
                 code += "}\n";
             }
             else if (from->fallthrough == merge) {
                 // No need to negate the condition
                 code += std::format("if ({}) {{\n", cond);
-                code += emit(from->branch_to, merge);     // Emit until the merge block
+                code += loop_check_emit(from->branch_to, merge, true, is_in_loop, loop_header);     // Emit until the merge block
                 code += "}\n";
             }
             else {
                 code += std::format("if ({}) {{\n", cond);
-                code += emit(from->branch_to, merge);     // Emit until the merge block
+                code += loop_check_emit(from->branch_to, merge, true, is_in_loop, loop_header);     // Emit until the merge block
                 code += "} else {\n";
-                code += emit(from->fallthrough, merge);
+                code += loop_check_emit(from->fallthrough, merge, true, is_in_loop, loop_header);
                 code += "}\n";
             }
 
             // Continue emitting from the merge block
-            code += emit(merge, to);
+            code += loop_check_emit(merge, to, false, is_in_loop, loop_header);
         }
         else {
             // Unconditional. Emit the current block and it's successor, which is either the fallthrough block or the branch_to block in case of unconditional branches.
             auto* successor = from->branch_to ? from->branch_to : from->fallthrough;
             if (successor) {
-                code += emit(successor, to);
+                code += loop_check_emit(successor, to, false, is_in_loop, loop_header);
             }
             else {
                 if (!from->is_end)
@@ -2145,6 +2410,11 @@ std::string emit(BasicBlock* from, BasicBlock* to) {
             }
         }
     }
+
+    if (indent) {
+        code = do_indent(code);
+    }
+
     return code;
 }
 
@@ -2178,6 +2448,8 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     has_cubemap_tcoord_func = false;
     has_cubemap_majoraxis_func = false;
     has_fetch_buffer_func_map.clear();
+    has_store_buffer_func_map.clear();
+    has_lds = false;
     vgpr_map.clear();
     sgpr_map.clear();
     lane_map.clear();
@@ -2195,9 +2467,12 @@ vec4 tmp;
 ivec4 itmp;
 float tmp2[4];
 uint tmp_u;
+uint addr0;
+uint addr1;
 
 uint scc;
 uint vcc;
+uint vcchi;
 uint exec;
 
 layout(push_constant, std430) uniform BufferInfo {
@@ -2226,6 +2501,18 @@ ivec3 unpackImageOffset(uint packed) {
     );
 }
 
+int sext24(int x) { return (x << 8) >> 8; }
+
+bool v_cmp_class_f32(float x, uint mask) {
+    // Signalling NaN / Quiet NaN
+    if (bool(mask & (1 << 0)) || bool(mask & (1 << 1))) return isnan(x);
+    // Positive infinity / Negative infinity
+    if (bool(mask & (1 << 9)) || bool(mask & (1 << 2))) return isinf(x);
+
+    // Others TODO
+    return false;
+}
+
 )";
 
     if (stage == ShaderStage::Compute) {
@@ -2237,9 +2524,10 @@ ivec3 unpackImageOffset(uint packed) {
     std::string main;
     main.reserve(32_KB); // Avoid reallocations
     
-    main += "vcc  = 0;\n";
-    main += "scc  = 0;\n";
-    main += "exec = 1;\n";
+    main += "vcc   = 0;\n";
+    main += "vcchi = 0;\n";
+    main += "scc   = 0;\n";
+    main += "exec  = 1;\n";
     if (stage == ShaderStage::Vertex) {
         getVGPR(0);
         main += "v0 = gl_VertexIndex;\n";
@@ -2302,16 +2590,8 @@ ivec3 unpackImageOffset(uint packed) {
     discoverBasicBlockEntries(data, 0);
 
     BasicBlock* start = blocks.emplace_back(std::make_unique<BasicBlock>()).get();
+    start->is_start = true;
     decompileBasicBlock(data, 0, stage, *start);
-    
-    // Populate predecessors
-    for (auto& block : blocks) {
-        if (block->branch_to)
-            block->branch_to->predecessors.push_back(block.get());
-    
-        if (block->fallthrough)
-            block->fallthrough->predecessors.push_back(block.get());
-    }
 
     // Initialize post-dominators
     // Our algorithm expects every block's post-dominator set to contain every block at first, other than the exit which only post-dominates itself.
@@ -2369,6 +2649,58 @@ ivec3 unpackImageOffset(uint packed) {
         }
     } while (changed);
 
+    // Populate predecessors
+    for (auto& block : blocks) {
+        if (block->branch_to)
+            block->branch_to->predecessors.push_back(block.get());
+
+        if (block->fallthrough)
+            block->fallthrough->predecessors.push_back(block.get());
+    }
+
+    // Initialize dominators
+    // Our algorithm expects every block's dominator set to contain every block at first, other than the start which only dominates itself.
+    // It will then shrink them (see below).
+    for (auto& block : blocks) {
+        if (!block->is_start)
+            block->dominators = all_blocks;
+        else
+            block->dominators.insert(block.get());     // The start block only dominates itself
+    }
+
+    // Compute dominator tree
+    // For every block, its dominator set is made up of the block itself + the intersection of the dominators of its predecessors.
+    // Repeat this until there are no changes, meaning we computed the entire graph.
+    do {
+        changed = false;
+
+        for (auto& block : blocks) {
+            if (block->is_start) continue;  // Start block
+
+            std::unordered_set<BasicBlock*> new_set = block->predecessors[0]->dominators;
+
+            // Intersect predecessors
+            for (int i = 1; i < block->predecessors.size(); i++) {
+                std::unordered_set<BasicBlock*> tmp;
+                for (auto& dom : new_set) {
+                    if (block->predecessors[i]->dominators.contains(dom)) {
+                        tmp.insert(dom);
+                    }
+                }
+                new_set = tmp;
+            }
+
+            // Insert self
+            new_set.insert(block.get());
+
+            // Compare new set with old set
+            if (new_set != block->dominators) {
+                changed = true;
+                block->dominators = new_set;
+            }
+        }
+    } while (changed);
+
     // Compute immediate post-dominators
     // For every block's post-dominator, the post-dominator is NOT the immediate post-dominator if another candidate's post-dominator set contains it.
     for (auto& block : blocks) {
@@ -2395,6 +2727,87 @@ ivec3 unpackImageOffset(uint packed) {
             }
         }
     }
+
+    // Compute immediate dominators
+    // For every block's dominator, the dominator is NOT the immediate dominator if another candidate's dominator set contains it.
+    for (auto& block : blocks) {
+        for (auto& dom : block->dominators) {
+            if (dom == block.get()) continue;
+
+            bool is_immediate = true;
+            for (auto& other_dom : block->dominators) {
+                if (other_dom == block.get())   continue;
+                if (other_dom == dom)           continue;
+
+                if (other_dom->dominators.contains(dom)) {
+                    is_immediate = false;
+                    break;
+                }
+            }
+
+            if (is_immediate) {
+                if (block->immediate_dominator != nullptr) {
+                    Helpers::panic("Shader::decompileShader: detected non-structured control flow (basic block has multiple immediate dominators)\n");
+                }
+
+                block->immediate_dominator = dom;
+            }
+        }
+    }
+
+    auto find_loop_body = [&](BasicBlock* header, BasicBlock* tail) {
+        header->is_loop_header = true;
+        header->loop_body.insert(header);
+
+        // Walk backwards from the tail
+        std::stack<BasicBlock*> to_walk;
+        if (header->loop_body.insert(tail).second)
+            to_walk.push(tail);
+
+        while (!to_walk.empty()) {
+            BasicBlock* block = to_walk.top();
+            to_walk.pop();
+
+            for (auto& pred : block->predecessors) {
+                // Stop at the header
+                if (pred == header)
+                    continue;
+
+                if (header->loop_body.insert(pred).second)
+                    to_walk.push(pred); // Continue walking upwards
+            }
+        }
+    };
+
+    // Detect backedges (loops)
+    // A backedge is an edge whose header dominates the tail.
+    for (auto& block : blocks) {
+        auto check = [&](BasicBlock* succ) {
+            if (!succ)
+                return;
+
+            if (block->dominators.contains(succ)) {
+                std::printf(std::format("detected backedge {:08x} -> {:08x}\n", block->pc, succ->pc).c_str());
+                find_loop_body(succ, block.get());
+            }
+        };
+
+        check(block->branch_to);
+        check(block->fallthrough);
+    }
+
+    // Find loop exits
+    for (auto& block : blocks) {
+        if (block->is_loop_header) {
+            for (auto& loop_block : block->loop_body) {
+                if (loop_block->branch_to && !block->loop_body.contains(loop_block->branch_to))
+                    block->loop_exits.insert(loop_block->branch_to);
+
+                if (loop_block->fallthrough && !block->loop_body.contains(loop_block->fallthrough))
+                    block->loop_exits.insert(loop_block->fallthrough);
+            }
+        }
+    }
     
     main += emit(start, nullptr);
 
@@ -2404,7 +2817,7 @@ ivec3 unpackImageOffset(uint packed) {
 
     // Print immediate post-dominators
     for (auto& block : blocks) {
-        shader += std::format("// immediate post dominator of {}: {}\n", block->pc, block->immediate_post_dominator ? std::format("{}", block->immediate_post_dominator->pc) : "nullptr");
+        shader += std::format("// immediate post dominator of {:08x}: {}\n", block->pc, block->immediate_post_dominator ? std::format("{:08x}", block->immediate_post_dominator->pc) : "nullptr");
     }
     shader += "\n";
 

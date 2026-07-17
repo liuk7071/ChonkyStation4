@@ -427,7 +427,7 @@ vk::Extent2D last_extent = vk::Extent2D { 0xffffffff, 0xffffffff };
 std::vector<vk::RenderingAttachmentInfo> curr_attachments;
 bool has_feedback_loop = false;
 bool needs_new_render_pass = false;
-vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool& has_depth) {
+vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool& has_depth_stencil) {
     // ---- Setup render targets ----
     // We need to do this BEFORE uploading textures below, because that function relies on
     // getVulkanAttachmentForColorTarget to set a flag to detect feedback loops.
@@ -443,7 +443,8 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
     getDepthTarget(&new_depth_rt, stencil_only);
 
     const bool depth_enabled = pipeline->cfg.depth_control.depth_enable && new_depth_rt.z_info.format != (u32)DataFormat::FormatInvalid;
-    has_depth = depth_enabled;
+    const bool stencil_enabled = pipeline->cfg.depth_control.stencil_enable && new_depth_rt.stencil_info.format != (u32)DataFormat::FormatInvalid;
+    has_depth_stencil = depth_enabled || stencil_enabled;
 
     // Check if any color or depth target was changed
     vk::Extent2D extent = { 0xffffffff, 0xffffffff };
@@ -487,7 +488,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
         std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
     }
 
-    if (depth_enabled) {
+    if (has_depth_stencil) {
         if (depth_rt_dim.width  < extent.width)  extent.width  = depth_rt_dim.width;
         if (depth_rt_dim.height < extent.height) extent.height = depth_rt_dim.height;
 
@@ -560,7 +561,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     // Upload buffers and get descriptor writes, as well as the push constants
     Pipeline::PushConstants* push_constants;
     auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants, color_attachments[0].tex, &has_feedback_loop);
-
+    //if (pipeline.cfg.depth_control.stencil_enable) return;
     // Check if we need to start a new renderpass
     if (needs_new_render_pass || !is_recording_render_block) {
         endRendering(); // Has a check for if we were recording a render block or not
@@ -576,7 +577,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
             .colorAttachmentCount = (u32)curr_attachments.size(),
             .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
             .pDepthAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr,
-            //.pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
+            .pStencilAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr
         };
 
         beginRendering(render_info);
@@ -691,7 +692,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
             .colorAttachmentCount = (u32)curr_attachments.size(),
             .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
             .pDepthAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr,
-            .pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
+            //.pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
         };
 
         beginRendering(render_info);

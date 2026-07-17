@@ -212,8 +212,8 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         .depthBoundsTestEnable  = cfg.depth_control.depth_bounds_enable,
         .maxDepthBounds         = cfg.max_depth_bounds,
         .minDepthBounds         = cfg.min_depth_bounds,
-        //.stencilTestEnable      = cfg.depth_control.stencil_enable,
-        .stencilTestEnable      = false,
+        .stencilTestEnable      = cfg.depth_control.stencil_enable,
+        //.stencilTestEnable      = false,
         .front                  = stencil_front,
         .back                   = stencil_back
     };
@@ -427,6 +427,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
 
             case Shader::DescriptorType::Tsharp: {
                 TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
+                if (tsharp->data_format == 0) continue;
                 TrackedTexture* tex;
                 Vulkan::getVulkanImageInfoForTSharp(tsharp, &tex, true);
                 tex->was_bound = true;

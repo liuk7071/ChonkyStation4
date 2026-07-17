@@ -749,12 +749,13 @@ std::unordered_map<void*, u64> virt_dmem_map;
 std::unordered_map<u64, void*> dmem_virt_map;
 std::unordered_map<u64, size_t> dmem_size_map;
 
+u64 next_dmem_addr = 0x100;
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
     
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)OS::requestHandle();
+    *out_addr = (void*)next_dmem_addr++;
     return SCE_OK;
 }
 
@@ -763,7 +764,7 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
 
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)OS::requestHandle();
+    *out_addr = (void*)next_dmem_addr++;
     return SCE_OK;
 }
 
@@ -802,6 +803,15 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
     }
 
     if ((flags & 0x10) && *addr != in_addr) {
+        if (virt_dmem_map.contains(in_addr)) {
+            printf("dmem %p was mapped at in_addr with size %d. mapping requested size %d\n", virt_dmem_map[in_addr], dmem_size_map[virt_dmem_map[in_addr]], len);
+        }
+#ifdef _WIN32
+        MEMORY_BASIC_INFORMATION mbi;
+        VirtualQuery(in_addr, &mbi, sizeof(mbi));
+
+        printf("Memory was reserved from % p to % p with state 0x%x\n", mbi.BaseAddress, (uptr)mbi.BaseAddress + mbi.RegionSize, mbi.State);
+#endif
         Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
         //printf("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
         sceKernelMunmap(*addr, len);
@@ -933,13 +943,20 @@ s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
     log("sceKernelReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
 
     // TODO: Implement properly
-    if (dmem_virt_map.contains((u64)addr)) {
-        log("releasing memory\n");
-        void* virt_addr = dmem_virt_map[(u64)addr];
-        sceKernelMunmap(virt_addr, len);
-        virt_dmem_map.erase(virt_addr);
-        dmem_virt_map.erase((u64)addr);
-        dmem_size_map.erase((u64)addr);
+    auto to_free = len;
+    while (to_free) {
+        if (dmem_virt_map.contains((u64)addr)) {
+            log("releasing memory\n");
+            void* virt_addr = dmem_virt_map[(u64)addr];
+            const auto size = std::min(dmem_size_map[(u64)addr], to_free);
+            sceKernelMunmap(virt_addr, size);
+            virt_dmem_map.erase(virt_addr);
+            dmem_virt_map.erase((u64)addr);
+            dmem_size_map.erase((u64)addr);
+            addr = (void*)((u64)addr + 1);
+            to_free -= size;
+        }
+        else break;
     }
     return SCE_OK;
 }
