@@ -65,6 +65,8 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("mLVL7N7BVBg", "sceGnmUpdatePsShader350", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("KXltnCwEJHQ", "sceGnmSetCsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("vckdzbQ46SI", "sceGnmSetLsShader", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("VJNjFtqiF5w", "sceGnmSetHsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");

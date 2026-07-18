@@ -23,6 +23,7 @@ struct CachedBuffer {
     u64     page_end = 0;
     u64     hash = 0;
     bool    dirty = false;
+    std::vector<bool> dirty_pages;
     vk::Buffer      staging_buf = nullptr;
     vk::Buffer      buf = nullptr;
     size_t          offs_in_buf = 0;
@@ -30,26 +31,20 @@ struct CachedBuffer {
     VmaAllocation   staging_alloc;
     VmaAllocation   alloc;
 
-    void protect() {
+    void protect(u64 page_to_protect) {
 #ifdef _WIN32
-        const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
-        const auto aligned_end = Helpers::alignUp<u64>((u64)base + size, page_size);
-
         DWORD old_protect;
-        if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READONLY, &old_protect))
+        if (!VirtualProtect((void*)((page + page_to_protect) << page_bits), page_size, PAGE_READONLY, &old_protect))
             Helpers::panic("CachedBuffer::protect: VirtualProtect failed");
 #else
         Helpers::panic("Unsupported platform\n");
 #endif
     }
 
-    void unprotect() {
+    void unprotect(u64 page_to_unprotect) {
 #ifdef _WIN32
-        const auto aligned_start = Helpers::alignDown<u64>((u64)base, page_size);
-        const auto aligned_end = Helpers::alignUp<u64>((u64)base + size, page_size);
-
         DWORD old_protect;
-        if (!VirtualProtect((void*)aligned_start, aligned_end - aligned_start, PAGE_READWRITE, &old_protect))
+        if (!VirtualProtect((void*)((page + page_to_unprotect) << page_bits), page_size, PAGE_READWRITE, &old_protect))
             Helpers::panic("CachedBuffer::unprotect: VirtualProtect failed");
 #else
         Helpers::panic("Unsupported platform\n");
@@ -116,8 +111,11 @@ static LONG CALLBACK exceptionHandler(EXCEPTION_POINTERS* info) noexcept {
 
     if (cache.contains(page)) {
         handled = true;
-        cache[page]->dirty = true;
-        cache[page]->unprotect();
+
+        auto& buf = cache[page];
+        buf->dirty = true;
+        buf->dirty_pages[page - buf->page] = true;
+        cache[page]->unprotect(page - buf->page);
     }
 
     if (tracked.contains(page)) {
@@ -157,6 +155,7 @@ void init() {
 }
 
 void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
+    //Profiler::Scope profiler("updateBuffer");
     auto& staging_vk_buf    = buf->staging_buf;
     auto& vk_buf            = buf->buf;
     auto& staging_alloc     = buf->staging_alloc;
@@ -166,46 +165,93 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
     // and then we free all allocations when clear() is called (at the end of every frame), in stream-buffer fashion(?).
     // This is because buffers can and will be updated mid-frame, so we can't free the old ones right away.
     // The allocation costs shouldn't be too much due to how VMA is setup - see VulkanRenderer.cpp
-    const vk::BufferCreateInfo buf_create_info = {
-        .size = buf->size,
-        .usage =   vk::BufferUsageFlagBits::eIndexBuffer   | vk::BufferUsageFlagBits::eVertexBuffer
-                 | vk::BufferUsageFlagBits::eTransferSrc   | vk::BufferUsageFlagBits::eTransferDst
-                 | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer
-                 | vk::BufferUsageFlagBits::eIndirectBuffer,
-        .sharingMode = vk::SharingMode::eExclusive
+
+    auto copy_region = [&](void* base, size_t offset, size_t size, vk::Buffer dest_vk_buf) {
+        const vk::BufferCreateInfo buf_create_info = {
+            .size = size,
+            .usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eVertexBuffer
+                     | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst
+                     | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+                     | vk::BufferUsageFlagBits::eIndirectBuffer,
+            .sharingMode = vk::SharingMode::eExclusive
+        };
+        VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };
+        alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        VkBuffer raw_buf;
+        VmaAllocationInfo info;
+        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &staging_alloc, &info);
+        staging_vk_buf = vk::Buffer(raw_buf);
+
+        if (info.size < size) {
+            Helpers::panic("Cache::updateBuffer: could not allocate full buffer");
+        }
+
+        // Update the buffer
+        std::memcpy(info.pMappedData, (u8*)base + offset, size);
+    
+        // Copy staging buffer to device local buffer
+        endRendering();
+        cmd_bufs[frame_idx].copyBuffer(staging_vk_buf, dest_vk_buf, vk::BufferCopy { 0, offset, size });
+
+        // Clear staging buffer after this frame
+        allocations_to_clear[frame_idx].push_back({ .buf = staging_vk_buf, .alloc = staging_alloc });
     };
-    VmaAllocationCreateInfo alloc_create_info = { .pool = vma_pool };
-    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-    alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    VkBuffer raw_buf;
-    VmaAllocationInfo info;
-    vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &staging_alloc, &info);
-    staging_vk_buf = vk::Buffer(raw_buf);
 
-    if (info.size < buf->size) {
-        Helpers::panic("Cache::updateBuffer: could not allocate full buffer");
-    }
-
-    // Create device local buffer if needed
+    // Recreate and copy the whole device local buffer if needed
     if (recreate_vk_buf) {
         if (vk_buf) {
             allocations_to_clear[frame_idx].push_back({ .buf = vk_buf, .alloc = alloc });
         }
 
-        alloc_create_info = { .pool = device_vma_pool };
+        const vk::BufferCreateInfo buf_create_info = {
+            .size = buf->size,
+            .usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eVertexBuffer
+                     | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst
+                     | vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+                     | vk::BufferUsageFlagBits::eIndirectBuffer,
+            .sharingMode = vk::SharingMode::eExclusive
+        };
+
+        VmaAllocationCreateInfo alloc_create_info = { .pool = device_vma_pool };
         alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
         alloc_create_info.flags = 0;
+        VkBuffer raw_buf;
         vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
         vk_buf = vk::Buffer(raw_buf);
+        
+        // Copy and protect the whole buffer
+        copy_region(buf->base, 0, buf->size, vk_buf);
+        for (int i = 0; i < buf->page_end - buf->page; i++) {
+            buf->protect(i);
+        }
     }
+    else {
+        // Only reupload dirty pages of the buffer
+        // Merge neighboring pages together instead of doing individual page uploads
+        size_t page = 0;
+        auto& dirty_pages = buf->dirty_pages;
+        while (page < dirty_pages.size()) {
+            // Skip non-dirty pages
+            if (!dirty_pages[page]) {
+                page++;
+                continue;
+            }
 
-    // Update the buffer
-    std::memcpy(info.pMappedData, (void*)buf->base, buf->size);
+            const size_t page_start = page;
 
-    // Copy staging buffer to device local buffer
-    endRendering();
-    cmd_bufs[frame_idx].copyBuffer(staging_vk_buf, vk_buf, vk::BufferCopy{ 0, 0, buf->size });
+            // Find page end while re-protecting dirty pages
+            while (page < dirty_pages.size() && dirty_pages[page]) {
+                buf->protect(page);
+                page++;
+            }
 
+            const size_t page_end = page;
+            const size_t size = (page_end - page_start) << page_bits;
+            copy_region(buf->base, page_start << page_bits, size, vk_buf);
+        }
+    }
+    
     VkBufferMemoryBarrier barrier{
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
         nullptr,
@@ -217,7 +263,7 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
         0,
         buf->size
     };
-
+    
     vkCmdPipelineBarrier(
         *cmd_bufs[frame_idx],
         VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -227,8 +273,19 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
         1, &barrier,
         0, nullptr
     );
+}
 
-    allocations_to_clear[frame_idx].push_back({ .buf = staging_vk_buf, .alloc = staging_alloc });
+void deleteBuf(CachedBuffer* buf) {
+    for (u64 i = 0; i < buf->page_end - buf->page; i++) {
+        auto it = cache.find(buf->page + i);
+        if (it != cache.end() && it->second == buf) {
+            buf->unprotect(i);
+            cache.erase(it);
+        }
+    }
+    if (buf->buf)
+        allocations_to_clear[frame_idx].push_back({ .buf = buf->buf, .alloc = buf->alloc });
+    delete buf;
 }
 
 std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
@@ -253,15 +310,22 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
             if (buf->dirty || size_changed) {
                 if (size_changed) {
                     buf->page_end = page_end;
-                    // Update page table
                     buf->size = (page_end - buf->page) << page_bits;
-                    for (int i = 0; i < buf->page_end - buf->page; i++)
+                    
+                    // Update page table
+                    for (int i = 0; i < buf->page_end - buf->page; i++) {
+                        auto it = cache.find(buf->page + i);
+                        if (it != cache.end() && it->second != buf)
+                            deleteBuf(it->second);
                         cache[buf->page + i] = buf;
+                    }
+                    
+                    buf->dirty_pages.resize(buf->page_end - buf->page);
                 }
 
+                updateBuffer(buf, size_changed);    // Will re-protect dirty pages
                 buf->dirty = false;
-                updateBuffer(buf, size_changed);
-                buf->protect();
+                std::fill(buf->dirty_pages.begin(), buf->dirty_pages.end(), false); // DONT .clear(), because that resets the size to 0
             }
 
             // Return the buffer
@@ -283,9 +347,16 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
         buf->page = page;
         buf->page_end = page_end;
         buf->size = aligned_size;
-        for (u64 i = 0; i < size_in_pages; i++)
+        buf->dirty_pages.resize(size_in_pages);
+
+        for (u64 i = 0; i < size_in_pages; i++) {
+            auto it = cache.find(page + i);
+            if (it != cache.end() && it->second != buf)
+                deleteBuf(it->second);
+
             cache[page + i] = buf;
-        buf->protect();
+            buf->protect(i);
+        }
     }
     else {
         buf->base = base;
@@ -422,7 +493,7 @@ bool resetDirty(void* base, size_t size) {
     Helpers::panic("Cache::resetDirty: cache error");
 }
 
-// Returns true if at least page in the specified region is dirty, otherwise false.
+// Returns true if at least one page in the specified region is dirty, otherwise false.
 bool isDirty(void* base, size_t size) {
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)base, page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)base + size, page_size);
@@ -440,14 +511,22 @@ bool isDirty(void* base, size_t size) {
 void clear() {
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
-    for (auto& alloc : allocations_to_clear[frame_idx]) {
-        vmaDestroyBuffer(allocator, alloc.buf, alloc.alloc);
+    {
+        //Profiler::Scope profiler("Buffer cleanup");
+        for (auto& alloc : allocations_to_clear[frame_idx]) {
+            vmaDestroyBuffer(allocator, alloc.buf, alloc.alloc);
+        }
+        allocations_to_clear[frame_idx].clear();
     }
-    allocations_to_clear[frame_idx].clear();
 
-    for (auto& buf : hash_cache[frame_idx])
-        delete buf.second;
-    hash_cache[frame_idx].clear();
+    {
+        //Profiler::Scope profiler("Buffer hash cache cleanup");
+        for (auto& [hash, buf] : hash_cache[frame_idx]) {
+            vmaDestroyBuffer(allocator, buf->buf, buf->alloc);
+            delete buf;
+        }
+        hash_cache[frame_idx].clear();
+    }
 }
 
 }   // End namespace PS4::GCN::Vulkan::Cache

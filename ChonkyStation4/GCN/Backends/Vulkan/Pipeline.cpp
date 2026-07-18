@@ -212,8 +212,8 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         .depthBoundsTestEnable  = cfg.depth_control.depth_bounds_enable,
         .maxDepthBounds         = cfg.max_depth_bounds,
         .minDepthBounds         = cfg.min_depth_bounds,
-        .stencilTestEnable      = cfg.depth_control.stencil_enable,
-        //.stencilTestEnable      = false,
+        //.stencilTestEnable      = cfg.depth_control.stencil_enable,
+        .stencilTestEnable      = false,
         .front                  = stencil_front,
         .back                   = stencil_back
     };
@@ -398,7 +398,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                 if ((u64)vsharp < 0x1000) continue; // Skip bad shaders until I fix them...
 
                 // Upload as SSBO
-                const auto buf_size = Helpers::alignUp<size_t>((vsharp->stride == 0 ? 1 : vsharp->stride) * (vsharp->num_records + 16), 16);
+                const auto buf_size = Helpers::alignUp<size_t>((vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records , 16);
                 void* guest_buf_data = (void*)vsharp->base;
                 if ((u64)guest_buf_data < 0x10000) continue;
                 auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);

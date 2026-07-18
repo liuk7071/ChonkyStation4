@@ -102,8 +102,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         auto detiled_buf = std::make_unique<u8[]>(img_size);
 
         if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL) {
-            Profiler::add("Detiled textures", 1);
-            Profiler::Scope profiler("Detiler time");
+            //Profiler::add("Detiled textures", 1);
+            //Profiler::Scope profiler("Detiler time");
             const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
             GpaError err = gpaTileTextureAll(ptr, img_size, detiled_buf.get(), img_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
             img_ptr = detiled_buf.get();
@@ -234,9 +234,13 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
         .tiling = vk::ImageTiling::eOptimal,
-        .usage = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT | attachment_bits,
+        .usage = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eAttachmentFeedbackLoopEXT | attachment_bits,
         .sharingMode = vk::SharingMode::eExclusive
     };
+
+    if (!is_depth_buffer)
+        img_info.usage |= vk::ImageUsageFlagBits::eStorage;
+
     img = vk::raii::Image(device, img_info);
     auto mem_requirements = img.getMemoryRequirements();
     vk::MemoryAllocateInfo alloc_info = { .allocationSize = mem_requirements.size, .memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) };
@@ -275,7 +279,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             swizzle_map[tsharp->dst_sel_y],
             swizzle_map[tsharp->dst_sel_z],
             swizzle_map[tsharp->dst_sel_w],
-        }
+        },
     };
     img_view = vk::raii::ImageView(device, view_info);
 

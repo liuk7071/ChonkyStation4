@@ -98,12 +98,12 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
             return {
                 vk::AccessFlagBits::eShaderRead,
                 vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eComputeShader | vk::PipelineStageFlagBits::eTessellationControlShader | vk::PipelineStageFlagBits::eTessellationEvaluationShader
-                | vk::PipelineStageFlagBits::eGeometryShader | vk::PipelineStageFlagBits::eMeshShaderEXT
+                | vk::PipelineStageFlagBits::eGeometryShader
             };
         
         case vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT:   
             return {
-                vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, 
+                vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
                 vk::PipelineStageFlagBits::eAllGraphics
             };
 
@@ -116,7 +116,7 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
         case vk::ImageLayout::ePresentSrcKHR:     
             return {
                 {},
-                vk::PipelineStageFlagBits::eTopOfPipe
+                vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eTransfer
             };
         default:    Helpers::panic("transitionImageLayout: unhandled image layout %d\n", layout);
         }

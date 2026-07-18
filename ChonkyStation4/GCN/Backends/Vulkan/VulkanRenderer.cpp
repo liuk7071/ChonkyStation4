@@ -26,6 +26,7 @@ namespace PS4::GCN::Vulkan {
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 constexpr bool enable_validation_layers = false;
+constexpr bool disable_stencil = true;
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
 std::vector<Pipeline*> curr_frame_pipelines[FRAMES_IN_FLIGHT];
@@ -238,7 +239,9 @@ void VulkanRenderer::init() {
                                             && features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering
                                             && features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState
                                             && features.template get<vk::PhysicalDeviceFeatures2>().features.depthClamp
+                                            && features.template get<vk::PhysicalDeviceFeatures2>().features.geometryShader
                                             && features.template get<vk::PhysicalDeviceFeatures2>().features.tessellationShader
+                                            && features.template get<vk::PhysicalDeviceFeatures2>().features.fragmentStoresAndAtomics
                                             && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
                                             && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout;
                                             //&& features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
@@ -246,7 +249,7 @@ void VulkanRenderer::init() {
         if (supports_vulkan1_3 && supports_graphics && supports_all_required_exts && supports_all_required_features)
             supported_devices.push_back(std::move(device));
     };
-
+    
     if (supported_devices.empty())
         Helpers::panic("Vulkan: failed to find a suitable GPU!");
 
@@ -266,12 +269,19 @@ void VulkanRenderer::init() {
 
     // Query for required features (Vulkan 1.1 and 1.3)
     vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT, vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT, vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT> feature_chain = {
-        { .features = { .depthClamp = true, .tessellationShader = true } },         // vk::PhysicalDeviceFeatures2
-        { .shaderDrawParameters = true                                   },         // vk::PhysicalDeviceVulkan11Features
-        { .synchronization2     = true, .dynamicRendering = true         },         // vk::PhysicalDeviceVulkan13Features
-        { .extendedDynamicState = true                                   },         // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
-        { .dynamicRenderingUnusedAttachments = true                      },         // vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
-        { .attachmentFeedbackLoopLayout = true                           },         // vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT
+        // vk::PhysicalDeviceFeatures2
+        { .features = {
+                .depthClamp = true,
+                .geometryShader = true,
+                .tessellationShader = true,
+                .fragmentStoresAndAtomics = true
+            }
+        },         
+        { .shaderDrawParameters = true                                                              },         // vk::PhysicalDeviceVulkan11Features
+        { .synchronization2     = true, .dynamicRendering = true                                    },         // vk::PhysicalDeviceVulkan13Features
+        { .extendedDynamicState = true                                                              },         // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+        { .dynamicRenderingUnusedAttachments = true                                                 },         // vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
+        { .attachmentFeedbackLoopLayout = true                                                      },         // vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT
         //{ .attachmentFeedbackLoopDynamicState = true                     }          // vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT
     };
 
@@ -455,7 +465,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
                 if (color_rt_dim[i].width  < extent.width)  extent.width  = color_rt_dim[i].width;
                 if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;
 
-                if (last_color_rt[i] != new_rt[i]) {
+                if (last_color_rt[i] != new_rt[i] || color_attachments[i].tex->curr_layout != vk::ImageLayout::eColorAttachmentOptimal) {
                     bool save = false;
                     color_attachments[i] = RenderTarget::getVulkanAttachmentForColorTarget(&new_rt[i], pipeline->cfg.degamma_enable, &save);
                     if (save)
@@ -495,6 +505,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
         if (last_depth_rt != new_depth_rt
             || last_depth_enable != pipeline->cfg.depth_control.depth_enable
             || last_stencil_enable != pipeline->cfg.depth_control.stencil_enable
+            || depth_attachment.tex->curr_layout != vk::ImageLayout::eDepthStencilAttachmentOptimal
             ) {
             bool save = false;
             depth_attachment = RenderTarget::getVulkanAttachmentForDepthTarget(&new_depth_rt, pipeline->cfg.depth_control.stencil_enable, &save);
@@ -529,6 +540,10 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     //vs_dump.open("vs_dump.bin", std::ios::binary);
     //vs_dump.write((char*)vs_ptr, 16_KB);
 
+    // Skip patch primitive
+    if (regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI] == 9)
+        return;
+
     // TODO: For now fetch the shader address is hardcoded to user register 0:1.
     // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
@@ -541,6 +556,9 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
     curr_frame_pipelines[frame_idx].push_back(&pipeline);
     
+    if (disable_stencil)
+        pipeline.cfg.depth_control.stencil_enable = false;
+
     // Create index buffer (if needed)
     vk::Buffer vk_idx_buf = nullptr;
     size_t idx_buf_offs = 0;
@@ -572,12 +590,12 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
         }
 
         vk::RenderingInfo render_info = {
-            .renderArea = {.offset = { 0, 0 }, .extent = extent },
+            .renderArea = { .offset = { 0, 0 }, .extent = extent },
             .layerCount = 1,
             .colorAttachmentCount = (u32)curr_attachments.size(),
             .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
             .pDepthAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr,
-            .pStencilAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr
+            .pStencilAttachment = (has_depth && !disable_stencil) ? &depth_attachment.vk_attachment : nullptr
         };
 
         beginRendering(render_info);
@@ -624,8 +642,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
 
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[frame_idx].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
-    
-    Cache::barrier();
 
     const u32 vtx_offs = regs[Reg::mmVGT_INDX_OFFSET];
     if (idx_buf_ptr) {
@@ -648,12 +664,19 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
 
+    // Skip patch primitive
+    if (regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI] == 9)
+        return;
+
     if (!fetch_shader_ptr)
         return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
     curr_frame_pipelines[frame_idx].push_back(&pipeline);
+
+    if (disable_stencil)
+        pipeline.cfg.depth_control.stencil_enable = false;
 
     // Create index buffer (if needed)
     vk::Buffer vk_idx_buf = nullptr;
@@ -738,8 +761,6 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[frame_idx].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
 
-    Cache::barrier();
-
     if (is_indexed) {
         cmd_bufs[frame_idx].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
         cmd_bufs[frame_idx].drawIndexedIndirect(param_buf, param_buf_offs, cnt, sizeof(vk::DrawIndexedIndirectCommand));
@@ -766,6 +787,8 @@ void VulkanRenderer::dispatch(ComputeJob job) {
         cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
 
     vkCmdPushConstants(*cmd_bufs[frame_idx], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eCompute), 0, sizeof(Pipeline::PushConstants), push_constants);
+    
+    Cache::barrier();
     cmd_bufs[frame_idx].dispatch(job.dim_x, job.dim_y, job.dim_z);
 
     // TODO: Don't add a barrier after every dispatch...
@@ -948,9 +971,12 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     frame_idx = (frame_idx + 1) % FRAMES_IN_FLIGHT;
 
     // Wait for rendering to be done
-    while (vk::Result::eTimeout == device.waitForFences(*draw_fence[frame_idx], vk::True, UINT64_MAX));
-    device.resetFences(*draw_fence[frame_idx]);
-   
+    {
+        //Profiler::Scope profiler("Wait for GPU");
+        while (vk::Result::eTimeout == device.waitForFences(*draw_fence[frame_idx], vk::True, UINT64_MAX));
+        device.resetFences(*draw_fence[frame_idx]);
+    }
+
     // Cleanup
     for (auto& pipeline : curr_frame_pipelines[frame_idx])
         pipeline->clearBuffers();

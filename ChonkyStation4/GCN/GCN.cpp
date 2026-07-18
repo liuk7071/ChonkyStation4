@@ -64,6 +64,16 @@ void gcnThread() {
         }
 
         case CommandType::Flip: {
+            auto port = PS4::OS::find<OS::Libs::SceVideoOut::SceVideoOutPort>(cmd.video_out_handle);
+            if (!port) {
+                Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
+            }
+            
+            //if (cmd.buf_idx == -1) {
+            //    port->signalFlip(cmd.flip_arg);
+            //    break;
+            //}
+
             // Set buffer label
             u64* buf_label;
             OS::Libs::SceVideoOut::sceVideoOutGetBufferLabelAddress(cmd.video_out_handle, (void**)&buf_label);
@@ -71,10 +81,6 @@ void gcnThread() {
             renderer->flip(&OS::Libs::SceVideoOut::bufs[cmd.buf_idx]);
 
             // Signal SceVideoOut port event queues
-            auto port = PS4::OS::find<OS::Libs::SceVideoOut::SceVideoOutPort>(cmd.video_out_handle);
-            if (!port) {
-                Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
-            }
             port->signalFlip(cmd.flip_arg);
             if (prev_flip_idx >= 0)
                 buf_label[prev_flip_idx] = 0;
