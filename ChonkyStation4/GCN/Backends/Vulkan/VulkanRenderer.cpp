@@ -383,7 +383,7 @@ void VulkanRenderer::init() {
     // This pool is used by the buffer cache (vertex buffers, index buffers, SSBOs)
     VmaPoolCreateInfo vma_pool_info = {
         .flags = VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT,
-        .blockSize = 512_MB,
+        .blockSize = 1_GB,
         .minBlockCount = 1,
         .maxBlockCount = 40,
         .memoryTypeIndex = findMemoryType(mem_type_bits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)

@@ -29,7 +29,8 @@ struct BasicBlock {
     std::string code;
     bool is_start = false;
     bool is_end = false;
-    
+    bool needs_barrier = false;
+
     GcnInst branch_instr;
     BasicBlock* branch_to = nullptr;
     BasicBlock* fallthrough = nullptr;
@@ -247,10 +248,12 @@ void addFloatConstTable(std::string name, float* table, size_t size) {
 }
 
 bool has_lds = false;
-void addLDS() {
+void addLDS(ShaderStage stage) {
     if (has_lds) return;
 
-    shader += "shared uint lds[8192];\n";  // 32 KB / sizeof(uint)
+    // 8192 = 32 KB / sizeof(uint)
+
+    shader += stage == ShaderStage::Compute ? "shared uint lds[8192];\n" : "uint lds[8192];\n";
     has_lds = true;
 }
 
@@ -1778,13 +1781,21 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_WRITE_B32: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
             const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
 
             const auto data0 = getVGPR(instr.src[1].code);
             code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
+            
+            // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
+            if (stage == ShaderStage::Compute) {
+                block.needs_barrier = true;
+                block.fallthrough = getOrCreateBlock(data, pc + instr.length, stage);
+                done = true;
+                continue;
+            }
             break;
         }
 
@@ -1793,7 +1804,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_WRITE2_B32: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
             
@@ -1807,6 +1818,14 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
             code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
             code += std::format("lds[{} >> 2] = {};\n", addr1, data1);
+            
+            // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
+            if (stage == ShaderStage::Compute) {
+                block.needs_barrier = true;
+                block.fallthrough = getOrCreateBlock(data, pc + instr.length, stage);
+                done = true;
+                continue;
+            }
             break;
         }
 
@@ -1815,7 +1834,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_WRITE2ST64_B32: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
 
@@ -1828,6 +1847,14 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             const auto data1 = getVGPR(instr.src[2].code);
             code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
             code += std::format("lds[{} >> 2] = {};\n", addr1, data1);
+            
+            // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
+            if (stage == ShaderStage::Compute) {
+                block.needs_barrier = true;
+                block.fallthrough = getOrCreateBlock(data, pc + instr.length, stage);
+                done = true;
+                continue;
+            }
             break;
         }
 
@@ -1841,7 +1868,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_READ_B32: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
             const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
@@ -1855,7 +1882,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_READ_B32: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
             
@@ -1876,7 +1903,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_READ_B32: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
 
@@ -1897,7 +1924,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_READ2_B64: GDS write\n";
                 break;
             }
-            addLDS();
+            addLDS(stage);
 
             const auto addr = getVGPR(instr.src[0].code);
 
@@ -2312,18 +2339,18 @@ std::string branchCondition(GcnInst& instr) {
     }
 }
 
-std::string emit(BasicBlock* from, BasicBlock* to, bool indent, bool is_in_loop, BasicBlock* loop_header, bool ignore_loop_header);
-std::string emitLoop(BasicBlock* header) {
+std::string emit(BasicBlock* from, BasicBlock* to, bool& needs_barrier, int level, bool indent, bool is_in_loop, BasicBlock* loop_header, bool ignore_loop_header);
+std::string emitLoop(BasicBlock* header, bool& needs_barrier, int level) {
     std::string code;
     code += "while (true) {\n";
-    code += emit(header, nullptr, true, true, header, true);
+    code += emit(header, nullptr, needs_barrier, level + 1, true, true, header, true);
     code += "}\n";
     return code;
 }
 
 // Keep track of emitted blocks
 std::unordered_set<BasicBlock*> emitted_blocks;
-std::string emit(BasicBlock* from, BasicBlock* to, bool indent = false, bool is_in_loop = false, BasicBlock* loop_header = nullptr, bool ignore_loop_header = false) {
+std::string emit(BasicBlock* from, BasicBlock* to, bool& needs_barrier, int level = 0, bool indent = false, bool is_in_loop = false, BasicBlock* loop_header = nullptr, bool ignore_loop_header = false) {
     auto do_indent = [](const std::string& str) -> std::string {
         std::string tmp;
         std::istringstream stream(str);
@@ -2336,21 +2363,8 @@ std::string emit(BasicBlock* from, BasicBlock* to, bool indent = false, bool is_
     if (from != to) {
         if (emitted_blocks.contains(from))
             return "";
-
-        if (from->is_loop_header && !ignore_loop_header) {
-            code += emitLoop(from);
-
-            if (from->loop_exits.size() > 1) {
-                Helpers::panic("Shader::emit: detected non-structured control flow (loop has multiple exits)\n");
-            }
-
-            code += emit(*from->loop_exits.begin(), to, false);
-            return code;
-        }
         
-        code += from->code;
-
-        auto loop_check_emit = [](BasicBlock* from, BasicBlock* to, bool indent = false, bool is_in_loop = false, BasicBlock* loop_header = nullptr) -> std::string {
+        auto loop_check_emit = [](BasicBlock* from, BasicBlock* to, bool& needs_barrier, int level = 0, bool indent = false, bool is_in_loop = false, BasicBlock* loop_header = nullptr) -> std::string {
             if (is_in_loop) {
                 if (from == loop_header) {
                     return !indent ? "continue;\n" : "\tcontinue;\n";
@@ -2359,9 +2373,37 @@ std::string emit(BasicBlock* from, BasicBlock* to, bool indent = false, bool is_
                     return !indent ? "break;\n" : "\tbreak;\n";
                 }
             }
-            return emit(from, to, indent, is_in_loop, loop_header);
+            return emit(from, to, needs_barrier, level, indent, is_in_loop, loop_header);
         };
 
+        // Only emit the barrier if we are at the top level
+        auto barrier_check = [&]() {
+            if (needs_barrier && level == 0) {
+                code += "barrier();\n";
+                needs_barrier = false;
+            }
+        };
+
+        if (from->is_loop_header && !ignore_loop_header) {
+            code += emitLoop(from, needs_barrier, level);
+
+            if (from->loop_exits.size() > 1) {
+                Helpers::panic("Shader::emit: detected non-structured control flow (loop has multiple exits)\n");
+            }
+
+            barrier_check();
+            code += emit(*from->loop_exits.begin(), to, needs_barrier, level, false);
+            return code;
+        }
+
+        // Emit this block's code
+        code += from->code;
+
+        if (from->needs_barrier)
+            needs_barrier = true;
+
+        barrier_check();
+        
         const bool is_conditional = from->branch_to && from->fallthrough;
         emitted_blocks.insert(from);
 
@@ -2378,31 +2420,33 @@ std::string emit(BasicBlock* from, BasicBlock* to, bool indent = false, bool is_
                 const auto negated_cond = "!(" + cond + ")";
 
                 code += std::format("if ({}) {{\n", negated_cond);
-                code += loop_check_emit(from->fallthrough, merge, true, is_in_loop, loop_header);     // Emit until the merge block
+                code += loop_check_emit(from->fallthrough, merge, needs_barrier, level + 1, true, is_in_loop, loop_header);     // Emit until the merge block
                 code += "}\n";
             }
             else if (from->fallthrough == merge) {
                 // No need to negate the condition
                 code += std::format("if ({}) {{\n", cond);
-                code += loop_check_emit(from->branch_to, merge, true, is_in_loop, loop_header);     // Emit until the merge block
+                code += loop_check_emit(from->branch_to, merge, needs_barrier, level + 1, true, is_in_loop, loop_header);     // Emit until the merge block
                 code += "}\n";
             }
             else {
                 code += std::format("if ({}) {{\n", cond);
-                code += loop_check_emit(from->branch_to, merge, true, is_in_loop, loop_header);     // Emit until the merge block
+                code += loop_check_emit(from->branch_to, merge, needs_barrier, level + 1, true, is_in_loop, loop_header);     // Emit until the merge block
                 code += "} else {\n";
-                code += loop_check_emit(from->fallthrough, merge, true, is_in_loop, loop_header);
+                code += loop_check_emit(from->fallthrough, merge, needs_barrier, level + 1, true, is_in_loop, loop_header);
                 code += "}\n";
             }
 
             // Continue emitting from the merge block
-            code += loop_check_emit(merge, to, false, is_in_loop, loop_header);
+            barrier_check();
+            code += loop_check_emit(merge, to, needs_barrier, level, false, is_in_loop, loop_header);
         }
         else {
             // Unconditional. Emit the current block and it's successor, which is either the fallthrough block or the branch_to block in case of unconditional branches.
             auto* successor = from->branch_to ? from->branch_to : from->fallthrough;
             if (successor) {
-                code += loop_check_emit(successor, to, false, is_in_loop, loop_header);
+                barrier_check();
+                code += loop_check_emit(successor, to, needs_barrier, level, false, is_in_loop, loop_header);
             }
             else {
                 if (!from->is_end)
@@ -2508,6 +2552,8 @@ bool v_cmp_class_f32(float x, uint mask) {
     if (bool(mask & (1 << 0)) || bool(mask & (1 << 1))) return isnan(x);
     // Positive infinity / Negative infinity
     if (bool(mask & (1 << 9)) || bool(mask & (1 << 2))) return isinf(x);
+    // Finite
+    if ((mask & 0x1f8u) == 0x1f8u) return !isnan(x) && !isinf(x);
 
     // Others TODO
     return false;
@@ -2809,7 +2855,8 @@ bool v_cmp_class_f32(float x, uint mask) {
         }
     }
     
-    main += emit(start, nullptr);
+    bool needs_barrier = false;
+    main += emit(start, nullptr, needs_barrier, 0);
 
     shader += "\n";
     shader += const_tables;
