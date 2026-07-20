@@ -212,8 +212,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         .depthBoundsTestEnable  = cfg.depth_control.depth_bounds_enable,
         .maxDepthBounds         = cfg.max_depth_bounds,
         .minDepthBounds         = cfg.min_depth_bounds,
-        //.stencilTestEnable      = cfg.depth_control.stencil_enable,
-        .stencilTestEnable      = false,
+        .stencilTestEnable      = cfg.depth_control.stencil_enable && !disable_stencil,
         .front                  = stencil_front,
         .back                   = stencil_back
     };
@@ -311,6 +310,9 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     
     if (cfg.has_ps)
         create_layout_bindings(pixel_shader->data);
+
+    if ((vert_shader && vert_shader->data.has_gds) || (pixel_shader && pixel_shader->data.has_gds))
+        layout_bindings.push_back(vk::DescriptorSetLayoutBinding(128, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics, nullptr));
 
     // Create the descriptor set layout
     vk::DescriptorSetLayoutCreateInfo layout_info = {

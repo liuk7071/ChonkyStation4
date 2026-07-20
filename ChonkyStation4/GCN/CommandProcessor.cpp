@@ -440,13 +440,19 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
             log("DmaData: dst=%p, src=%p, size=%d\n", dst, src, size);
 
-            if (is_fill) {
-                if (dst)
-                    std::memset(dst, fill_data, size);
+            // TODO: DMA into GDS. Only fill is handled
+            if (is_fill && info.dst_sel == DmaData::DmaDataDst::Gds) {
+                renderer->fillGDS(fill_data);
             }
             else {
-                if (dst && src)
-                    std::memcpy(dst, src, size);
+                if (is_fill) {
+                    if (dst)
+                        std::memset(dst, fill_data, size);
+                }
+                else {
+                    if (dst && src)
+                        std::memcpy(dst, src, size);
+                }
             }
             break;
         }

@@ -250,11 +250,18 @@ void addFloatConstTable(std::string name, float* table, size_t size) {
 bool has_lds = false;
 void addLDS(ShaderStage stage) {
     if (has_lds) return;
+    has_lds = true;
 
     // 8192 = 32 KB / sizeof(uint)
-
     shader += stage == ShaderStage::Compute ? "shared uint lds[8192];\n" : "uint lds[8192];\n";
-    has_lds = true;
+}
+
+bool has_gds = false;
+void addGDS() {
+    if (has_gds) return;
+    has_gds = true;
+
+    shader += "layout(binding = 128, std430) buffer gds_t { uint data[]; } gds;\n";
 }
 
 std::unordered_map<int, bool> vgpr_map;
@@ -398,7 +405,7 @@ std::string setDST(const PS4::GCN::Shader::InstOperand& op, std::string val) {
     case OperandField::VectorGPR:           code = std::format("{} = {};\n", getVGPR(op.code), src);    break;
     case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                     break;
     case OperandField::VccHi:               code = std::format("vcchi = {};\n", src);                   break;
-    case OperandField::M0:                  code = "// TODO: Set M0\n";                                 break;
+    case OperandField::M0:                  code = std::format("m0 = {};\n", src);                      break;
     case OperandField::ExecLo:              code = std::format("exec = {};\n", src);                    break;
     case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                             break;
     default:    Helpers::panic("Unhandled DST %d\n", op.code);
@@ -500,25 +507,40 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         case Shader::Opcode::S_LOAD_DWORDX4: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair] = { sgpr_pair, s_load_dword_offset(instr), true};
+
+            auto desc_sgpr = descs.contains(sgpr_pair) ? descs[sgpr_pair].sgpr : sgpr_pair;
+            if (descs.contains(sgpr_pair) && descs[sgpr_pair].is_ptr)
+                Helpers::panic("trackAndCreateBuffers: double (or more) deref\n");
+
+            descs[dest_pair] = { desc_sgpr, s_load_dword_offset(instr), true};
             break;
         }
 
         case Shader::Opcode::S_LOAD_DWORDX8: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair + 0] = { sgpr_pair, s_load_dword_offset(instr) + 0u, true };
-            descs[dest_pair + 4] = { sgpr_pair, s_load_dword_offset(instr) + 4u, true };
+
+            auto desc_sgpr = descs.contains(sgpr_pair) ? descs[sgpr_pair].sgpr : sgpr_pair;
+            if (descs.contains(sgpr_pair) && descs[sgpr_pair].is_ptr)
+                Helpers::panic("trackAndCreateBuffers: double (or more) deref\n");
+
+            descs[dest_pair + 0] = { desc_sgpr, s_load_dword_offset(instr) + 0u, true };
+            descs[dest_pair + 4] = { desc_sgpr, s_load_dword_offset(instr) + 4u, true };
             break;
         }
 
         case Shader::Opcode::S_LOAD_DWORDX16: {
             const auto sgpr_pair = instr.src[0].code * 2;
             const auto dest_pair = instr.dst[0].code;
-            descs[dest_pair +  0] = { sgpr_pair, s_load_dword_offset(instr) + 0u, true };
-            descs[dest_pair +  4] = { sgpr_pair, s_load_dword_offset(instr) + 4u, true };
-            descs[dest_pair +  8] = { sgpr_pair, s_load_dword_offset(instr) + 8u, true };
-            descs[dest_pair + 12] = { sgpr_pair, s_load_dword_offset(instr) + 12u, true };
+
+            auto desc_sgpr = descs.contains(sgpr_pair) ? descs[sgpr_pair].sgpr : sgpr_pair;
+            if (descs.contains(sgpr_pair) && descs[sgpr_pair].is_ptr)
+                Helpers::panic("trackAndCreateBuffers: double (or more) deref\n");
+
+            descs[dest_pair +  0] = { desc_sgpr, s_load_dword_offset(instr) + 0u, true };
+            descs[dest_pair +  4] = { desc_sgpr, s_load_dword_offset(instr) + 4u, true };
+            descs[dest_pair +  8] = { desc_sgpr, s_load_dword_offset(instr) + 8u, true };
+            descs[dest_pair + 12] = { desc_sgpr, s_load_dword_offset(instr) + 12u, true };
             break;
         }
 
@@ -584,6 +606,10 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XY:
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZ:
         case Shader::Opcode::BUFFER_LOAD_FORMAT_XYZW:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_X:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_XY:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_XYZ:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_XYZW:
         case Shader::Opcode::BUFFER_STORE_FORMAT_X:
         case Shader::Opcode::BUFFER_STORE_FORMAT_XY:
         case Shader::Opcode::BUFFER_STORE_FORMAT_XYZ:
@@ -606,6 +632,10 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
                     || instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_XY
                     || instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZ
                     || instr.opcode == Shader::Opcode::TBUFFER_LOAD_FORMAT_XYZW
+                    || instr.opcode == Shader::Opcode::TBUFFER_STORE_FORMAT_X
+                    || instr.opcode == Shader::Opcode::TBUFFER_STORE_FORMAT_XY
+                    || instr.opcode == Shader::Opcode::TBUFFER_STORE_FORMAT_XYZ
+                    || instr.opcode == Shader::Opcode::TBUFFER_STORE_FORMAT_XYZW
                     ) {
                     buf.is_instr_typed = true;
                     buf.instr_dfmt = instr.control.mtbuf.dfmt;
@@ -1359,6 +1389,18 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::V_MBCNT_LO_U32_B32: {
+            code += "// TODO: V_MBCNT_LO_U32_B32\n";
+            code += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
+        case Shader::Opcode::V_MBCNT_HI_U32_B32: {
+            code += "// TODO: V_MBCNT_HI_U32_B32\n";
+            code += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[1]));
+            break;
+        }
+
         case Shader::Opcode::V_ADD_I32: {
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
             // TODO: Carry out
@@ -1634,6 +1676,13 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::V_CVT_PK_U8_F32: {
+            const auto shift = std::format("(({} & 3) * 8)", getSRC<Type::Uint>(instr.src[1]));
+            setDST<Type::Uint>(instr.dst[0], std::format("{} & ~(0xff << {})", getSRC<Type::Uint>(instr.src[2]), shift));
+            setDST<Type::Uint>(instr.dst[0], std::format("{} | ((uint({}) & 0xff) << {})", getSRC<Type::Uint>(instr.dst[0]), getSRC<Type::Float>(instr.src[0]), shift));
+            break;
+        }
+
         case Shader::Opcode::V_MAX_F64: {
             // TODO: This is not right
             code += setDST(instr.dst[0], std::format("max({}, {}) /* V_MAX_F64 */", getSRC(instr.src[0]), getSRC(instr.src[1])));
@@ -1641,7 +1690,14 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::V_MUL_LO_U32: {
-            code += setDST<Type::Uint>(instr.dst[0], std::format("{} * {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            code += std::format("umulExtended({}, {}, tmp_u2, tmp_u);\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            code += setDST<Type::Uint>(instr.dst[0], "tmp_u");
+            break;
+        }
+
+        case Shader::Opcode::V_MUL_HI_U32: {
+            code += std::format("umulExtended({}, {}, tmp_u, tmp_u2);\n", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]));
+            code += setDST<Type::Uint>(instr.dst[0], "tmp_u");
             break;
         }
 
@@ -1919,6 +1975,30 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::DS_CONSUME: {
+            if (!instr.control.ds.gds) {
+                Helpers::panic("DS_CONSUME: LDS\n");
+            }
+            addGDS();
+
+            const auto instr_offs = ((u32)(instr.control.ds.offset1) << 8) + instr.control.ds.offset0;
+            setDST<Type::Uint>(instr.dst[0], std::format("gds.data[m0 + {}]", instr_offs));
+            code += std::format("atomicAdd(gds.data[m0 + {}], -1);\n", instr_offs);
+            break;
+        }
+
+        case Shader::Opcode::DS_APPEND: {
+            if (!instr.control.ds.gds) {
+                Helpers::panic("DS_APPEND: LDS\n");
+            }
+            addGDS();
+
+            const auto instr_offs = ((u32)(instr.control.ds.offset1) << 8) + instr.control.ds.offset0;
+            setDST<Type::Uint>(instr.dst[0], std::format("gds.data[m0 + {}]", instr_offs));
+            code += std::format("atomicAdd(gds.data[m0 + {}], 1);\n", instr_offs);
+            break;
+        }
+
         case Shader::Opcode::DS_READ2_B64: {
             if (instr.control.ds.gds) {
                 code += "// TODO: DS_READ2_B64: GDS write\n";
@@ -1974,6 +2054,10 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_X:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_XY:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_XYZ:
+        case Shader::Opcode::TBUFFER_STORE_FORMAT_XYZW:
         case Shader::Opcode::BUFFER_STORE_FORMAT_X:
         case Shader::Opcode::BUFFER_STORE_FORMAT_XY:
         case Shader::Opcode::BUFFER_STORE_FORMAT_XYZ:
@@ -2040,6 +2124,11 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             for (int dword = 0; dword < instr.control.mubuf.count; dword++) {
                 code += std::format("{}.data[(tmp_u >> 0) + {}] = {};\n", ssbo_name, dword, getVGPR(instr.src[1].code + dword));
             }
+            break;
+        }
+
+        case Shader::Opcode::BUFFER_ATOMIC_SWAP: {
+            code += "// TODO: BUFFER_ATOMIC_SWAP\n";
             break;
         }
 
@@ -2313,8 +2402,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         default: {
-            //printf("BasicBlock so far:\n%s\n", code.c_str());
-            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            printf("BasicBlock so far:\n%s\n", code.c_str());
+            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
             code += "// TODO\n";
         }
         }
@@ -2494,6 +2583,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     has_fetch_buffer_func_map.clear();
     has_store_buffer_func_map.clear();
     has_lds = false;
+    has_gds = false;
     vgpr_map.clear();
     sgpr_map.clear();
     lane_map.clear();
@@ -2511,6 +2601,7 @@ vec4 tmp;
 ivec4 itmp;
 float tmp2[4];
 uint tmp_u;
+uint tmp_u2;
 uint addr0;
 uint addr1;
 
@@ -2518,6 +2609,7 @@ uint scc;
 uint vcc;
 uint vcchi;
 uint exec;
+uint m0;
 
 layout(push_constant, std430) uniform BufferInfo {
     uint stride[24];
@@ -2533,9 +2625,8 @@ uint getStrideForBinding(uint binding) {
     return stride;
 }
 
-int sext6(uint x) {
-    return int(x << 26) >> 26;
-}
+int sext6(uint x) { return int(x << 26) >> 26; }
+int sext24(int x) { return (x << 8) >> 8; }
 
 ivec3 unpackImageOffset(uint packed) {
     return ivec3(
@@ -2544,8 +2635,6 @@ ivec3 unpackImageOffset(uint packed) {
         sext6((packed >> 16) & 0x3fu)
     );
 }
-
-int sext24(int x) { return (x << 8) >> 8; }
 
 bool v_cmp_class_f32(float x, uint mask) {
     // Signalling NaN / Quiet NaN
@@ -2574,6 +2663,7 @@ bool v_cmp_class_f32(float x, uint mask) {
     main += "vcchi = 0;\n";
     main += "scc   = 0;\n";
     main += "exec  = 1;\n";
+    main += "m0    = 0;\n";
     if (stage == ShaderStage::Vertex) {
         getVGPR(0);
         main += "v0 = gl_VertexIndex;\n";
@@ -2875,6 +2965,7 @@ bool v_cmp_class_f32(float x, uint mask) {
 
     //printf("%s\n", shader.c_str());
     out_data.source = shader;
+    out_data.has_gds = has_gds;
 
     if (stage == ShaderStage::Vertex) {
         // Save vertex outputs

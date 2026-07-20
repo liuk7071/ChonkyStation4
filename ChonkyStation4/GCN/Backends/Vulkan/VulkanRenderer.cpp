@@ -26,11 +26,15 @@ namespace PS4::GCN::Vulkan {
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 constexpr bool enable_validation_layers = false;
-constexpr bool disable_stencil = true;
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
 std::vector<Pipeline*> curr_frame_pipelines[FRAMES_IN_FLIGHT];
 std::vector<ComputePipeline*> curr_frame_compute_pipelines[FRAMES_IN_FLIGHT];
+
+vk::Buffer gds_buf;
+VmaAllocation gds_alloc;
+vk::DescriptorBufferInfo gds_buffer_info;
+vk::WriteDescriptorSet gds_descriptor_set_write;
 
 const std::vector<char const*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
@@ -419,6 +423,34 @@ void VulkanRenderer::init() {
     for (auto& pipelines : curr_frame_compute_pipelines)
         pipelines.reserve(4096);
 
+    // Create the GDS device buffer
+    const vk::BufferCreateInfo gds_buf_create_info = {
+            .size = GDS_SIZE,
+            .usage = vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer,
+            .sharingMode = vk::SharingMode::eExclusive
+    };
+
+    VmaAllocationCreateInfo alloc_create_info;
+    alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+    alloc_create_info.flags = 0;
+    VkBuffer raw_buf;
+    vmaCreateBuffer(allocator, &*gds_buf_create_info, &alloc_create_info, &raw_buf, &gds_alloc, nullptr);
+    gds_buf = vk::Buffer(raw_buf);
+
+    gds_buffer_info = vk::DescriptorBufferInfo { .buffer = gds_buf, .offset = 0, .range = GDS_SIZE };
+    gds_descriptor_set_write = vk::WriteDescriptorSet{
+        .dstSet = nullptr,  // Unused for push descriptors
+        .dstBinding = 128,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = vk::DescriptorType::eStorageBuffer,
+        .pBufferInfo = &gds_buffer_info
+    };
+
+    // Set debug name
+    //if (device.getDispatcher()->vkSetDebugUtilsObjectNameEXT)
+    //    device.setDebugUtilsObjectNameEXT(*gds_buf, "GDS buffer");
+
     printf("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
 }
@@ -549,8 +581,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
 
-    if (!fetch_shader_ptr)
-        return;
+    //if (!fetch_shader_ptr)
+    //    return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
@@ -579,7 +611,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     // Upload buffers and get descriptor writes, as well as the push constants
     Pipeline::PushConstants* push_constants;
     auto descriptor_writes = pipeline.uploadBuffersAndTextures(&push_constants, color_attachments[0].tex, &has_feedback_loop);
-    //if (pipeline.cfg.depth_control.stencil_enable) return;
+
     // Check if we need to start a new renderpass
     if (needs_new_render_pass || !is_recording_render_block) {
         endRendering(); // Has a check for if we were recording a render block or not
@@ -637,6 +669,11 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     if (descriptor_writes.size())
         cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, descriptor_writes);
     
+    if ((pipeline.vert_shader && pipeline.vert_shader->data.has_gds) || (pipeline.pixel_shader && pipeline.pixel_shader->data.has_gds)) {
+        std::array write { gds_descriptor_set_write };
+        cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, write);
+    }
+
     // I couldn't figure out how to use the RAII version of this...
     vkCmdPushConstants(*cmd_bufs[frame_idx], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
 
@@ -668,8 +705,8 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     if (regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI] == 9)
         return;
 
-    if (!fetch_shader_ptr)
-        return;
+    //if (!fetch_shader_ptr)
+    //    return;
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
@@ -995,6 +1032,13 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     cmd_bufs[frame_idx].begin({});
 
     //Profiler::printAndReset();
+}
+
+void VulkanRenderer::fillGDS(u8 value) {
+    log("Fill GDS with value 0x%x\n", value);
+
+    endRendering();
+    cmd_bufs[frame_idx].fillBuffer(gds_buf, 0, GDS_SIZE, value);
 }
 
 }   // End namespace PS4::GCN::Vulkan

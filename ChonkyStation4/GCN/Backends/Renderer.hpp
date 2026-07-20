@@ -134,6 +134,8 @@ public:
     virtual void dispatch(ComputeJob job) = 0;
     virtual void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) = 0;
 
+    virtual void fillGDS(u8 value) = 0;
+
     u32 regs[0xd000];
     IndexType index_type = IndexType::Uint16;
     RenderTargetDimensions color_rt_dim[8];
