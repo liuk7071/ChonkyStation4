@@ -52,7 +52,7 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enabl
     // Get an image from our cache
     TrackedTexture* out_info;
     endRendering();
-    getVulkanImageInfoForTSharp(&tsharp, &out_info, true);
+    getVulkanImageInfoForTSharp(&tsharp, &out_info, true, false, vk::Format::eD32Sfloat /* unused, not a depth buffer */, true /* dont track cpu writes for this texture */);
     
     // TODO: This doesn't detect feedback loops that happen in the middle of a renderpass
     const bool was_bound = out_info->was_bound;
@@ -118,7 +118,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
 
             switch (depth->z_info.format) {
             //case 1: return vk::Format::eD16UnormS8Uint; // TODO: This format is not widely supported
-            case 1: return vk::Format::eD16Unorm;
+            //case 1: return vk::Format::eD16Unorm;
             case 3: return vk::Format::eD32SfloatS8Uint;
             //default: Helpers::panic("invalid depth format %d\n", depth->z_info.format.Value());
             default: return vk::Format::eD32SfloatS8Uint;
@@ -150,7 +150,7 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
     // Get an image from our cache
     TrackedTexture* out_info;
     endRendering();
-    getVulkanImageInfoForTSharp(&tsharp, &out_info, false, true, vk_fmt);
+    getVulkanImageInfoForTSharp(&tsharp, &out_info, false, true, vk_fmt, true);
     out_info->transition(image_layout);
     out_info->was_targeted = true;
 
@@ -165,11 +165,24 @@ Attachment getVulkanAttachmentForDepthTarget(DepthTarget* depth, bool has_stenci
         *save = false;
     }
 
+    if (depth->depth_clear_enable)
+        load_op = vk::AttachmentLoadOp::eClear;
+
     attachment.vk_attachment = vk::RenderingAttachmentInfo {
         .imageView = out_info->image_info.imageView,
         .imageLayout = image_layout,
         .loadOp = load_op,
         //.loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .clearValue = vk::ClearValue {
+            vk::ClearDepthStencilValue { reinterpret_cast<float&>(GCN::renderer->regs[Reg::mmDB_DEPTH_CLEAR]), GCN::renderer->regs[Reg::mmDB_STENCIL_CLEAR] }
+        }
+    };
+
+    attachment.stencil_vk_attachment = vk::RenderingAttachmentInfo {
+        .imageView = out_info->image_info.imageView,
+        .imageLayout = image_layout,
+        .loadOp = depth->stencil_clear_enable ? vk::AttachmentLoadOp::eClear : vk::AttachmentLoadOp::eLoad,
         .storeOp = vk::AttachmentStoreOp::eStore,
         .clearValue = vk::ClearValue {
             vk::ClearDepthStencilValue { reinterpret_cast<float&>(GCN::renderer->regs[Reg::mmDB_DEPTH_CLEAR]), GCN::renderer->regs[Reg::mmDB_STENCIL_CLEAR] }

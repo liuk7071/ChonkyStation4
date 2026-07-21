@@ -33,7 +33,7 @@ void TrackedTexture::transition(vk::ImageLayout new_layout) {
     curr_layout = new_layout;
 }
 
-void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt) {
+void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt, bool dont_track_cpu_writes) {
     const bool is_3d = tsharp->type == 10;  // COLOR 3D
     const u32 width = tsharp->width + 1;
     const u32 height = tsharp->height + 1;
@@ -168,7 +168,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                     tex->dirty = false;
                     reupload_tex(tex);
                     for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
-                        if (!Cache::resetDirty((void*)curr_page, Cache::page_size)) {
+                        if (!dont_track_cpu_writes && !Cache::resetDirty((void*)curr_page, Cache::page_size)) {
                             Cache::track((void*)curr_page, Cache::page_size, invalidate);
                         }
                     }
@@ -316,14 +316,20 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .imageLayout = vk::ImageLayout::eGeneral
     };
 
-    for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
-        Cache::track((void*)curr_page, Cache::page_size, invalidate);
+    if (!dont_track_cpu_writes) {
+        for (uptr curr_page = aligned_base; curr_page < aligned_base + aligned_size; curr_page += Cache::page_size) {
+            Cache::track((void*)curr_page, Cache::page_size, invalidate);
+        }
     }
 
     if (!is_depth_buffer)
         reupload_tex(tex);
+    
+    if (!dont_track_cpu_writes) {
+        currently_tracking.push_back(tex);
+    }
     tracked_textures[ptr].push_back(tex);
-    currently_tracking.push_back(tex);
+
     *out_info = tex;
 }
 

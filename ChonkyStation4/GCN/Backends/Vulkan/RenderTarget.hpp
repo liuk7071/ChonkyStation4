@@ -22,6 +22,7 @@ namespace PS4::GCN::Vulkan::RenderTarget {
 
 struct Attachment {
     vk::RenderingAttachmentInfo vk_attachment;
+    vk::RenderingAttachmentInfo stencil_vk_attachment;
     TrackedTexture* tex;
     bool has_feedback_loop;
 };

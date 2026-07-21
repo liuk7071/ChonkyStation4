@@ -279,7 +279,8 @@ std::string getSGPR(int n) {
     std::string reg = std::format("s{}", n);
     if (!sgpr_map.contains(n)) {
         sgpr_map[n] = true;
-        initialization += std::format("uint {} = 0;\n", reg);
+        //initialization += std::format("uint {} = 0;\n", reg);
+        initialization += std::format("uint {} = uint(-1);\n", reg);
     }
     return reg;
 }
@@ -593,6 +594,7 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         case Shader::Opcode::BUFFER_STORE_DWORDX2:
         case Shader::Opcode::BUFFER_STORE_DWORDX3:
         case Shader::Opcode::BUFFER_STORE_DWORDX4:
+        case Shader::Opcode::BUFFER_ATOMIC_SWAP:
         case Shader::Opcode::S_BUFFER_LOAD_DWORD:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX2:
         case Shader::Opcode::S_BUFFER_LOAD_DWORDX4:
@@ -651,7 +653,8 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
                 switch (instr.inst_class) {
                 case InstClass::ScalarMemRd:
                 case InstClass::VectorMemBufFmt:
-                case InstClass::VectorMemBufNoFmt: {
+                case InstClass::VectorMemBufNoFmt:
+                case InstClass::VectorMemBufAtomic: {
                     buf.desc_info.type = DescriptorType::Vsharp;
                     auto name = std::format("ssbo{}", buf.binding);
                     addInSSBO(name, buf.binding);
@@ -696,7 +699,7 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
                 };
 
             bool is_img = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp || instr.inst_class == InstClass::VectorMemImgUt;
-            bool is_vector_mem = instr.inst_class == InstClass::VectorMemBufFmt || instr.inst_class == InstClass::VectorMemBufNoFmt;
+            bool is_vector_mem = instr.inst_class == InstClass::VectorMemBufFmt || instr.inst_class == InstClass::VectorMemBufNoFmt || instr.inst_class == InstClass::VectorMemBufAtomic;
             const int idx = is_img || is_vector_mem ? 2 : 0;
             const int mult = is_img || is_vector_mem ? 4 : 2;
             const auto sgpr = instr.src[idx].code * mult;
@@ -801,6 +804,16 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         const auto instr = decoder.decodeInstruction(code_slice);
 
         code += std::format("/* {:08x} */ ", pc);
+
+        const auto is_vector = instr.category == InstCategory::VectorALU
+            || instr.category == InstCategory::VectorMemory
+            || instr.category == InstCategory::VectorInterpolation;
+        //const auto is_vector = false;
+
+        // Emit exec check for vector instructions (slow)
+        if (is_vector) {
+            code += "EXEC { ";
+        }
 
         switch (instr.opcode) {
         case Shader::Opcode::S_ENDPGM: {
@@ -1678,8 +1691,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
         case Shader::Opcode::V_CVT_PK_U8_F32: {
             const auto shift = std::format("(({} & 3) * 8)", getSRC<Type::Uint>(instr.src[1]));
-            setDST<Type::Uint>(instr.dst[0], std::format("{} & ~(0xff << {})", getSRC<Type::Uint>(instr.src[2]), shift));
-            setDST<Type::Uint>(instr.dst[0], std::format("{} | ((uint({}) & 0xff) << {})", getSRC<Type::Uint>(instr.dst[0]), getSRC<Type::Float>(instr.src[0]), shift));
+            code += setDST<Type::Uint>(instr.dst[0], std::format("{} & ~(0xff << {})", getSRC<Type::Uint>(instr.src[2]), shift));
+            code += setDST<Type::Uint>(instr.dst[0], std::format("{} | ((uint({}) & 0xff) << {})", getSRC<Type::Uint>(instr.dst[0]), getSRC<Type::Float>(instr.src[0]), shift));
             break;
         }
 
@@ -1982,8 +1995,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             addGDS();
 
             const auto instr_offs = ((u32)(instr.control.ds.offset1) << 8) + instr.control.ds.offset0;
-            setDST<Type::Uint>(instr.dst[0], std::format("gds.data[m0 + {}]", instr_offs));
-            code += std::format("atomicAdd(gds.data[m0 + {}], -1);\n", instr_offs);
+            code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(gds.data[m0 + {}], -1)", instr_offs));
             break;
         }
 
@@ -1994,8 +2006,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             addGDS();
 
             const auto instr_offs = ((u32)(instr.control.ds.offset1) << 8) + instr.control.ds.offset0;
-            setDST<Type::Uint>(instr.dst[0], std::format("gds.data[m0 + {}]", instr_offs));
-            code += std::format("atomicAdd(gds.data[m0 + {}], 1);\n", instr_offs);
+            code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(gds.data[m0 + {}], 1)", instr_offs));
             break;
         }
 
@@ -2098,10 +2109,10 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             const std::string voffset = instr.control.mubuf.offen ? getVGPR(instr.control.mubuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
             const std::string soffset = getSRC<Type::Uint>(instr.src[3]);
             const std::string instr_offs = std::format("{}", instr.control.mubuf.offset);
-            code += std::format("tmp_u = ({}) * (getStrideForBinding({}) >> 2u) + {} + {} + ({} >> 2u);\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
+            code += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {} + {};\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
 
             for (int dword = 0; dword < instr.control.mubuf.count; dword++) {
-                code += std::format("{} = {}.data[(tmp_u >> 0) + {}];\n", getVGPR(instr.src[1].code + dword), ssbo_name, dword);
+                code += std::format("{} = {}.data[(tmp_u >> 2) + {}];\n", getVGPR(instr.src[1].code + dword), ssbo_name, dword);
             }
             break;
         }
@@ -2119,16 +2130,28 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             const std::string voffset = instr.control.mubuf.offen ? getVGPR(instr.control.mubuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
             const std::string soffset = getSRC<Type::Uint>(instr.src[3]);
             const std::string instr_offs = std::format("{}", instr.control.mubuf.offset);
-            code += std::format("tmp_u = ({}) * (getStrideForBinding({}) >> 2u) + {} + {} + ({} >> 2u);\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
+            code += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {} + {};\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
 
             for (int dword = 0; dword < instr.control.mubuf.count; dword++) {
-                code += std::format("{}.data[(tmp_u >> 0) + {}] = {};\n", ssbo_name, dword, getVGPR(instr.src[1].code + dword));
+                code += std::format("{}.data[(tmp_u >> 2) + {}] = {};\n", ssbo_name, dword, getVGPR(instr.src[1].code + dword));
             }
             break;
         }
 
         case Shader::Opcode::BUFFER_ATOMIC_SWAP: {
-            code += "// TODO: BUFFER_ATOMIC_SWAP\n";
+            const auto buffer_mapping = pc;
+            Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_ATOMIC_SWAP: no buffer_mapping");  // Unreachable if everything works as intended
+            auto* buf = buffer_map[buffer_mapping];
+
+            const auto ssbo_name = std::format("ssbo{}", buf->binding);
+            const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
+            const std::string voffset = instr.control.mubuf.offen ? getVGPR(instr.control.mubuf.idxen ? instr.src[0].code + 1 : instr.src[0].code) : "0";
+            const std::string soffset = getSRC<Type::Uint>(instr.src[3]);
+            const std::string instr_offs = std::format("{}", instr.control.mubuf.offset);
+            code += std::format("tmp_u = ({}) * getStrideForBinding({}) + {} + {} + {};\n", idx, buf->binding, voffset, soffset, instr_offs);  // Is this right?
+            code += std::format("tmp_u = atomicExchange({}.data[tmp_u >> 2], {});\n", ssbo_name, getVGPR(instr.src[1].code));
+            if (instr.control.mubuf.glc)
+                code += std::format("{} = tmp_u;\n", getVGPR(instr.src[1].code));
             break;
         }
 
@@ -2410,6 +2433,10 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
         // Increment pc
         pc += instr.length;
+
+        if (is_vector) {
+            code += "}";
+        }
     }
 }
 
@@ -2594,6 +2621,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 
 #define u2f(x) uintBitsToFloat(x)
 #define f2u(x) floatBitsToUint(x)
+#define EXEC if (exec != 0)
 
 #define PI 3.14159265358979323846
 
@@ -2670,16 +2698,20 @@ bool v_cmp_class_f32(float x, uint mask) {
     } else if (stage == ShaderStage::Fragment) {
         getVGPR(2);
         getVGPR(3);
+        getVGPR(4);
         main += "v2 = f2u(gl_FragCoord.x);\n";
         main += "v3 = f2u(gl_FragCoord.y);\n";
+        main += "v4 = f2u(gl_FragCoord.z);\n";
     }
     else if (stage == ShaderStage::Compute) {
+        getSGPR(12);
         getSGPR(16);    // TODO: Register numbers hardcoded from Minecraft
         getSGPR(17);
         getSGPR(18);
         getVGPR(0);
         getVGPR(1);
         getVGPR(2);
+        main += "s12 = gl_WorkGroupID.x;\n";
         main += "s16 = gl_WorkGroupID.x;\n";
         main += "v0 = gl_LocalInvocationID.x;\n";   // TODO: Or is it the opposite? (local invocation id in SGPRs)
         main += "s17 = gl_WorkGroupID.y;\n";

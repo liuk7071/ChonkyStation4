@@ -492,7 +492,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
     vk::Extent2D extent = { 0xffffffff, 0xffffffff };
     if (((regs[Reg::mmCB_COLOR_CONTROL] >> 4) & 3) != 0) {  // CB_COLOR_CONTROL.MODE != CB_DISABLE
     //if (true) {
-        for (int i = 0; i < 8; i++) {   // TODO: Stubbed to 1 color target
+        for (int i = 0; i < 8; i++) {
             if (new_rt[i].enabled) {
                 if (color_rt_dim[i].width  < extent.width)  extent.width  = color_rt_dim[i].width;
                 if (color_rt_dim[i].height < extent.height) extent.height = color_rt_dim[i].height;
@@ -627,7 +627,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
             .colorAttachmentCount = (u32)curr_attachments.size(),
             .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
             .pDepthAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr,
-            .pStencilAttachment = (has_depth && !disable_stencil) ? &depth_attachment.vk_attachment : nullptr
+            .pStencilAttachment = (has_depth && !disable_stencil) ? &depth_attachment.stencil_vk_attachment : nullptr
         };
 
         beginRendering(render_info);
@@ -752,7 +752,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
             .colorAttachmentCount = (u32)curr_attachments.size(),
             .pColorAttachments = curr_attachments.size() ? curr_attachments.data() : nullptr,
             .pDepthAttachment = has_depth ? &depth_attachment.vk_attachment : nullptr,
-            //.pStencilAttachment = pipeline.cfg.depth_control.stencil_enable ? &depth_attachment.vk_attachment : nullptr
+            .pStencilAttachment = (has_depth && !disable_stencil) ? &depth_attachment.stencil_vk_attachment : nullptr
         };
 
         beginRendering(render_info);
@@ -829,7 +829,7 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     cmd_bufs[frame_idx].dispatch(job.dim_x, job.dim_y, job.dim_z);
 
     // TODO: Don't add a barrier after every dispatch...
-    VkMemoryBarrier barrier{
+    VkMemoryBarrier barrier {
         VK_STRUCTURE_TYPE_MEMORY_BARRIER,
         nullptr,
         VK_ACCESS_SHADER_WRITE_BIT,
@@ -1034,11 +1034,33 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     //Profiler::printAndReset();
 }
 
-void VulkanRenderer::fillGDS(u8 value) {
-    log("Fill GDS with value 0x%x\n", value);
+void VulkanRenderer::fillGDS(size_t offset, u8 value, size_t size) {
+    log("Fill GDS with offset 0x%llx value 0x%x size 0x%llx\n", offset, value, size);
 
     endRendering();
-    cmd_bufs[frame_idx].fillBuffer(gds_buf, 0, GDS_SIZE, value);
+    cmd_bufs[frame_idx].fillBuffer(gds_buf, offset, size, value);
+
+    VkBufferMemoryBarrier barrier {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        gds_buf,
+        0,
+        GDS_SIZE
+    };
+
+    vkCmdPipelineBarrier(
+        *cmd_bufs[frame_idx],
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        0,
+        0, nullptr,
+        1, &barrier,
+        0, nullptr
+    );
 }
 
 }   // End namespace PS4::GCN::Vulkan

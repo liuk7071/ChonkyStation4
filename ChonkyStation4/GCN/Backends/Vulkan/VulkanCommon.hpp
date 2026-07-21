@@ -12,7 +12,7 @@ static constexpr s32 FRAMES_IN_FLIGHT = 3;
 inline s32 frame_idx = 0;
 
 const size_t GDS_SIZE = 64_KB;
-constexpr bool disable_stencil = true;
+constexpr bool disable_stencil = false;
 
 inline vk::raii::PhysicalDevice             physical_device = nullptr;
 inline vk::raii::Device                     device = nullptr;

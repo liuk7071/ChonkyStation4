@@ -20,7 +20,7 @@ public:
     void dispatch(ComputeJob job) override;
     void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) override;
 
-    void fillGDS(u8 value) override;
+    void fillGDS(size_t offset, u8 value, size_t size) override;
 
 private:
     u64 frame_count = 0;

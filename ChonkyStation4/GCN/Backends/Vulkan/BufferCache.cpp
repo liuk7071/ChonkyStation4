@@ -256,7 +256,7 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
         nullptr,
         VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT,
+        VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
         VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED,
         vk_buf,
@@ -296,10 +296,10 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     const u64    page           = aligned_base >> page_bits;
     const u64    page_end       = page + size_in_pages;
     
-    //auto lk = std::unique_lock<std::mutex>(cache_mtx);
+    auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
     // Check if we already cached this buffer
-    if (size >= page_size / 8) {
+    if (size >= page_size) {
         auto it = cache.find(page);
         if (it != cache.end()) {
             // Check if we need to reupload the buffer
@@ -342,7 +342,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
 
     // The buffer is new - create and cache it
     CachedBuffer* buf = new CachedBuffer();
-    if (size >= page_size / 8) {
+    if (size >= page_size) {
         buf->base = (void*)aligned_base;
         buf->page = page;
         buf->page_end = page_end;

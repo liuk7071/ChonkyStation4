@@ -34,6 +34,6 @@ struct TrackedTexture {
     void transition(vk::ImageLayout new_layout);
 };
 
-void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format = false, bool is_depth_buffer = false, vk::Format depth_vk_fmt = vk::Format::eD32Sfloat);
+void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format = false, bool is_depth_buffer = false, vk::Format depth_vk_fmt = vk::Format::eD32Sfloat, bool dont_track_cpu_writes = false);
 
 } // End namespace PS4::GCN::Vulkan

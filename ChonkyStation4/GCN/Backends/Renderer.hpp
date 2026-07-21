@@ -67,6 +67,8 @@ struct DepthTarget {
     void* stencil_base = nullptr;
     u32 width = 0;
     u32 height = 0;
+    bool depth_clear_enable = false;
+    bool stencil_clear_enable = false;
     union {
         u32 raw;
         BitField<0,  2, u32> format;
@@ -92,6 +94,8 @@ struct DepthTarget {
         stencil_info.raw = other.stencil_info.raw;
         width = other.width;
         height = other.height;
+        depth_clear_enable = other.depth_clear_enable;
+        stencil_clear_enable = other.stencil_clear_enable;
         return *this;
     }
 
@@ -101,7 +105,9 @@ struct DepthTarget {
             && z_info.raw == other.z_info.raw
             && stencil_info.raw == other.stencil_info.raw
             && width == other.width
-            && height == other.height;
+            && height == other.height
+            && depth_clear_enable == other.depth_clear_enable
+            && stencil_clear_enable == other.stencil_clear_enable;
     }
 };
 
@@ -134,7 +140,7 @@ public:
     virtual void dispatch(ComputeJob job) = 0;
     virtual void flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) = 0;
 
-    virtual void fillGDS(u8 value) = 0;
+    virtual void fillGDS(size_t offset, u8 value, size_t size) = 0;
 
     u32 regs[0xd000];
     IndexType index_type = IndexType::Uint16;
@@ -233,15 +239,17 @@ public:
             //Helpers::panic("TODO: DB_Z_READ_BASE != DB_STENCIL_READ_BASE");
         }
 
-        depth->depth_base       = (void*)((u64)regs[Reg::mmDB_Z_READ_BASE] << 8);
-        depth->stencil_base     = (void*)((u64)regs[Reg::mmDB_STENCIL_READ_BASE] << 8);
-        depth->z_info.raw       = regs[Reg::mmDB_Z_INFO];
-        depth->stencil_info.raw = regs[Reg::mmDB_STENCIL_INFO];
-        depth->width            = depth_rt_dim.width;
-        depth->height           = depth_rt_dim.height;
+        depth->depth_base           = (void*)((u64)regs[Reg::mmDB_Z_READ_BASE] << 8);
+        depth->stencil_base         = (void*)((u64)regs[Reg::mmDB_STENCIL_READ_BASE] << 8);
+        depth->z_info.raw           = regs[Reg::mmDB_Z_INFO];
+        depth->stencil_info.raw     = regs[Reg::mmDB_STENCIL_INFO];
+        depth->width                = depth_rt_dim.width;
+        depth->height               = depth_rt_dim.height;
+        depth->depth_clear_enable   = regs[Reg::mmDB_RENDER_CONTROL] & 1;
+        depth->stencil_clear_enable = regs[Reg::mmDB_RENDER_CONTROL] & 0b10;
 
         // Temporary hack
-        if (stencil_only)
+        if (stencil_only && !depth->depth_base)
             depth->depth_base = depth->stencil_base;
     }
 };

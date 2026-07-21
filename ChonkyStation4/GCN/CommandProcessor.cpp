@@ -442,7 +442,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 
             // TODO: DMA into GDS. Only fill is handled
             if (is_fill && info.dst_sel == DmaData::DmaDataDst::Gds) {
-                renderer->fillGDS(fill_data);
+                renderer->fillGDS((size_t)dst_addr_lo, fill_data, size);
             }
             else {
                 if (is_fill) {
