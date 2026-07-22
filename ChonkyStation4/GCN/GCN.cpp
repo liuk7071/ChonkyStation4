@@ -10,14 +10,19 @@
 #define NOMINMAX
 #include <windows.h>
 #endif
+#include <co.hpp>
 
 
 namespace PS4::GCN {
 
 std::deque<RendererCommand> commands;
+std::deque<RendererCommand> asc_commands;
 std::counting_semaphore<256> sem { 0 };
 std::mutex mtx;
+std::mutex asc_mtx;
 int prev_flip_idx = -1;
+co::thread* asc_co;
+bool asc_co_done = true;
 
 void gcnThread() {
 #ifdef _WIN32
@@ -54,14 +59,16 @@ void gcnThread() {
         // Process the command
         switch (cmd.type) {
         case CommandType::SubmitGraphics: {
-            GCN::processCommands(cmd.dcb, cmd.dcb_size, cmd.ccb, cmd.ccb_size);
+            processAsyncCompute();
+
+            GCN::processCommands(cmd.dcb, cmd.dcb_size, cmd.ccb, cmd.ccb_size, nullptr);
             break;
         }
 
-        case CommandType::SubmitCompute: {
-            GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0);
-            break;
-        }
+        //case CommandType::SubmitCompute: {
+        //    GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0, cmd.queue);
+        //    break;
+        //}
 
         case CommandType::Flip: {
             auto port = PS4::OS::find<OS::Libs::SceVideoOut::SceVideoOutPort>(cmd.video_out_handle);
@@ -99,6 +106,38 @@ void gcnThread() {
     }
 }
 
+// Returns false if there are no compute queues to execute
+bool processAsyncCompute() {
+    if (asc_co_done) {
+        RendererCommand cmd;
+        {
+            // Acquire command queue lock
+            std::scoped_lock lk(asc_mtx);
+
+            if (asc_commands.empty())
+                return false;
+
+            // Fetch command from the queue
+            cmd = asc_commands.front();
+            asc_commands.pop_front();
+        }
+
+        asc_co_done = false;
+
+        if (!asc_co)
+            asc_co = new co::thread();
+
+        asc_co->reset([=]() {
+            GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0, cmd.queue);
+            asc_co_done = true;
+            co::active().get_parent().switch_to();
+        });
+    }
+    
+    asc_co->switch_to();
+    return true;
+}
+
 void submitRendererCommand(RendererCommand cmd) {
     {
         // Acquire command queue lock
@@ -115,7 +154,12 @@ void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
 }
 
 void submitCompute(u32* cb, size_t cb_size, OS::Libs::SceGnmDriver::ComputeQueue* queue) {
-    submitRendererCommand({ CommandType::SubmitCompute, cb, cb_size, .queue = queue });
+    {
+        // Acquire command queue lock
+        std::scoped_lock lk(asc_mtx);
+        // Push command
+        asc_commands.push_back({ CommandType::SubmitCompute, cb, cb_size, .queue = queue });
+    }
 }
 
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {

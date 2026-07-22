@@ -31,3 +31,6 @@
 [submodule "Dependencies/cpp-httplib"]
 	path = Dependencies/cpp-httplib
 	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "Dependencies/cppco"]
+	path = Dependencies/cppco
+	url = https://github.com/CzB404/cppco.git

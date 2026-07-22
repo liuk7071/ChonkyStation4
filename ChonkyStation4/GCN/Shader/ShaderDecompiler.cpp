@@ -2286,8 +2286,18 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_LOAD: no buffer_mapping");  // Unreachable if everything works as intended
             auto* buf = buffer_map[buffer_mapping];
 
+            auto* tsharp = buf->desc_info.asPtr<TSharp>();
+            const bool is_3d = tsharp ? tsharp->type == 10 : false;
+
             const auto sampler_name = std::format("tex{}", buf->binding);
-            const std::string texcoords = std::format("ivec2({}, {})", getVGPR(instr.src[0].code), getVGPR(instr.src[0].code + 1));
+
+            const int coord_reg_idx = instr.src[0].code;
+            std::string texcoords;
+            if (!is_3d)
+                texcoords = std::format("ivec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+            else
+                texcoords = std::format("ivec3(u2f({}), u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1), getVGPR(coord_reg_idx + 2));
+
             code += std::format("tmp = texelFetch({}, {}, 0);\n", sampler_name, texcoords);
             code += "tmp2 = float[](tmp.x, tmp.y, tmp.z, tmp.w);\n";
 
@@ -2425,8 +2435,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         default: {
-            printf("BasicBlock so far:\n%s\n", code.c_str());
-            Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
+            //printf("BasicBlock so far:\n%s\n", code.c_str());
+            //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
             code += "// TODO\n";
         }
         }

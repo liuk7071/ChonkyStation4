@@ -3,6 +3,7 @@
 #include <GCN/PM4.hpp>
 #include <GCN/ComputeJob.hpp>
 #include <BitField.hpp>
+#include <co.hpp>
 #include <thread>
 #include <atomic>
 
@@ -71,6 +72,33 @@ union WriteData1 {
     BitField<16, 1, u32> wr_one_addr;
     BitField<20, 1, u32> wr_confirm;
     BitField<30, 2, u32> engine_sel;
+};
+
+union ReleaseMem1 {
+    u32 raw;
+    BitField<0,  6, u32> event_type;
+    BitField<8,  4, u32> event_index;
+    BitField<12, 1, u32> tcl1_vol_action_ena;
+    BitField<13, 1, u32> tc_vol_action_ena;
+    BitField<15, 1, u32> tc_wb_action_ena;
+    BitField<16, 1, u32> tcl1__action_ena;
+    BitField<17, 1, u32> tc_action_ena;
+    BitField<25, 2, u32> cache_policy;
+};
+
+union ReleaseMem2 {
+    u32 raw;
+    BitField<16, 2, u32> dst_sel;
+    BitField<24, 3, u32> int_sel;
+    BitField<29, 3, u32> data_sel;
+};
+
+union ReleaseMem3 {
+    struct {
+        u16 gds_index;
+        u16 num_dw;
+    };
+    u32 data_lo;
 };
 
 // Constant engine
@@ -153,10 +181,12 @@ s32   n_indices = 0;
 void* indirect_args_base = nullptr;
 u64 occlusion_pixel_counter = 0;
 
-void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
+void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::Libs::SceGnmDriver::ComputeQueue* compute_queue, bool is_indirect) {
     if (ccb) {
         processCcb(ccb, ccb_size);
     }
+    
+    const bool is_compute = compute_queue != nullptr;
 
     for (u32* ptr = dcb; (u8*)ptr < (u8*)dcb + dcb_size; ) {
         PM4Header* pkt = (PM4Header*)ptr;
@@ -317,10 +347,16 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
                 }
             };
 
-            //while (!check()) {
-            //    // TODO: Use poll_interval
-            //    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            //}
+            while (!check()) {
+                if (!is_compute)
+                    GCN::processAsyncCompute();
+                else
+                    co::active().get_parent().switch_to();
+
+
+                // TODO: Use poll_interval
+                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+            }
             break;
         }
 
@@ -330,7 +366,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             const IndirectBuffer2 d2 = { .raw = *args++ };
             const u32* ptr = (u32*)(addr_lo | ((u64)d1.addr_hi << 32));
             log("IndirectBuffer: ptr=%p, size=0x%llx\n", ptr, d2.size.Value());
-            processCommands((u32*)ptr, d2.size, nullptr, 0);
+            processCommands((u32*)ptr, d2.size * sizeof(u32), nullptr, 0, compute_queue, true);
             break;
         }
 
@@ -404,6 +440,30 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             case 2: std::memcpy(dst_ptr, &data, sizeof(u32));   break;
             default: Helpers::panic("EventWriteEos: unhandled cmd %d\n", cmd);
             }
+            break;
+        }
+
+        case PM4ItOpcode::ReleaseMem: {
+            const ReleaseMem1 d1 = { .raw = *args++ };
+            const ReleaseMem2 d2 = { .raw = *args++ };
+            const u32 addr_lo = *args++;
+            const u32 addr_hi = *args++;
+            const ReleaseMem3 d3 = { .data_lo = *args++ };
+            const u32 data_hi = *args++;
+
+            void* dst_ptr = (void*)(addr_lo | ((u64)addr_hi << 32));
+            const u64 data = d3.data_lo | ((u64)data_hi << 32);
+            switch (d2.data_sel) {
+            case 0:                                                     break;      // None
+            case 1: std::memcpy(dst_ptr, &d3.data_lo,   sizeof(u32));   break;      // 32bit
+            case 2: std::memcpy(dst_ptr, &data,         sizeof(u64));   break;      // 64bit
+            default: Helpers::panic("ReleaseMem: unhandled data_sel %d\n", d2.data_sel.Value());
+            }
+
+            log("ReleaseMem: write to %p\n", dst_ptr);
+
+            if (d2.int_sel != 0)
+                log("TODO: ReleaseMem interrupt\n");
             break;
         }
 
@@ -614,6 +674,13 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
             log("Unimplemented opcode 0x%x count %d\n", (u32)pkt->opcode, (u32)pkt->count);
             break;
         }
+        }
+
+        // For async compute queues, increment the read pointer and wrap around.
+        // Size is in dwords.
+        if (is_compute && !is_indirect) {
+            *compute_queue->read_ptr_addr += pkt->count + 2;
+            *compute_queue->read_ptr_addr %= compute_queue->ring_size_dw;
         }
 
         ptr += pkt->count + 2;

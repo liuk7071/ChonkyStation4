@@ -112,10 +112,14 @@ endif()
 if(WIN32)
     target_link_libraries(ChonkyStation4 PRIVATE Ws2_32 pthreadVC3)
 endif()
-target_link_libraries(ChonkyStation4 PRIVATE Zydis SDL2-static xxHash::xxhash miniz)
 
 target_include_directories(ChonkyStation4 PRIVATE Dependencies/asio/include)
 target_include_directories(ChonkyStation4 PRIVATE Dependencies/cpp-httplib)
+target_include_directories(ChonkyStation4 PRIVATE Dependencies/cppco/thirdparty/libco/include)
+target_include_directories(ChonkyStation4 PRIVATE Dependencies/cppco/include)
+add_subdirectory(Dependencies/cppco)
+
+target_link_libraries(ChonkyStation4 PRIVATE Zydis SDL2-static xxHash::xxhash miniz cppco)
 
 # Vulkan
 find_package(Vulkan REQUIRED)

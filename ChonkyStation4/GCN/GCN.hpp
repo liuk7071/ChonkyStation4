@@ -48,6 +48,7 @@ inline std::unique_ptr<Renderer> renderer;
 inline OS::Libs::Kernel::EventSource eop_ev_source;
 
 void gcnThread();
+bool processAsyncCompute();
 void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size);
 void submitCompute(u32* cb, size_t cb_size, OS::Libs::SceGnmDriver::ComputeQueue* queue);
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg);

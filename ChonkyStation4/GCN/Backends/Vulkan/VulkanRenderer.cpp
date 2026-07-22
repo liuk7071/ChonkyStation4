@@ -540,7 +540,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
             || depth_attachment.tex->curr_layout != vk::ImageLayout::eDepthStencilAttachmentOptimal
             ) {
             bool save = false;
-            depth_attachment = RenderTarget::getVulkanAttachmentForDepthTarget(&new_depth_rt, pipeline->cfg.depth_control.stencil_enable, &save);
+            depth_attachment = RenderTarget::getVulkanAttachmentForDepthTarget(&new_depth_rt, stencil_enabled, &save);
 
             if (save)
                 last_depth_rt = new_depth_rt;
