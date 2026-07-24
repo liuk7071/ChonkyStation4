@@ -86,6 +86,7 @@ void gcnThread() {
             OS::Libs::SceVideoOut::sceVideoOutGetBufferLabelAddress(cmd.video_out_handle, (void**)&buf_label);
             buf_label[cmd.buf_idx] = 1;
             renderer->flip(&OS::Libs::SceVideoOut::bufs[cmd.buf_idx]);
+            global_flip_counter++;
 
             // Signal SceVideoOut port event queues
             port->signalFlip(cmd.flip_arg);

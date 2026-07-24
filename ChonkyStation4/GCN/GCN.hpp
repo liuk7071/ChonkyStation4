@@ -17,6 +17,8 @@ namespace PS4::GCN {
 
 static constexpr u32 EOP_EVENT_ID = 0x40;
 
+inline std::atomic<u64> global_flip_counter = 0;
+
 enum class CommandType {
     SubmitGraphics,
     SubmitCompute,

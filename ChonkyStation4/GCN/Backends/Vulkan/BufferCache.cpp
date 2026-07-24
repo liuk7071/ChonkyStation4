@@ -2,6 +2,7 @@
 #include <Logger.hpp>
 #include <Profiler.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
+#include <GCN/GCN.hpp>
 #include <xxhash.h>
 #include <unordered_map>
 #include <mutex>
@@ -30,6 +31,9 @@ struct CachedBuffer {
     void* mapping = nullptr;
     VmaAllocation   staging_alloc;
     VmaAllocation   alloc;
+    //u64 last_used_frame = 0;
+    //u64 last_base_used_frame = 0;
+    //std::vector<u64> last_used_page_frame;
 
     void protect(u64 page_to_protect) {
 #ifdef _WIN32
@@ -116,6 +120,9 @@ static LONG CALLBACK exceptionHandler(EXCEPTION_POINTERS* info) noexcept {
         buf->dirty = true;
         buf->dirty_pages[page - buf->page] = true;
         cache[page]->unprotect(page - buf->page);
+
+        //printf("addr %p base %p size %lld last used (all/base) %d/%d frames ago\n", addr, buf->base, buf->size, GCN::global_flip_counter - buf->last_used_frame, GCN::global_flip_counter - buf->last_base_used_frame);
+        //printf("page was bound %d frames ago\n", GCN::global_flip_counter - buf->last_used_page_frame[page - buf->page]);
     }
 
     if (tracked.contains(page)) {
@@ -154,7 +161,7 @@ void init() {
         allocations.reserve(10000);
 }
 
-void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
+void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0) {
     //Profiler::Scope profiler("updateBuffer");
     auto& staging_vk_buf    = buf->staging_buf;
     auto& vk_buf            = buf->buf;
@@ -229,7 +236,7 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf) {
     else {
         // Only reupload dirty pages of the buffer
         // Merge neighboring pages together instead of doing individual page uploads
-        size_t page = 0;
+        size_t page = starting_page;
         auto& dirty_pages = buf->dirty_pages;
         while (page < dirty_pages.size()) {
             // Skip non-dirty pages
@@ -298,8 +305,10 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
+    const bool is_hash = size < page_size / 4;
+
     // Check if we already cached this buffer
-    if (size >= page_size) {
+    if (!is_hash) {
         auto it = cache.find(page);
         if (it != cache.end()) {
             // Check if we need to reupload the buffer
@@ -321,6 +330,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
                     }
                     
                     buf->dirty_pages.resize(buf->page_end - buf->page);
+                    //buf->last_used_page_frame.resize(buf->page_end - buf->page);
                 }
 
                 updateBuffer(buf, size_changed);    // Will re-protect dirty pages
@@ -329,6 +339,12 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
             }
 
             // Return the buffer
+            //buf->last_used_frame = GCN::global_flip_counter;
+            //if (buf->base == base)
+            //    buf->last_base_used_frame = GCN::global_flip_counter;
+            //for (u64 p = 0; p < size_in_pages; p++)
+            //    buf->last_used_page_frame[page - ((uptr)buf->base >> Cache::page_bits) + p] = GCN::global_flip_counter;
+            
             return { buf->buf, (uptr)base - (uptr)buf->base, was_dirty };
         }
     }
@@ -342,12 +358,15 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
 
     // The buffer is new - create and cache it
     CachedBuffer* buf = new CachedBuffer();
-    if (size >= page_size) {
+    if (!is_hash) {
         buf->base = (void*)aligned_base;
         buf->page = page;
         buf->page_end = page_end;
         buf->size = aligned_size;
         buf->dirty_pages.resize(size_in_pages);
+        //buf->last_used_page_frame.resize(size_in_pages);
+        //buf->last_used_frame = GCN::global_flip_counter;
+        //buf->last_base_used_frame = GCN::global_flip_counter;
 
         for (u64 i = 0; i < size_in_pages; i++) {
             auto it = cache.find(page + i);
@@ -356,6 +375,8 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
 
             cache[page + i] = buf;
             buf->protect(i);
+
+            //buf->last_used_page_frame[i] = GCN::global_flip_counter;
         }
     }
     else {
@@ -457,6 +478,14 @@ void track(void* base, size_t size, std::function<void(uptr)> callback) {
     for (u64 i = 0; i < size_in_pages; i++)
         tracked[page + i] = buf;
     buf->protect();
+}
+
+// Unprotects a page
+void unprotect(u64 page) {
+    auto buf = tracked.find(page);
+    if (buf != tracked.end())
+        buf->second->unprotect();
+    else printf("Cache::unprotect: page 0x%llx was not tracked\n", page);
 }
 
 // Re-enables memory protection and resets the dirty flag.

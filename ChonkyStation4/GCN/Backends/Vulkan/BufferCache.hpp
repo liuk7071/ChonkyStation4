@@ -17,6 +17,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size);
 void barrier();
 std::pair<vk::Buffer, void*> getMappedBufferForFrame(size_t size);
 void track(void* base, size_t size, std::function<void(uptr)> callback);
+void unprotect(u64 page);
 bool resetDirty(void* base, size_t size);
 bool isDirty(void* base, size_t size);
 void clear();

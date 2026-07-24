@@ -135,6 +135,13 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             auto& tracked_tex = *it;
             if (Helpers::inRangeSized<uptr>(addr, (uptr)tracked_tex->base, tracked_tex->size)) {
                 tracked_tex->dirty = true;
+
+                // Unprotect the other pages to reduce the number of page faults.
+                //const uptr   base = Helpers::alignDown<uptr>((uptr)tracked_tex->base, Cache::page_size);
+                //const uptr   end = Helpers::alignUp<uptr>((uptr)tracked_tex->base + tracked_tex->size, Cache::page_size);
+                //for (u64 page = base >> Cache::page_bits; page < (end >> Cache::page_bits); page++)
+                //    Cache::unprotect(page);
+
                 it = currently_tracking.erase(it);
             }
             else it++;

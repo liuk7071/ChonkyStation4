@@ -1,6 +1,7 @@
 #include "PlayStation4.hpp"
 #include <Loaders/App.hpp>
 #include <Loaders/App/AppLoader.hpp>
+#include <Loaders/ELF/CodePatcher.hpp>
 #include <Loaders/Linker/Linker.hpp>
 #include <OS/Thread.hpp>
 #include <OS/Filesystem.hpp>
@@ -59,6 +60,11 @@ void loadAndRun(const fs::path& path) {
             log_out.write(base_address_str.c_str(), base_address_str.length());
         }
         log_out.close();
+
+        // Game specific patches. Move these elsewhere when I have a proper patch system.
+        if (g_app.title_id == "CUSA00107") {
+            Loader::ELF::patchRedZone((u8*)0x8000D86F30, (u8*)0x8000D87189, (u8*)0x8000D86F30, (size_t)0xD86F3A - (size_t)0xD86F30, (u8*)0x8000D8717F, (size_t)0xD8718A - (size_t)0xD8717F);
+        }
 
         g_app.run();
     }
