@@ -850,6 +850,8 @@ void VulkanRenderer::dispatch(ComputeJob job) {
 
 static bool fullscreen = false;
 static bool force_recreate_swapchain = false;
+static int texture_free_counter = 0;
+static constexpr int FREE_TEXTURES_EVERY_N_FRAMES = 5000;
 void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     endRendering();
     
@@ -1030,6 +1032,11 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     cmd_bufs[frame_idx].reset();
     advanceSwapchain();
     cmd_bufs[frame_idx].begin({});
+
+    if (texture_free_counter++ >= FREE_TEXTURES_EVERY_N_FRAMES) {
+        Vulkan::freeUnusedTextures();
+        texture_free_counter = 0;
+    }
 
     //Profiler::printAndReset();
 }

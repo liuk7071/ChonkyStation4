@@ -94,7 +94,10 @@ void* threadStart(Thread* thread) {
     // The static TLS is allocated before the TCB
     static constexpr size_t tcb_size = 0x40;
     auto [tls_image_ptr, tls_image_size, tls_mem_size] = g_app.getTLSImage(0);
-    guest_tls_ptr = (u8*)std::malloc(tls_mem_size + tcb_size) + tls_mem_size;
+    const auto tls_size = tls_mem_size + tcb_size;
+    thread->tls_size = tls_size;
+
+    guest_tls_ptr = (u8*)std::malloc(tls_size) + tls_mem_size;
     std::memset((u8*)guest_tls_ptr - tls_mem_size, 0, tls_mem_size + tcb_size);
     std::memcpy((u8*)guest_tls_ptr - tls_mem_size, tls_image_ptr, tls_image_size);
     

@@ -212,10 +212,14 @@ s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
 
 void PS4_FUNC kernel_pthread_exit(void* status) {
     log("pthread_exit(status=%p)\n", status);
-    
+
     auto& thread = findThread(kernel_pthread_self());
     thread.exited = true;
     thread.ret_val = status;
+
+    // Free TLS before exiting
+    //std::free(Thread::guest_tls_ptr);
+
 #ifdef _WIN32
     TerminateThread(GetCurrentThread(), 0);
 #else

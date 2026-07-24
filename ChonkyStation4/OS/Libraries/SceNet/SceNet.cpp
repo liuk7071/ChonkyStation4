@@ -39,6 +39,10 @@ void init(Module& module) {
 
     module.addSymbolExport("TU-d9PfIHPM", "socket", "libkernel", "libkernel", (void*)&kernel_socket);
     module.addSymbolExport("TU-d9PfIHPM", "socket", "libScePosix", "libkernel", (void*)&kernel_socket);
+    module.addSymbolExport("fZOeZIOEmLw", "send", "libkernel", "libkernel", (void*)&kernel_send);
+    module.addSymbolExport("fZOeZIOEmLw", "send", "libScePosix", "libkernel", (void*)&kernel_send);
+    module.addSymbolExport("Ez8xjo9UF4E", "recv", "libkernel", "libkernel", (void*)&kernel_recv);
+    module.addSymbolExport("Ez8xjo9UF4E", "recv", "libScePosix", "libkernel", (void*)&kernel_recv);
 
     module.addSymbolExport("C4UgDHHPvdw", "sceNetResolverCreate", "libSceNet", "libSceNet", (void*)&sceNetResolverCreate);
     module.addSymbolExport("Nd91WaWmG2w", "sceNetResolverStartNtoa", "libSceNet", "libSceNet", (void*)&sceNetResolverStartNtoa);
@@ -117,6 +121,20 @@ SceNetId PS4_FUNC sceNetEpollCreate(const char* name, int flags) {
 s32 PS4_FUNC sceNetEpollControl(SceNetId eid, s32 op, SceNetId id, SceNetEpollEvent* event) {
     log("sceNetEpollControl(eid=%d, op=%d, id=%d, event=*%p)\n", eid, op, id, event);
     
+    if (!eid) {
+        printf("sceNetEpollControl: eid is 0\n");
+        return SCE_OK;
+        *sceNetErrnoLoc() = POSIX_EBADF;
+        return SCE_KERNEL_ERROR_EBADF;  // Should be SCE_NET error
+    }
+
+    if (!id) {
+        printf("sceNetEpollControl: id is 0\n");
+        return SCE_OK;
+        *sceNetErrnoLoc() = POSIX_EBADF;
+        return SCE_KERNEL_ERROR_EBADF;  // Should be SCE_NET error
+    }
+
     auto* epoll = OS::find<SceNetEpoll>(eid);
     if (!epoll) {
         Helpers::panic("sceNetEpollControl: epoll %d does not exist\n", eid);
@@ -411,6 +429,16 @@ s32 PS4_FUNC sceNetGetsockopt(SceNetId s, s32 level, s32 option_name, void* val,
 s32 PS4_FUNC kernel_socket(s32 family, s32 type, s32 protocol) {
     log("socket(family=%d, type=%d, protocol=%d) [forwarding to sceNetSocket]\n");
     return sceNetSocket("unnamed", family, type, protocol);
+}
+
+s32 PS4_FUNC kernel_send(SceNetId s, const void* buf, size_t len, int flags) {
+    log("send(s=%d, buf=%p, len=%lld, flags=%d) [forwarding to sceNetSend]\n", s, buf, len, flags);
+    return sceNetSend(s, buf, len, flags);
+}
+
+s32 PS4_FUNC kernel_recv(SceNetId s, void* buf, size_t len, int flags) {
+    log("recv(s=%d, buf=%p, len=%lld, flags=%d) [forwarding to sceNetRecv]\n", s, buf, len, flags);
+    return sceNetRecv(s, buf, len, flags);
 }
 
 SceNetId PS4_FUNC sceNetResolverCreate(const char* name, s32 memid, s32 flags) {

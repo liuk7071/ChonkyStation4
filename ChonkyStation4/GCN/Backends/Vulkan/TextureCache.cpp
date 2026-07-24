@@ -2,6 +2,7 @@
 #include "TextureCache.hpp"
 #include <Logger.hpp>
 #include <Profiler.hpp>
+#include <GCN/GCN.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/Detiler/gpuaddr.h>
@@ -133,6 +134,11 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     auto invalidate = [&](uptr addr) {
         for (auto it = currently_tracking.begin(); it != currently_tracking.end(); ) {
             auto& tracked_tex = *it;
+            if (!tracked_tex) {
+                it = currently_tracking.erase(it);
+                continue;
+            }
+
             if (Helpers::inRangeSized<uptr>(addr, (uptr)tracked_tex->base, tracked_tex->size)) {
                 tracked_tex->dirty = true;
 
@@ -162,6 +168,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                ) {
                 auto* tex = tracked_tex;
                 if (is_depth_buffer && !tex->is_depth_buffer) {
+                    //Profiler::add("Dead textures", 1);
                     tex->dead = true;
                     continue;
                 }
@@ -182,6 +189,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                     currently_tracking.push_back(tex);
                 }
 
+                tex->last_used_frame = GCN::global_flip_counter;
                 *out_info = tex;
                 return;
             }
@@ -198,6 +206,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     //std::ofstream out;
     //out.open(std::format("{}_{}_{}_{}.bin", width, height, pitch, (tsharp->base_address << 8)), std::ios::binary);
     //out.write((char*)(tsharp->base_address << 8), img_size);
+
+    //Profiler::add("New textures", 1);
 
     // Create image
     TrackedTexture* tex = new TrackedTexture();
@@ -335,9 +345,37 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     if (!dont_track_cpu_writes) {
         currently_tracking.push_back(tex);
     }
+    
     tracked_textures[ptr].push_back(tex);
 
+    tex->last_used_frame = GCN::global_flip_counter;
     *out_info = tex;
+}
+
+void freeUnusedTextures() {
+    constexpr u64 treshold = 1000;
+    for (auto it = tracked_textures.begin(); it != tracked_textures.end(); ) {
+        for (auto tex = it->second.begin(); tex != it->second.end(); ) {
+            if ((GCN::global_flip_counter - (*tex)->last_used_frame) > treshold) {
+                // Unprotect
+                const uptr   base = Helpers::alignDown<uptr>((uptr)(*tex)->base, Cache::page_size);
+                const uptr   end = Helpers::alignUp<uptr>((uptr)(*tex)->base + (*tex)->size, Cache::page_size);
+                for (u64 page = base >> Cache::page_bits; page < (end >> Cache::page_bits); page++)
+                    Cache::unprotect(page);
+
+                //Profiler::add("Released textures", 1);
+                delete *tex;
+                tex = it->second.erase(tex);
+            }
+            else
+                tex++;
+        }
+
+        if (it->second.empty())
+            it = tracked_textures.erase(it);
+        else
+            it++;
+    }
 }
 
 } // End namespace PS4::GCN::Vulkan

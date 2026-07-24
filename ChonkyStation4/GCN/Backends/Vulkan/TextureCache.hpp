@@ -31,9 +31,12 @@ struct TrackedTexture {
     vk::ImageLayout curr_layout = vk::ImageLayout::eUndefined;
     vk::DescriptorImageInfo image_info;
     vk::DescriptorImageInfo image_info_general;
+    u64 last_used_frame = 0;
+
     void transition(vk::ImageLayout new_layout);
 };
 
 void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format = false, bool is_depth_buffer = false, vk::Format depth_vk_fmt = vk::Format::eD32Sfloat, bool dont_track_cpu_writes = false);
+void freeUnusedTextures();
 
 } // End namespace PS4::GCN::Vulkan

@@ -485,7 +485,7 @@ void unprotect(u64 page) {
     auto buf = tracked.find(page);
     if (buf != tracked.end())
         buf->second->unprotect();
-    else printf("Cache::unprotect: page 0x%llx was not tracked\n", page);
+    //else printf("Cache::unprotect: page 0x%llx was not tracked\n", page);
 }
 
 // Re-enables memory protection and resets the dirty flag.

@@ -109,6 +109,9 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     cfg.z_offset = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_ZOFFSET]);
     cfg.z_scale  = reinterpret_cast<const float&>(regs[Reg::mmPA_CL_VPORT_ZSCALE]);
 
+    // Culling & other
+    cfg.culling_poly_control.raw = regs[Reg::mmPA_SU_SC_MODE_CNTL];
+
     // Clip space
     cfg.dx_clip_space_enable = (regs[Reg::mmPA_CL_CLIP_CNTL] >> 19) & 1;
 
@@ -142,6 +145,8 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     if (cfg.viewport_control.y_scale_enable)  XXH3_64bits_update(state, &cfg.y_scale, sizeof(cfg.y_scale));
     if (cfg.viewport_control.z_offset_enable) XXH3_64bits_update(state, &cfg.z_offset, sizeof(cfg.z_offset));
     if (cfg.viewport_control.z_scale_enable)  XXH3_64bits_update(state, &cfg.z_scale,  sizeof(cfg.z_scale));
+
+    XXH3_64bits_update(state, &cfg.culling_poly_control, sizeof(cfg.culling_poly_control));
     XXH3_64bits_update(state, &cfg.dx_clip_space_enable, sizeof(cfg.dx_clip_space_enable));
     XXH3_64bits_update(state, &cfg.binding_hash, sizeof(cfg.binding_hash));
 
@@ -163,7 +168,7 @@ ComputePipeline& getComputePipeline(const ComputeJob& job) {
     // Compile shader (or get the cached one)
     ShaderCache::CachedShader* compute_shader = ShaderCache::getShader(compute_shader_code, Shader::ShaderStage::Compute, nullptr, const_cast<ComputeJob*>(&job));
 
-    if (pipelines.contains(compute_shader->data.hash))
+    if (compute_pipelines.contains(compute_shader->data.hash))
         return *compute_pipelines[compute_shader->data.hash];
 
     log("Compiling new compute pipeline\n");

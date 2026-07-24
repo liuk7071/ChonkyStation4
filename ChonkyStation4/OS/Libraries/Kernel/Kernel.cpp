@@ -91,6 +91,8 @@ void init(Module& module) {
     module.addSymbolExport("ttHNfU+qDBU", "pthread_mutex_init", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("cmo1RIYva9o", "scePthreadMutexInit", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
     module.addSymbolExport("qH1gXoq71RY", "scePthreadMutexInitForInternalLibc", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_init);
+    module.addSymbolExport("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_destroy);
+    module.addSymbolExport("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_destroy);
     module.addSymbolExport("2Of0f+3mhhE", "scePthreadMutexDestroy", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_destroy);
 
     module.addSymbolExport("mKoTx03HRWA", "pthread_condattr_init", "libkernel", "libkernel", (void*)&kernel_pthread_condattr_init);
@@ -312,8 +314,6 @@ void init(Module& module) {
     module.addSymbolStub("sCJd99Phct0", "scePthreadSetcanceltype", "libkernel", "libkernel");
     module.addSymbolStub("oVZ+-KgZJGo", "scePthreadSetDefaultstacksize", "libkernel", "libkernel");
     module.addSymbolStub("AUXVxWeJU-A", "sceKernelUnlink", "libkernel", "libkernel");
-    module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libkernel", "libkernel");
-    module.addSymbolStub("ltCfaGr2JGE", "pthread_mutex_destroy", "libScePosix", "libkernel");
     module.addSymbolStub("5txKfcMUAok", "pthread_mutexattr_setprotocol", "libkernel", "libkernel");
     module.addSymbolStub("5txKfcMUAok", "pthread_mutexattr_setprotocol", "libScePosix", "libkernel");
     module.addSymbolStub("EXv3ztGqtDM", "pthread_mutexattr_setpshared", "libkernel", "libkernel");
@@ -374,8 +374,6 @@ void init(Module& module) {
     module.addSymbolStub("fFxGkxF2bVo", "setsockopt", "libScePosix", "libkernel");
     module.addSymbolStub("T8fER+tIGgk", "select", "libkernel", "libkernel");
     module.addSymbolStub("T8fER+tIGgk", "select", "libScePosix", "libkernel");
-    module.addSymbolStub("fZOeZIOEmLw", "send", "libKernel", "libkernel");
-    module.addSymbolStub("fZOeZIOEmLw", "send", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
     module.addSymbolStub("5dgOEPsEGqw", "scePthreadBarrierInit", "libkernel", "libkernel");
@@ -943,20 +941,27 @@ s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
     log("sceKernelReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
 
     // TODO: Implement properly
-    auto to_free = len;
-    while (to_free) {
-        if (dmem_virt_map.contains((u64)addr)) {
-            log("releasing memory\n");
-            void* virt_addr = dmem_virt_map[(u64)addr];
-            const auto size = std::min(dmem_size_map[(u64)addr], to_free);
-            sceKernelMunmap(virt_addr, size);
-            virt_dmem_map.erase(virt_addr);
-            dmem_virt_map.erase((u64)addr);
-            dmem_size_map.erase((u64)addr);
-            addr = (void*)((u64)addr + 1);
-            to_free -= size;
-        }
-        else break;
+    //auto to_free = len;
+    //while (to_free) {
+    //    if (dmem_virt_map.contains((u64)addr)) {
+    //        log("releasing memory\n");
+    //        void* virt_addr = dmem_virt_map[(u64)addr];
+    //        const auto size = std::min(dmem_size_map[(u64)addr], to_free);
+    //        sceKernelMunmap(virt_addr, size);
+    //        virt_dmem_map.erase(virt_addr);
+    //        dmem_virt_map.erase((u64)addr);
+    //        dmem_size_map.erase((u64)addr);
+    //        addr = (void*)((u64)addr + 1);
+    //        to_free -= size;
+    //    }
+    //    else break;
+    //}
+    if (dmem_virt_map.contains((u64)addr)) {
+        log("releasing memory\n");
+        void* virt_addr = dmem_virt_map[(u64)addr];
+        sceKernelMunmap(virt_addr, len);
+        virt_dmem_map.erase(virt_addr);
+        dmem_virt_map.erase((u64)addr);
     }
     return SCE_OK;
 }

@@ -132,13 +132,20 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         .scissorCount = 1,
         .pNext = &depth_clip_control
     };
-    
+
+    vk::CullModeFlags cull_mode = vk::CullModeFlagBits::eNone;
+    if (cfg.culling_poly_control.cull_back == 1)
+        cull_mode |= vk::CullModeFlagBits::eBack;
+
+    if (cfg.culling_poly_control.cull_front == 1)
+        cull_mode |= vk::CullModeFlagBits::eFront;
+
     vk::PipelineRasterizationStateCreateInfo rasterizer = {
         .depthClampEnable = cfg.enable_depth_clamp,
         .rasterizerDiscardEnable = vk::False,
         .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eNone,
-        .frontFace = vk::FrontFace::eClockwise,
+        .cullMode = cull_mode,
+        .frontFace = (cfg.culling_poly_control.cw_front_face == 1) ? vk::FrontFace::eClockwise : vk::FrontFace::eCounterClockwise,
         .depthBiasEnable = vk::False,
         .depthBiasSlopeFactor = 1.0f,
         .lineWidth = 1.0f

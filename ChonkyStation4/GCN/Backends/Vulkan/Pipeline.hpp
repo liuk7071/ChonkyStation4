@@ -155,6 +155,23 @@ union ViewportTransformControl {
     BitField<10, 1, u32> vtx_w0_fmt;
 };
 
+union CullingAndPolymodeControl {
+    u32 raw;
+    BitField<0, 1, u32> cull_front;
+    BitField<1, 1, u32> cull_back;
+    BitField<2, 1, u32> cw_front_face;
+    // POLY_MODE
+    // POLYGON_FRONT_PTYPE
+    // POLYMODE_BACK_PTYPE
+    // POLY_OFFSET_FRONT_ENABLE
+    // POLY_OFFSET_BACK_ENABLE
+    // POLY_OFFSET_PARA_ENABLE
+    // VTX_WINDOW_OFFSET_ENABLE
+    // PROVOKING_VTX_LAST
+    // PERSP_CORR_DIS
+    // MULTI_PRIM_IB_ENA
+};
+
 struct PipelineConfig {
     // Shader
     bool has_vs = false;
@@ -190,6 +207,9 @@ struct PipelineConfig {
     float y_scale = 0.0f;   
     float z_offset = 0.0f;
     float z_scale  = 0.0f;
+
+    // Culling & other
+    CullingAndPolymodeControl culling_poly_control;
 
     // Clip space
     bool dx_clip_space_enable = false;

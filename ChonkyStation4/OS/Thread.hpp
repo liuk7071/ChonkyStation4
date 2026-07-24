@@ -12,10 +12,10 @@ namespace PS4::OS::Thread {
 
 using ThreadStartFunc = PS4_FUNC void* (*)(void* args);
 
-inline  thread_local void* guest_tls_ptr;    // TLS pointer of the main executable's TLS image
-inline  thread_local std::unordered_map<u32, void*> tls_map; // Map TLS module ID to pointer
-inline  u64 guest_tls_ptr_offs;
-inline  bool initialized = false;
+inline thread_local void* guest_tls_ptr;    // TLS pointer of the main executable's TLS image
+inline thread_local std::unordered_map<u32, void*> tls_map; // Map TLS module ID to pointer
+inline u64 guest_tls_ptr_offs;
+inline bool initialized = false;
 
 static s32 next_tid = 1;
 class Thread {
@@ -32,6 +32,7 @@ public:
     void* args;
     bool exited = false;
     void* ret_val = nullptr;
+    size_t tls_size = 0;
 
     pthread_t& getPThread() { return thread; }
     s32        getTID()     { return tid;    }
