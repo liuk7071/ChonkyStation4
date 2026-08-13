@@ -109,7 +109,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL && tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_ALIGNED) {
             ////Profiler::add("Detiled textures", 1);
             //Profiler::Scope profiler("Detiler time");
-            const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)tsharp);
+            const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)&tex->tsharp);
             GpaTextureInfo out_tex_info = tex_info;
             out_tex_info.tm = GNM_TM_DISPLAY_LINEAR_GENERAL;
 
@@ -207,6 +207,10 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                 && (tracked_tex->depth == depth || !is_3d)
                 && tracked_tex->tsharp.data_format == tsharp->data_format
                 && (tracked_tex->tsharp.num_format == tsharp->num_format || dont_match_num_format)
+                //&& tracked_tex->tsharp.dst_sel_x == tsharp->dst_sel_x
+                //&& tracked_tex->tsharp.dst_sel_y == tsharp->dst_sel_y
+                //&& tracked_tex->tsharp.dst_sel_z == tsharp->dst_sel_z
+                //&& tracked_tex->tsharp.dst_sel_w == tsharp->dst_sel_w
                ) {
                 auto* tex = tracked_tex;
                 if (is_depth_buffer && !tex->is_depth_buffer) {
@@ -329,7 +333,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             0, 1
         },
 
-        // TODO: You can in theory change the T# swizzling without changing the texture itself.
         .components = {
             swizzle_map[tsharp->dst_sel_x],
             swizzle_map[tsharp->dst_sel_y],

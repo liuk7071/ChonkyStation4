@@ -155,6 +155,15 @@ s32 PS4_FUNC sceKernelAddUserEvent(SceKernelEqueue eq, s32 id) {
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceKernelAddTimerEvent(SceKernelEqueue eq, s32 id, u32 us, void* udata) {
+    log("sceKernelAddTimerEvent(eq=%p, id=%d, us=%d, udata=%p)\n", eq, id, us, udata);
+
+    // TODO
+    // Used by LBP3 for input
+    eq->has_hr_timer_event = true;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceKernelAddHRTimerEvent(SceKernelEqueue eq, s32 id, SceKernelTimespec* timespec, void* udata) {
     log("sceKernelAddHRTimerEvent(eq=%p, id=%d, timespec=*%p, udata=%p)\n", eq, id, timespec, udata);
     

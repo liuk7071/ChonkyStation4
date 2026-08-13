@@ -34,6 +34,7 @@ void init(Module& module) {
     module.addSymbolStub("N5KDtkIjjJ4", "sceVideoOutUnregisterBuffers", "libSceVideoOut", "libSceVideoOut"); // TODO: Important
     module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
+    module.addSymbolStub("MTxxrOCeSig", "sceVideoOutSetWindowModeMargins", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pjkDsgxli6c", "sceVideoOutModeSetAny_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("N1bEoJ4SRw4", "sceVideoOutConfigureOutputMode_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("kGVLc3htQE8", "sceVideoOutGetDeviceCapabilityInfo_", "libSceVideoOut", "libSceVideoOut");

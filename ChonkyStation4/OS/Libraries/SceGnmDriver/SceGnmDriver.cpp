@@ -67,6 +67,8 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("Kx-h-nWQJ8A", "sceGnmSetCsShaderWithModifier", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("vckdzbQ46SI", "sceGnmSetLsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("VJNjFtqiF5w", "sceGnmSetHsShader", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("UJwNuMBcUAk", "sceGnmSetGsShader", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("FUHG8sQ3R58", "sceGnmSetEsShader", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("1qXLHIpROPE", "sceGnmInsertWaitFlipDone", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("W1Etj-jlW7Y", "sceGnmInsertPushMarker", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("7qZVNgEu+SY", "sceGnmInsertPopMarker", "libSceGnmDriver", "libSceGnmDriver");
@@ -81,7 +83,9 @@ void init(Module& module) {
     
     module.addSymbolStub("iBt3Oe00Kvc", "sceGnmFlushGarlic", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("PVT+fuoS9gU", "sceGnmDeleteEqEvent", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolStub("TLV4mswiZ4A", "sceGnmDriverCaptureInProgress", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("Fwvh++m9IQI", "sceGnmGetGpuCoreClockFrequency", "libSceGnmDriver", "libSceGnmDriver", 800'000'000 /* 800 MHz */);
+    module.addSymbolStub("qpGITzPE+Zc", "sceGnmDebugHardwareStatus", "libSceGnmDriver", "libSceGnmDriver");
 }
 
 ComputeQueue compute_queues[MAX_COMPUTE_QUEUES];

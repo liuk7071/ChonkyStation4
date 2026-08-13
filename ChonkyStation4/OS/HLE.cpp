@@ -415,6 +415,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("ycodiP2I0xo", "sceGameLiveStreamingSetPresetSocialFeedbackCommands", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("yeQKjHETi40", "sceGameLiveStreamingGetSocialFeedbackMessagesCount", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     module->addSymbolStub("CoPMx369EqM", "sceGameLiveStreamingGetCurrentStatus", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
+    module->addSymbolStub("OIIm19xu+NM", "sceGameLiveStreamingGetProgramInfo", "libSceGameLiveStreaming", "libSceGameLiveStreaming");
     
     // libSceCamera
     module->addSymbolStub("p6n3Npi3YY4", "sceCameraIsAttached", "libSceCamera", "libSceCamera");
@@ -860,10 +861,37 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("NQY2wMTV0ms", "sceLoginMgrServerUpdateUserIdRalatedToPadUniqueId", "libSceLoginMgrServer", "libSceLoginMgrServer");
     
     // libSceContentExport
+    module->addSymbolStub("efqHe7wPRbs", "sceContentExportCancel", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("tb3cZTCl8Ps", "sceContentExportFinish", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("AOWqIYsgVHs", "sceContentExportFromData", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("uZTQHI50WpY", "sceContentExportFromDataWithThumbnail", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("OWCJUmrWH1g", "sceContentExportFromFile", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("bU89EJ+j9f0", "sceContentExportFromFileWithContentIdList", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("mbakKLPSO4o", "sceContentExportFromFileWithThumbnail", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("HK-7ir0qAkg", "sceContentExportFromFileWithTitleIdList", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("eRJv4xU7pGU", "sceContentExportGetProgress", "libSceContentExport", "libSceContentExport");
     module->addSymbolStub("FzEWeYnAFlI", "sceContentExportInit", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("0GnN4QCgIfs", "sceContentExportInit2", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("FCygF4Ec4so", "sceContentExportStart", "libSceContentExport", "libSceContentExport");
+    module->addSymbolStub("+KDWny9Y-6k", "sceContentExportTerm", "libSceContentExport", "libSceContentExport");
     
     // libSceContentSearch
+    module->addSymbolStub("-YbpaF0XS-I", "sceContentSearchCloseMetadata", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("jGHBPci4dzU", "sceContentSearchGetApplicationLastUpdateId", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("PD5bnBTsv6Y", "sceContentSearchGetContentLastUpdateId", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("EbNufIY0Zvc", "sceContentSearchGetMetadataFieldInfo", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("ruNe-FgCzO8", "sceContentSearchGetMetadataValue", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("FRT4EYtZU1Y", "sceContentSearchGetMyApplicationIndex", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("BU0x8ye5-dI", "sceContentSearchGetNumOfApplication", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("o-RBPV0qr8c", "sceContentSearchGetNumOfContent", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("i2ZMZKwZpWs", "sceContentSearchGetTotalContentSize", "libSceContentSearch", "libSceContentSearch");
     module->addSymbolStub("dPj4ZtRcIWk", "sceContentSearchInit", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("G13HF1z-e4o", "sceContentSearchOpenMetadata", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("bjAlYWwRTJA", "sceContentSearchOpenMetadataByContentId", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("m-S3-C-USvs", "sceContentSearchSearchApplication", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("TEW3IKxYfXc", "sceContentSearchSearchContent", "libSceContentSearch", "libSceContentSearch");
+    module->addSymbolStub("1xSZodB2geA", "sceContentSearchTerm", "libSceContentSearch", "libSceContentSearch");
+
     
     // libSceCompanionHttpd
     module->addSymbolStub("8pWltDG7h6A", "sceCompanionHttpdAddHeader", "libSceCompanionHttpd", "libSceCompanionHttpd");

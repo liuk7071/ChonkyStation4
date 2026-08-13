@@ -11,6 +11,10 @@
 #include <unordered_set>
 #include <deque>
 #include <stack>
+#ifdef _WIN32
+#define NOMINMAX
+#include <Windows.h>
+#endif
 
 //#define ENABLE_PRINT_SHADER_HASH
 
@@ -485,27 +489,29 @@ std::string V_CMP(const PS4::GCN::Shader::GcnInst & instr, std::string op) {
     return decompiled;
 };
 
-// Progressive binding number we use to create new SSBOs
+std::vector<std::unique_ptr<BasicBlock>> blocks;
+std::unordered_map<u32, BasicBlock*> block_map;
+std::unordered_set<u32> block_entries;
+std::unordered_set<u32> tracked_blocks;
+
+// Progressive binding number we use to create new SSBOs and textures
 int next_buf_binding = 0;
-
-// Map an SGPR to the descriptor location it currently contains
-std::unordered_map<u32, DescriptorLocation> descs;
-
-// Used to track V_WRITELANE_B32 and V_READLANE_B32.
-// Sometimes the compiler will use these to backup SGPRS.
-std::unordered_map<u32, DescriptorLocation> backup_descs;  // The u32 should correspond to (VGPR << 16) | lane
 
 // Map a buffer load instruction address to buffer ptr
 std::unordered_map<int, Buffer*> buffer_map;
 
-void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnDecodeContext& decoder, Shader::GcnCodeSlice& code_slice) {
+void trackAndCreateBuffers(u32* data, u32 start_pc, ShaderStage stage, ShaderData& out_data, std::unordered_map<u32, DescriptorLocation> descs, std::unordered_map<u32, DescriptorLocation> backup_descs) {
+    if (!tracked_blocks.insert(start_pc).second)
+        return;
+
+    Shader::GcnDecodeContext decoder;
+    Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)((u8*)data + start_pc), data + std::numeric_limits<u32>::max());
+    
+    // descs: Map an SGPR to the descriptor location it currently contains
+    // backup_descs: Used to track V_WRITELANE_B32 and V_READLANE_B32. Sometimes the compiler will use these to backup SGPRS.
+    
     // Parse shader to figure out descriptor locations.
     // This is done similarly to the fetch shader, but there are other cases we need to handle.
-
-    next_buf_binding = 0;
-    descs.clear();
-    backup_descs.clear();
-    buffer_map.clear();
 
     auto s_load_dword_offset = [](const GcnInst& instr) -> u32 {
         if (instr.control.smrd.imm) {
@@ -519,10 +525,28 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         }
     };
 
-    u32 pc = 0;
+    u32 pc = start_pc;
     bool done = false;
     while (!code_slice.atEnd() && !done) {
+        if (block_entries.contains(pc) && pc != start_pc) {
+            trackAndCreateBuffers(data, pc, stage, out_data, descs, backup_descs);
+            done = true;
+            continue;
+        }
+
         const auto instr = decoder.decodeInstruction(code_slice);
+
+        if (instr.IsConditionalBranch()) {
+            trackAndCreateBuffers(data, instr.BranchTarget(pc), stage, out_data, descs, backup_descs);
+            trackAndCreateBuffers(data, pc + instr.length, stage, out_data, descs, backup_descs);
+            done = true;
+            continue;
+        }
+        else if (instr.IsUnconditionalBranch()) {
+            trackAndCreateBuffers(data, instr.BranchTarget(pc), stage, out_data, descs, backup_descs);
+            done = true;
+            continue;
+        }
 
         bool is_img_store = false;
         switch (instr.opcode) {
@@ -718,9 +742,13 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
 
                         std::string type = "sampler2D";
                         auto* tsharp = buf.desc_info.asPtr<TSharp>();
-                        if (tsharp && tsharp->type == 10 /* COLOR 3D */) {
-                            type = "sampler3D";
-                        }
+
+#ifdef _WIN32
+                        //if (!IsBadReadPtr(tsharp, sizeof(TSharp)))
+#endif
+                            if (tsharp && tsharp->type == 10 /* COLOR 3D */) {
+                                type = "sampler3D";
+                            }
 
                         addInSampler(type, name, buf.binding);
                         break;
@@ -787,10 +815,6 @@ void trackAndCreateBuffers(ShaderStage stage, ShaderData& out_data, Shader::GcnD
         pc += instr.length;
     }
 }
-
-std::vector<std::unique_ptr<BasicBlock>> blocks;
-std::unordered_map<u32, BasicBlock*> block_map;
-std::unordered_set<u32> block_entries;
 
 void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock& block);
 BasicBlock* getOrCreateBlock(u32* data, u32 pc, ShaderStage stage) {
@@ -2375,6 +2399,9 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
             // TODO: We use whatever T# the game set the first time the shader is compiled. In theory it can change.
             auto* tsharp = buf->desc_info.asPtr<TSharp>();
+#ifdef _WIN32
+            //if (IsBadReadPtr(tsharp, sizeof(TSharp))) tsharp = nullptr;
+#endif
             const bool is_3d = tsharp ? tsharp->type == 10 : false;
 
             const auto flags = MimgModifierFlags(instr.control.mimg.mod);
@@ -2787,8 +2814,8 @@ std::string emit(BasicBlock* from, BasicBlock* to, bool& needs_barrier, int leve
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job) {
     //std::ofstream out;
-    //if (stage == ShaderStage::Vertex) {
-    //if (out_data.hash == 0xc8a0b43783b08c63) {
+    ////if (stage == ShaderStage::Vertex) {
+    //if (out_data.hash == 0x317d9ad1494ad5f8) {
     //  out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
     //  out.write((char*)data, 12_KB);
     //  out.close();
@@ -2802,6 +2829,9 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     blocks.clear();
     block_map.clear();
     block_entries.clear();
+    tracked_blocks.clear();
+    next_buf_binding = 0;
+    buffer_map.clear();
     emitted_blocks.clear();
     const_tables.clear();
     const_tables.reserve(1_KB);
@@ -2902,8 +2932,6 @@ bool v_cmp_class_f32(float x, uint mask) {
         shader += std::format("layout(local_size_x = {}, local_size_y = {}, local_size_z = {}) in;\n\n", compute_job->n_threads_x, compute_job->n_threads_y, compute_job->n_threads_z);
     }
 
-    trackAndCreateBuffers(stage, out_data, decoder, code_slice);
-
     std::string main;
     main.reserve(32_KB); // Avoid reallocations
     
@@ -2999,6 +3027,10 @@ bool v_cmp_class_f32(float x, uint mask) {
 
     // Discover basic block entry points
     discoverBasicBlockEntries(data, 0);
+
+    std::unordered_map<u32, DescriptorLocation> descs;
+    std::unordered_map<u32, DescriptorLocation> backup_descs;
+    trackAndCreateBuffers(data, 0, stage, out_data, descs, backup_descs);
 
     BasicBlock* start = blocks.emplace_back(std::make_unique<BasicBlock>()).get();
     start->is_start = true;

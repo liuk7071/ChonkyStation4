@@ -63,6 +63,10 @@ void gcnThread() {
             processAsyncCompute();
 
             GCN::processCommands(cmd.dcb, cmd.dcb_size, cmd.ccb, cmd.ccb_size, nullptr);
+            if (Configuration::copy_command_buffers) {
+                delete cmd.dcb_buf;
+                delete cmd.ccb_buf;
+            }
             break;
         }
 
@@ -130,6 +134,7 @@ bool processAsyncCompute() {
         asc_co->reset([=]() {
             GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0, cmd.queue);
             asc_co_done = true;
+            if (Configuration::copy_command_buffers) delete cmd.dcb_buf;
             co::active().get_parent().switch_to();
         });
     }
@@ -150,15 +155,34 @@ void submitRendererCommand(RendererCommand cmd) {
 }
 
 void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
-    submitRendererCommand({ CommandType::SubmitGraphics, dcb, dcb_size, ccb, ccb_size });
+    RendererCommand cmd = { CommandType::SubmitGraphics, dcb, dcb_size, ccb, ccb_size };
+
+    if (Configuration::copy_command_buffers) {
+        cmd.dcb_buf = new u8[dcb_size];
+        cmd.ccb_buf = new u8[ccb_size];
+        std::memcpy(cmd.dcb_buf, dcb, dcb_size);
+        std::memcpy(cmd.ccb_buf, ccb, ccb_size);
+        cmd.dcb = (u32*)cmd.dcb_buf;
+        cmd.ccb = (u32*)cmd.ccb_buf;
+    }
+
+    submitRendererCommand(cmd);
 }
 
 void submitCompute(u32* cb, size_t cb_size, OS::Libs::SceGnmDriver::ComputeQueue* queue) {
+    RendererCommand cmd = { CommandType::SubmitCompute, cb, cb_size, .queue = queue };
+
+    if (Configuration::copy_command_buffers) {
+        cmd.dcb_buf = new u8[cb_size];
+        std::memcpy(cmd.dcb_buf, cb, cb_size);
+        cmd.dcb = (u32*)cmd.dcb_buf;
+    }
+
     {
         // Acquire command queue lock
         std::scoped_lock lk(asc_mtx);
         // Push command
-        asc_commands.push_back({ CommandType::SubmitCompute, cb, cb_size, .queue = queue });
+        asc_commands.push_back(cmd);
     }
 }
 

@@ -41,6 +41,10 @@ struct RendererCommand {
     u32 video_out_handle = 0;
     u32 buf_idx = -1;
     u64 flip_arg = 0;
+
+    // If the copy command buffers setting is enabled
+    u8* dcb_buf = nullptr;
+    u8* ccb_buf = nullptr;
 };
 
 inline std::atomic<bool> initialized = false;

@@ -78,6 +78,7 @@ void init(Module& module) {
     module.addSymbolExport("h9CcP3J0oVM", "pthread_join", "libkernel", "libkernel", (void*)&kernel_pthread_join);
     module.addSymbolExport("h9CcP3J0oVM", "pthread_join", "libScePosix", "libkernel", (void*)&kernel_pthread_join);
     module.addSymbolExport("onNY9Byn-W8", "scePthreadJoin", "libkernel", "libkernel", (void*)&kernel_pthread_join);
+    module.addSymbolStub("Bvn74vj6oLo", "scePthreadAttrSetstack", "libkernel", "libkernel");   // TODO: IMPORTANT!
 
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libkernel", "libkernel", (void*)&kernel_pthread_mutex_lock);
     module.addSymbolExport("7H0iTOciTLo", "pthread_mutex_lock", "libScePosix", "libkernel", (void*)&kernel_pthread_mutex_lock);
@@ -285,6 +286,7 @@ void init(Module& module) {
     module.addSymbolExport("D0OdFMjp46I", "sceKernelCreateEqueue", "libkernel", "libkernel", (void*)&sceKernelCreateEqueue);
     module.addSymbolExport("fzyMKs9kim0", "sceKernelWaitEqueue", "libkernel", "libkernel", (void*)&sceKernelWaitEqueue);
     module.addSymbolExport("4R6-OvI2cEA", "sceKernelAddUserEvent", "libkernel", "libkernel", (void*)&sceKernelAddUserEvent);
+    module.addSymbolExport("57ZK+ODEXWY", "sceKernelAddTimerEvent", "libkernel", "libkernel", (void*)&sceKernelAddTimerEvent);
     module.addSymbolExport("R74tt43xP6k", "sceKernelAddHRTimerEvent", "libkernel", "libkernel", (void*)&sceKernelAddHRTimerEvent);
     module.addSymbolStub("J+LF6LwObXU", "sceKernelDeleteHRTimerEvent", "libkernel", "libkernel");
     module.addSymbolStub("WDszmSbWuDk", "sceKernelAddUserEventEdge", "libkernel", "libkernel");

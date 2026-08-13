@@ -52,6 +52,7 @@ using SceKernelEqueue = Equeue*;
 s32 PS4_FUNC sceKernelCreateEqueue(SceKernelEqueue* eq, const char* name);
 s32 PS4_FUNC sceKernelWaitEqueue(SceKernelEqueue eq, SceKernelEvent* ev, s32 n_evs, s32* n_out, u32* timeout);
 s32 PS4_FUNC sceKernelAddUserEvent(SceKernelEqueue eq, s32 id);
+s32 PS4_FUNC sceKernelAddTimerEvent(SceKernelEqueue eq, s32 id, u32 us, void* udata);
 s32 PS4_FUNC sceKernelAddHRTimerEvent(SceKernelEqueue eq, s32 id, SceKernelTimespec* timespec, void* udata);
 s32 PS4_FUNC sceKernelGetEventFilter(SceKernelEvent* ev);
 s32 PS4_FUNC kernel_kqueue();
