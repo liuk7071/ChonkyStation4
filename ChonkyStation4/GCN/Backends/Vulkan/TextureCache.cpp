@@ -36,10 +36,10 @@ void TrackedTexture::transition(vk::ImageLayout new_layout) {
     curr_layout = new_layout;
 }
 
-void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt, bool dont_track_cpu_writes) {
+void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt, bool dont_track_cpu_writes, bool do_upscale) {
     const bool is_3d = tsharp->type == 10;  // COLOR 3D
-    const u32 width = tsharp->width + 1;
-    const u32 height = tsharp->height + 1;
+    u32 width = tsharp->width + 1;
+    u32 height = tsharp->height + 1;
     const u32 depth = is_3d ? std::max(tsharp->depth + 1, 1) : 1;
     u32 pitch = tsharp->pitch + 1;
     //if (tsharp->pow2pad)
@@ -213,7 +213,9 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
                 //&& tracked_tex->tsharp.dst_sel_w == tsharp->dst_sel_w
                ) {
                 auto* tex = tracked_tex;
-                if (is_depth_buffer && !tex->is_depth_buffer) {
+                if (    is_depth_buffer && !tex->is_depth_buffer
+                    ||  do_upscale && !tex->is_upscaled
+                   ) {
                     ////Profiler::add("Dead textures", 1);
                     tex->dead = true;
                     continue;
@@ -267,8 +269,17 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     tex->page_end = page_end;
     tex->is_depth_buffer = is_depth_buffer;
     tex->vk_fmt = vk_fmt;
+    tex->is_upscaled = do_upscale;
     auto& img = tex->image;
     auto& mem = tex->mem;
+
+    if (do_upscale) {
+        if (!dont_track_cpu_writes) Helpers::panic("TextureCache: do_upscale without dont_track_cpu_writes\n");
+        width *= Configuration::resolution_scale;
+        height *= Configuration::resolution_scale;
+    }
+    tex->upscaled_width = width;
+    tex->upscaled_height = height;
 
     const bool is_compressed = [&]() -> bool {
         switch ((DataFormat)tex->tsharp.data_format) {
@@ -381,7 +392,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         }
     }
 
-    if (!is_depth_buffer)
+    if (!is_depth_buffer && !dont_track_cpu_writes)
         reupload_tex(tex);
     
     if (!dont_track_cpu_writes) {

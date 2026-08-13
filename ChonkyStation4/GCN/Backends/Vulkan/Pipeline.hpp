@@ -231,6 +231,7 @@ public:
     float min_viewport_depth = 0.0f;
     float max_viewport_depth = 0.0f;
     vk::Viewport viewport;  // TODO: Multiple viewports
+    vk::Viewport upscaled_viewport;
     bool has_blend_constants = false;
 
     struct VertexBinding {

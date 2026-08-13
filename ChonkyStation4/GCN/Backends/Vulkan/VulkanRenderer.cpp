@@ -167,7 +167,9 @@ void VulkanRenderer::init() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0)
         Helpers::panic("Failed to initialize SDL\n");
 
-    window = SDL_CreateWindow(std::format("ChonkyStation4 | {} | {}", CHONKYSTATION4_VERSION, g_app.name).c_str(), 100, 100, 1920, 1080, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
+    const auto resolution_width  = 1920 * Configuration::resolution_scale;
+    const auto resolution_height = 1080 * Configuration::resolution_scale;
+    window = SDL_CreateWindow(std::format("ChonkyStation4 | {} | {}", CHONKYSTATION4_VERSION, g_app.name).c_str(), 100, 100, resolution_width, resolution_height, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
     if (window == nullptr) {
         Helpers::panic("Failed to create SDL window: %s\n", SDL_GetError());
     }
@@ -632,7 +634,7 @@ vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool&
 
                 curr_attachments.push_back(color_attachments[i].vk_attachment);
                 if (color_attachments[i].has_feedback_loop) {
-                    has_feedback_loop = true;
+                    has_feedback_loop = true; 
                     last_color_rt[i] = {};  // Next time we draw we need to check again if we are in a feedback loop, because it could keep the same color target but change input texture
                     if (color_attachments[i].tex->curr_layout != vk::ImageLayout::eAttachmentFeedbackLoopOptimalEXT) {
                         endRendering();
@@ -729,6 +731,11 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     bool has_depth = false;
     bool has_stencil = false;
     auto extent = setupRenderingAttachments(&pipeline, has_depth, has_stencil);
+
+    bool did_upscale = false;
+    auto [upscaled_extent_width, upscaled_extent_height] = Vulkan::upscale(extent.width, extent.height, &did_upscale);
+    extent.width  = upscaled_extent_width;
+    extent.height = upscaled_extent_height;
     
     // Gather vertex data
     auto* vtx_bindings = pipeline.gatherVertices();
@@ -769,9 +776,8 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
         cmd_bufs[frame_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
         last_draw_pipeline = &pipeline;
 
-        // Viewport
-        //cmd_bufs[frame_idx].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
-        cmd_bufs[frame_idx].setViewport(0, pipeline.viewport);
+        // Viewport        
+        cmd_bufs[frame_idx].setViewport(0, !did_upscale ? pipeline.viewport : pipeline.upscaled_viewport);
         cmd_bufs[frame_idx].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
         last_viewport_min_depth = pipeline.min_viewport_depth;
         last_viewport_max_depth = pipeline.max_viewport_depth;
@@ -858,6 +864,11 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     bool has_depth = false;
     bool has_stencil = false;
     auto extent = setupRenderingAttachments(&pipeline, has_depth, has_stencil);
+    
+    bool did_upscale = false;
+    auto [upscaled_extent_width, upscaled_extent_height] = Vulkan::upscale(extent.width, extent.height, &did_upscale);
+    extent.width = upscaled_extent_width;
+    extent.height = upscaled_extent_height;
 
     // Gather vertex data
     auto* vtx_bindings = pipeline.gatherVertices();
@@ -895,11 +906,9 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
     if (&pipeline != last_draw_pipeline) {
         cmd_bufs[frame_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipeline());
         last_draw_pipeline = &pipeline;
-    }
 
-    // Viewport
-    if (pipeline.min_viewport_depth != last_viewport_min_depth || pipeline.max_viewport_depth != last_viewport_max_depth || extent != last_extent) {
-        cmd_bufs[frame_idx].setViewport(0, vk::Viewport(0.0f, (float)extent.height, (float)extent.width, -(float)extent.height, pipeline.min_viewport_depth, pipeline.max_viewport_depth));
+        // Viewport        
+        cmd_bufs[frame_idx].setViewport(0, !did_upscale ? pipeline.viewport : pipeline.upscaled_viewport);
         cmd_bufs[frame_idx].setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
         last_viewport_min_depth = pipeline.min_viewport_depth;
         last_viewport_max_depth = pipeline.max_viewport_depth;
@@ -1032,7 +1041,7 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
     blit.srcSubresource.baseArrayLayer  = 0;
     blit.srcSubresource.layerCount      = 1;
     blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
-    blit.srcOffsets[1] = vk::Offset3D(buf->attrib.width, buf->attrib.height, 1);
+    blit.srcOffsets[1] = vk::Offset3D(out_tex->upscaled_width, out_tex->upscaled_height, 1);
 
     blit.dstSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
     blit.dstSubresource.mipLevel        = 0;

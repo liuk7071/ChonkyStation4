@@ -1,4 +1,5 @@
 #include "VulkanCommon.hpp"
+#include <Configuration.hpp>
 
 
 namespace PS4::GCN::Vulkan {
@@ -442,6 +443,18 @@ vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code) {
     vk::ShaderModuleCreateInfo create_info = { .codeSize = code.size() * sizeof(u32), .pCode = code.data() };
     vk::raii::ShaderModule shader_module = device.createShaderModule(create_info);
     return shader_module;
+}
+
+std::pair<u32, u32> upscale(u32 width, u32 height, bool* did_upscale) {
+    // For now, only upscale 1920x1080 extents.
+    // In the future we should also upscale extents that are a fraction of the native resolution, i.e. 720p
+    if (width == 1920 && height == 1080) {
+        if (did_upscale) *did_upscale = true;
+        return { width * Configuration::resolution_scale, height * Configuration::resolution_scale };
+    }
+
+    if (did_upscale) *did_upscale = false;
+    return { width, height };
 }
 
 }   // End namespace PS4::GCN::Vulkan

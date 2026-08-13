@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <GCN/DataFormats.hpp>
 #include "vk_mem_alloc.h"
+#include <utility>
 
 
 namespace PS4::GCN::Vulkan {
@@ -37,5 +38,6 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
 u32 findMemoryType(u32 typeFilter, vk::MemoryPropertyFlags properties);
 std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt);
 vk::raii::ShaderModule createShaderModule(const std::vector<u32>& code);
+std::pair<u32, u32> upscale(u32 width, u32 height, bool* did_upscale = nullptr);
 
 }   // End namespace PS4::GCN::Vulkan

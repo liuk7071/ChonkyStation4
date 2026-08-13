@@ -1,4 +1,5 @@
 #include "RenderTarget.hpp"
+#include <Configuration.hpp>
 #include <GCN/GCN.hpp>
 #include <GCN/Backends/Vulkan/VulkanCommon.hpp>
 #include <GCN/Backends/Vulkan/TextureCache.hpp>
@@ -23,6 +24,12 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enabl
     const auto pitch = (pitch_tile_max + 1) * 8;
     //const u32 slice_tile_max = rt->slice_tile_max & 0x3fffff;
     //tsharp.height = ((slice_tile_max + 1) * 64) / tsharp.width;
+
+    bool did_upscale = false;
+    // width and height are unused, we only need to know if we need to upscale this buffer.
+    // The actual upscale will be done in the texture cache when creating the Vulkan image.
+    // This is to leave the descriptor intact so that sampling works properly.
+    auto [width, height] = Vulkan::upscale(rt->width, rt->height, &did_upscale);
 
     tsharp.width  = rt->width - 1;
     tsharp.height = rt->height - 1;
@@ -52,7 +59,7 @@ Attachment getVulkanAttachmentForColorTarget(ColorTarget* rt, bool degamma_enabl
     // Get an image from our cache
     TrackedTexture* out_info;
     endRendering();
-    getVulkanImageInfoForTSharp(&tsharp, &out_info, true, false, vk::Format::eD32Sfloat /* unused, not a depth buffer */, true /* dont track cpu writes for this texture */);
+    getVulkanImageInfoForTSharp(&tsharp, &out_info, true, false, vk::Format::eD32Sfloat /* unused, not a depth buffer */, true /* dont track cpu writes for this texture */, did_upscale);
     
     // TODO: This doesn't detect feedback loops that happen in the middle of a renderpass
     const bool was_bound = out_info->was_bound;
@@ -134,10 +141,17 @@ Attachment getVulkanAttachmentForDepthStencilTarget(DepthTarget* depth, bool has
 
     // Build a texture descriptor with the depth target info
     // TODO: It's best to adapt our texture cache to be a more generic "Vulkan image cache" in the future
+
+    bool did_upscale = false;
+    // width and height are unused, we only need to know if we need to upscale this buffer.
+    // The actual upscale will be done in the texture cache when creating the Vulkan image.
+    // This is to leave the descriptor intact so that sampling works properly.
+    auto [width, height] = Vulkan::upscale(depth->width, depth->height, &did_upscale);
+
     TSharp tsharp;
     tsharp.width    = depth->width - 1;
     tsharp.height   = depth->height - 1;
-    tsharp.pitch    = tsharp.width;
+    tsharp.pitch    = width;
     tsharp.base_address = (uptr)depth->depth_base >> 8;
     tsharp.data_format  = (u32)dfmt;
     tsharp.num_format   = (u32)nfmt;
@@ -150,7 +164,7 @@ Attachment getVulkanAttachmentForDepthStencilTarget(DepthTarget* depth, bool has
     // Get an image from our cache
     TrackedTexture* out_info;
     endRendering();
-    getVulkanImageInfoForTSharp(&tsharp, &out_info, false, true, vk_fmt, true);
+    getVulkanImageInfoForTSharp(&tsharp, &out_info, false, true, vk_fmt, true, did_upscale);
     out_info->transition(image_layout);
     out_info->was_targeted = true;
 

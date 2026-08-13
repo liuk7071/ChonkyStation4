@@ -2623,6 +2623,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             // Color targets
             if (tgt >= 0 && tgt < 8) {
                 const std::string attr = std::format("col{}", tgt);
+                initialization += attr + " = vec4(0.0f);\n";    // Persona 5 seems to rely on this. There are paths in a shader (67854368) that don't output any color. 
                 addOutAttr(attr, "vec4", tgt);
                 code += std::format("{} = {};\n", attr, data);
             }

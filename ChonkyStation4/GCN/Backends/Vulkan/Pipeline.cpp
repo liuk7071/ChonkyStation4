@@ -124,6 +124,12 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
     viewport.width  = xscale * 2.0f;
     viewport.height = yscale * 2.0f;
 
+    upscaled_viewport = viewport;
+    upscaled_viewport.x *= Configuration::resolution_scale;
+    upscaled_viewport.y *= Configuration::resolution_scale;
+    upscaled_viewport.width *= Configuration::resolution_scale;
+    upscaled_viewport.height *= Configuration::resolution_scale;
+
     vk::PipelineViewportDepthClipControlCreateInfoEXT depth_clip_control = {
         .negativeOneToOne = !cfg.dx_clip_space_enable
     };
