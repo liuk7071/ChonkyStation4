@@ -31,10 +31,11 @@ CachedShader* getShader(const u8* code, Shader::ShaderStage stage, FetchShader* 
         XXH3_state_t* state = XXH3_createState();
         XXH3_64bits_reset(state);
 
-        XXH3_64bits_update(state, &hash, sizeof(hash));
-        XXH3_64bits_update(state, &compute_job->n_threads_x, sizeof(compute_job->n_threads_x));
-        XXH3_64bits_update(state, &compute_job->n_threads_y, sizeof(compute_job->n_threads_y));
-        XXH3_64bits_update(state, &compute_job->n_threads_z, sizeof(compute_job->n_threads_z));
+        XXH3_64bits_update(state, &hash,                            sizeof(hash));
+        XXH3_64bits_update(state, &compute_job->n_threads_x,        sizeof(compute_job->n_threads_x));
+        XXH3_64bits_update(state, &compute_job->n_threads_y,        sizeof(compute_job->n_threads_y));
+        XXH3_64bits_update(state, &compute_job->n_threads_z,        sizeof(compute_job->n_threads_z));
+        XXH3_64bits_update(state, &compute_job->lds_size_dwords,    sizeof(compute_job->lds_size_dwords));
 
         hash = XXH3_64bits_digest(state);
         XXH3_freeState(state);

@@ -25,6 +25,7 @@ void init(Module& module) {
     module.addSymbolStub("WGXOvoUwrOs", "sceUserServiceGetCreatedVersion", "libSceUserService", "libSceUserService");
     module.addSymbolStub("6dfDreosXGY", "sceUserServiceGetNpAccountId", "libSceUserService", "libSceUserService");
     module.addSymbolStub("fEy0EW0AR18", "sceUserServiceGetNpOfflineAccountId", "libSceUserService", "libSceUserService");
+    module.addSymbolStub("FnWkLNOmJXw", "sceUserServiceIsGuestUser", "libSceUserService", "libSceUserService");
 
     module.addSymbolStub("rnEhHqG-4xo", "sceUserServiceGetAccessibilityChatTranscription", "libSceUserService", "libSceUserService");
     module.addSymbolStub("g6ojqW3c8Z4", "sceUserServiceGetAccessibilityKeyremapData", "libSceUserService", "libSceUserService");

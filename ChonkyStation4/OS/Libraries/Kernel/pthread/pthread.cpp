@@ -251,7 +251,6 @@ s32 PS4_FUNC kernel_pthread_yield() {
 }
 
 s32 PS4_FUNC kernel_pthread_join(void* pthread, void** ret) {
-    log("pthread_join(pthread=*%p, ret=*%p)\n", pthread, ret);
     auto thread = findThread(pthread);
     OS::Thread::joinThread(thread, ret);
     return SCE_OK;

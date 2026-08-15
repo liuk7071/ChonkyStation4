@@ -324,7 +324,8 @@ void VulkanRenderer::init() {
                                             && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
                                             && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout
                                             //&& features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
-                                            && features.template get<vk::PhysicalDeviceRobustness2FeaturesEXT>().nullDescriptor;
+                                            && features.template get<vk::PhysicalDeviceRobustness2FeaturesEXT>().nullDescriptor
+                                            && features.template get<vk::PhysicalDeviceRobustness2FeaturesEXT>().robustBufferAccess2;
 
         if (supports_vulkan1_3 && supports_graphics && supports_all_required_exts && supports_all_required_features)
             supported_devices.push_back(std::move(device));
@@ -378,7 +379,7 @@ void VulkanRenderer::init() {
         { .dynamicRenderingUnusedAttachments = true                                                 },         // vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
         { .attachmentFeedbackLoopLayout = true                                                      },         // vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT
         //{ .attachmentFeedbackLoopDynamicState = true                                              }          // vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT
-        { .nullDescriptor = true                                                                    },         // vk::PhysicalDeviceRobustness2FeaturesEXT
+        { .nullDescriptor = true, .robustBufferAccess2 = true                                       },         // vk::PhysicalDeviceRobustness2FeaturesEXT
     };
 
 #ifdef CHONKYSTATION4_HAS_NVIDIA_AFTERMATH
@@ -990,196 +991,196 @@ static bool force_recreate_swapchain = false;
 static int texture_free_counter = 0;
 static constexpr int FREE_TEXTURES_EVERY_N_FRAMES = 500;
 void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
-    endRendering();
+    try {
+        endRendering();
     
-    std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
-    last_depth_rt = {};
+        std::memset(last_color_rt, 0, sizeof(ColorTarget) * 8);
+        last_depth_rt = {};
 
-    auto is_srgb = [](OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
-        using namespace OS::Libs::SceVideoOut;
-        if (   buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A8R8G8B8_SRGB
-            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A8B8G8R8_SRGB
-            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB
-           )
-            return true;
-        else return false;
-    };
+        auto is_srgb = [](OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
+            using namespace OS::Libs::SceVideoOut;
+            if (   buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A8R8G8B8_SRGB
+                || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A8B8G8R8_SRGB
+                || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB
+               )
+                return true;
+            else return false;
+        };
 
-    auto is_10bit = [](OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
-        using namespace OS::Libs::SceVideoOut;
-        if (   buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10
-            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB
-            || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_BT2020_PQ
-            )
-            return true;
-        else return false;
-    };
+        auto is_10bit = [](OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
+            using namespace OS::Libs::SceVideoOut;
+            if (   buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10
+                || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_SRGB
+                || buf->attrib.pixel_format == SCE_VIDEO_OUT_PIXEL_FORMAT_A2R10G10B10_BT2020_PQ
+                )
+                return true;
+            else return false;
+        };
 
-    // Get the SceVideoOut output buffer
-    TSharp tsharp;
-    tsharp.width    = buf->attrib.width - 1;
-    tsharp.height   = buf->attrib.height - 1;
-    tsharp.pitch    = buf->attrib.pitch_in_pixels - 1;
-    tsharp.base_address = (uptr)buf->base >> 8;
-    tsharp.data_format  = !is_10bit(buf) ? (u32)DataFormat::Format8_8_8_8 : (u32)DataFormat::Format2_10_10_10; // TODO: Other formats
-    tsharp.num_format   = !is_srgb(buf) ? (u32)NumberFormat::Unorm : (u32)NumberFormat::Srgb;
-    tsharp.dst_sel_x = DSEL_R;
-    tsharp.dst_sel_y = DSEL_G;
-    tsharp.dst_sel_z = DSEL_B;
-    tsharp.dst_sel_w = DSEL_A;
-    tsharp.tiling_index = 31;
+        // Get the SceVideoOut output buffer
+        TSharp tsharp;
+        tsharp.width    = buf->attrib.width - 1;
+        tsharp.height   = buf->attrib.height - 1;
+        tsharp.pitch    = buf->attrib.pitch_in_pixels - 1;
+        tsharp.base_address = (uptr)buf->base >> 8;
+        tsharp.data_format  = !is_10bit(buf) ? (u32)DataFormat::Format8_8_8_8 : (u32)DataFormat::Format2_10_10_10; // TODO: Other formats
+        tsharp.num_format   = !is_srgb(buf) ? (u32)NumberFormat::Unorm : (u32)NumberFormat::Srgb;
+        tsharp.dst_sel_x = DSEL_R;
+        tsharp.dst_sel_y = DSEL_G;
+        tsharp.dst_sel_z = DSEL_B;
+        tsharp.dst_sel_w = DSEL_A;
+        tsharp.tiling_index = 31;
     
-    TrackedTexture* out_tex;
-    getVulkanImageInfoForTSharp(&tsharp, &out_tex, true);
+        TrackedTexture* out_tex;
+        getVulkanImageInfoForTSharp(&tsharp, &out_tex, true);
 
-    out_tex->transition(vk::ImageLayout::eTransferSrcOptimal);
-    transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferDstOptimal, &cmd_bufs[frame_idx]);
+        out_tex->transition(vk::ImageLayout::eTransferSrcOptimal);
+        transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferDstOptimal, &cmd_bufs[frame_idx]);
 
-    vk::ImageBlit blit = {};
-    blit.srcSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
-    blit.srcSubresource.mipLevel        = 0;
-    blit.srcSubresource.baseArrayLayer  = 0;
-    blit.srcSubresource.layerCount      = 1;
-    blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
-    blit.srcOffsets[1] = vk::Offset3D(out_tex->upscaled_width, out_tex->upscaled_height, 1);
+        vk::ImageBlit blit = {};
+        blit.srcSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
+        blit.srcSubresource.mipLevel        = 0;
+        blit.srcSubresource.baseArrayLayer  = 0;
+        blit.srcSubresource.layerCount      = 1;
+        blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
+        blit.srcOffsets[1] = vk::Offset3D(out_tex->upscaled_width, out_tex->upscaled_height, 1);
 
-    blit.dstSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
-    blit.dstSubresource.mipLevel        = 0;
-    blit.dstSubresource.baseArrayLayer  = 0;
-    blit.dstSubresource.layerCount      = 1;
-    blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
-    blit.dstOffsets[1] = vk::Offset3D(swapchain_extent.width, swapchain_extent.height, 1);
+        blit.dstSubresource.aspectMask      = vk::ImageAspectFlagBits::eColor;
+        blit.dstSubresource.mipLevel        = 0;
+        blit.dstSubresource.baseArrayLayer  = 0;
+        blit.dstSubresource.layerCount      = 1;
+        blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
+        blit.dstOffsets[1] = vk::Offset3D(swapchain_extent.width, swapchain_extent.height, 1);
     
-    cmd_bufs[frame_idx].blitImage(out_tex->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_images[current_swapchain_image_idx], vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
-    transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, &cmd_bufs[frame_idx]);
-    cmd_bufs[frame_idx].end();
+        cmd_bufs[frame_idx].blitImage(out_tex->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_images[current_swapchain_image_idx], vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
+        transitionImageLayout(swapchain_images[current_swapchain_image_idx], vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, &cmd_bufs[frame_idx]);
+        cmd_bufs[frame_idx].end();
 
-    vk::PipelineStageFlags wait_dest_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-    const vk::SubmitInfo  submit_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*present_sema[frame_idx], .pWaitDstStageMask = &wait_dest_stage_mask, .commandBufferCount = 1, .pCommandBuffers = &*cmd_bufs[frame_idx], .signalSemaphoreCount = 1, .pSignalSemaphores = &*render_sema[current_swapchain_image_idx] };
-    queue.submit(submit_info, *draw_fence[frame_idx]);
+        vk::PipelineStageFlags wait_dest_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        const vk::SubmitInfo  submit_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*present_sema[frame_idx], .pWaitDstStageMask = &wait_dest_stage_mask, .commandBufferCount = 1, .pCommandBuffers = &*cmd_bufs[frame_idx], .signalSemaphoreCount = 1, .pSignalSemaphores = &*render_sema[current_swapchain_image_idx] };
+        queue.submit(submit_info, *draw_fence[frame_idx]);
 
-    auto recreate_swapchain = [&]() {
-        device.waitIdle();
-        cmd_bufs[frame_idx].reset();
-        recreateSwapChain();
-        advanceSwapchain();
-        cmd_bufs[frame_idx].begin({});
-    };
+        auto recreate_swapchain = [&]() {
+            device.waitIdle();
+            cmd_bufs[frame_idx].reset();
+            recreateSwapChain();
+            advanceSwapchain();
+            cmd_bufs[frame_idx].begin({});
+        };
 
-    if (force_recreate_swapchain) {
-        force_recreate_swapchain = false;
-        recreate_swapchain();
-    }
-    else {
-        try {
-            const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema[current_swapchain_image_idx], .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
-            auto result = queue.presentKHR(present_info);
-            if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebuffer_resized) {
-                framebuffer_resized = false;
-                recreate_swapchain();
+        if (force_recreate_swapchain) {
+            force_recreate_swapchain = false;
+            recreate_swapchain();
+        }
+        else {
+            try {
+                const vk::PresentInfoKHR present_info = { .waitSemaphoreCount = 1, .pWaitSemaphores = &*render_sema[current_swapchain_image_idx], .swapchainCount = 1, .pSwapchains = &*swapchain, .pImageIndices = &current_swapchain_image_idx };
+                auto result = queue.presentKHR(present_info);
+                if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebuffer_resized) {
+                    framebuffer_resized = false;
+                    recreate_swapchain();
+                }
+                else if (result != vk::Result::eSuccess) {
+                    Helpers::panic("Vulkan: failed to present swapchain image!");
+                }
             }
-            else if (result != vk::Result::eSuccess) {
-                Helpers::panic("Vulkan: failed to present swapchain image!");
+            catch (const vk::SystemError& e) {
+                if (e.code().value() == (int)vk::Result::eErrorOutOfDateKHR) {
+                    framebuffer_resized = false;
+                    recreate_swapchain();
+                }
+                else {
+                    Helpers::panic("Vulkan: failed to present swapchain image!");
+                }
             }
         }
-        catch (const vk::SystemError& e) {
-            if (e.code().value() == (int)vk::Result::eErrorOutOfDateKHR) {
-                framebuffer_resized = false;
-                recreate_swapchain();
-            }
-            else {
-                Helpers::panic("Vulkan: failed to present swapchain image!");
-            }
-        }
-    }
 
-    // TODO: Move generic flip operations out of the vulkan specific code (i.e. SDL events, polling pads, FPS counter etc)
+        // TODO: Move generic flip operations out of the vulkan specific code (i.e. SDL events, polling pads, FPS counter etc)
 
-    // Handle SDL events
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        switch (e.type) {
-        case SDL_QUIT: {
-            //exit(0);
-            std::_Exit(0);
-            break;
-        }
+        // Handle SDL events
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            switch (e.type) {
+            case SDL_QUIT: {
+                //exit(0);
+                std::_Exit(0);
+                break;
+            }
         
-        case SDL_MOUSEBUTTONDOWN: {
-            if (e.button.button == SDL_BUTTON_LEFT && e.button.clicks == 2) {
-                fullscreen = !fullscreen;
-                force_recreate_swapchain = true;
-                SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-                SDL_ShowCursor(fullscreen ? SDL_DISABLE : SDL_ENABLE);
+            case SDL_MOUSEBUTTONDOWN: {
+                if (e.button.button == SDL_BUTTON_LEFT && e.button.clicks == 2) {
+                    fullscreen = !fullscreen;
+                    force_recreate_swapchain = true;
+                    SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+                    SDL_ShowCursor(fullscreen ? SDL_DISABLE : SDL_ENABLE);
+                }
+                break;
             }
-            break;
-        }
 
-        case SDL_CONTROLLERDEVICEADDED: {
-            if (!PS4::OS::Libs::ScePad::controller) {
-                PS4::OS::Libs::ScePad::controller = SDL_GameControllerOpen(e.cdevice.which);
+            case SDL_CONTROLLERDEVICEADDED: {
+                if (!PS4::OS::Libs::ScePad::controller) {
+                    PS4::OS::Libs::ScePad::controller = SDL_GameControllerOpen(e.cdevice.which);
+                }
+                break;
             }
-            break;
-        }
-        case SDL_CONTROLLERDEVICEREMOVED: {
-            if (PS4::OS::Libs::ScePad::controller && e.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(PS4::OS::Libs::ScePad::controller))) {
-                SDL_GameControllerClose(PS4::OS::Libs::ScePad::controller);
-                PS4::OS::Libs::ScePad::controller = nullptr;
+            case SDL_CONTROLLERDEVICEREMOVED: {
+                if (PS4::OS::Libs::ScePad::controller && e.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(PS4::OS::Libs::ScePad::controller))) {
+                    SDL_GameControllerClose(PS4::OS::Libs::ScePad::controller);
+                    PS4::OS::Libs::ScePad::controller = nullptr;
+                }
+                break;
             }
-            break;
+            }
         }
+
+        // Update pads
+        PS4::OS::Libs::ScePad::pollPads();
+
+        // FPS counter
+        frame_count++;
+        const u64 curr_ticks = SDL_GetTicks64();
+        const double curr_time = curr_ticks / 1000.0;
+        if (curr_time - last_time > 1.0) {
+            SDL_SetWindowTitle(window, std::format("ChonkyStation4 | {} | {} | {} FPS", CHONKYSTATION4_VERSION, g_app.name, frame_count).c_str());
+            last_time = curr_time;
+            frame_count = 0;
         }
-    }
 
-    // Update pads
-    PS4::OS::Libs::ScePad::pollPads();
+        frame_idx = (frame_idx + 1) % FRAMES_IN_FLIGHT;
 
-    // FPS counter
-    frame_count++;
-    const u64 curr_ticks = SDL_GetTicks64();
-    const double curr_time = curr_ticks / 1000.0;
-    if (curr_time - last_time > 1.0) {
-        SDL_SetWindowTitle(window, std::format("ChonkyStation4 | {} | {} | {} FPS", CHONKYSTATION4_VERSION, g_app.name, frame_count).c_str());
-        last_time = curr_time;
-        frame_count = 0;
-    }
-
-    frame_idx = (frame_idx + 1) % FRAMES_IN_FLIGHT;
-
-    // Wait for rendering to be done
-    {
-        try {
+        // Wait for rendering to be done
+        {
             //Profiler::Scope profiler("Wait for GPU");
             while (vk::Result::eTimeout == device.waitForFences(*draw_fence[frame_idx], vk::True, UINT64_MAX));
             device.resetFences(*draw_fence[frame_idx]);
         }
-        catch (const std::system_error& e) {
-            printf("device.waitForFences error\n");
+
+        // Cleanup
+        for (auto& pipeline : curr_frame_pipelines[frame_idx])
+            pipeline->clearBuffers();
+        for (auto& pipeline : curr_frame_compute_pipelines[frame_idx])
+            pipeline->clearBuffers();
+    
+        curr_frame_pipelines[frame_idx].clear();
+        curr_frame_compute_pipelines[frame_idx].clear();
+        last_draw_pipeline = nullptr;
+        last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
+        Cache::clear();
+        RenderTarget::reset();
+
+        cmd_bufs[frame_idx].reset();
+        advanceSwapchain();
+        cmd_bufs[frame_idx].begin({});
+    }
+    catch (const std::system_error& e) {
+        printf("Vulkan error\n");
 
 #ifdef CHONKYSTATION4_HAS_NVIDIA_AFTERMATH
-            NVIDIA::waitForCrashDump();
-            NVIDIA::endAftermath();
+        NVIDIA::waitForCrashDump();
+        NVIDIA::endAftermath();
 #endif
-            Helpers::panic("device.waitForFences error: %s\n", e.what());
-        }
+        Helpers::panic("Vulkan error: %s\n", e.what());
     }
-
-    // Cleanup
-    for (auto& pipeline : curr_frame_pipelines[frame_idx])
-        pipeline->clearBuffers();
-    for (auto& pipeline : curr_frame_compute_pipelines[frame_idx])
-        pipeline->clearBuffers();
-    
-    curr_frame_pipelines[frame_idx].clear();
-    curr_frame_compute_pipelines[frame_idx].clear();
-    last_draw_pipeline = nullptr;
-    last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
-    Cache::clear();
-    RenderTarget::reset();
-
-    cmd_bufs[frame_idx].reset();
-    advanceSwapchain();
-    cmd_bufs[frame_idx].begin({});
 
     if (texture_free_counter++ >= FREE_TEXTURES_EVERY_N_FRAMES) {
         Vulkan::freeUnusedTextures();

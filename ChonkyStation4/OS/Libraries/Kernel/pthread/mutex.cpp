@@ -17,8 +17,7 @@ s32 PS4_FUNC kernel_pthread_mutex_lock(pthread_mutex_t* mutex) {
     log("pthread_mutex_lock(mutex=%p)\n", mutex);
     
     if (!mutex) {
-        printf("pthread_mutex_lock: mutex was nullptr\n");
-        return 0;
+        Helpers::panic("pthread_mutex_lock: mutex was nullptr\n");
         return POSIX_EINVAL;
     }
 
@@ -75,8 +74,7 @@ s32 PS4_FUNC kernel_pthread_mutex_unlock(pthread_mutex_t* mutex) {
     log("pthread_mutex_unlock(mutex=%p)\n", mutex);
 
     if (!mutex) {
-        printf("pthread_mutex_unlock: mutex was nullptr\n");
-        return 0;
+        Helpers::panic("pthread_mutex_unlock: mutex was nullptr\n");
         return POSIX_EINVAL;
     }
 
@@ -105,7 +103,10 @@ s32 PS4_FUNC kernel_pthread_mutexattr_settype(pthread_mutexattr_t* attr, int kin
     case 3: kind = PTHREAD_MUTEX_NORMAL;        break;
     //case 4: kind = PTHREAD_MUTEX_ADAPTIVE_NP;   break;
     case 4: kind = PTHREAD_MUTEX_ERRORCHECK;    break;
-    default:    Helpers::panic("pthread_mutexattr_settype: invalid type");
+    default: {
+        printf("pthread_mutexattr_settype: invalid kind %d\n", kind);
+        return POSIX_EINVAL;
+    }
     }
     
     return pthread_mutexattr_settype(attr, kind);

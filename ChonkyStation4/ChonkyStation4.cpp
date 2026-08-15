@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--disable-sgpr-init-hack", PS4::Configuration::disable_sgpr_init_hack, "Disable SGPR init hack");
     run_cmd->add_option("--clamp-gpu-buffers", PS4::Configuration::clamp_gpu_buffers, "Clamp GPU buffer size to fit in mapped memory");
     run_cmd->add_option("--skip-bindless-buffers", PS4::Configuration::skip_bindless_buffers, "Skip bindless GPU buffers");
+    run_cmd->add_option("--force-init-sce-compositor", PS4::Configuration::force_init_sce_compositor, "Initializes libSceComposite HLE even when not running VSH");
 
     auto* get_appdata_path_cmd = cli_app.add_subcommand("get_appdata_path", "Print the path to the emulator's app data folder");
 

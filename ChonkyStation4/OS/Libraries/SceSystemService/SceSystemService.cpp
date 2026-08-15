@@ -18,6 +18,7 @@ void init(Module& module) {
     module.addSymbolStub("9kPCz7Or+1Y", "sceSystemServiceReenableMusicPlayer", "libSceSystemService", "libSceSystemService");
     module.addSymbolStub("x1UB9bwDSOw", "sceSystemServiceDisableMusicPlayer", "libSceSystemService", "libSceSystemService");
     module.addSymbolStub("jA629PcMCKU", "sceSystemServiceGetRenderingMode", "libSceSystemService", "libSceSystemService");
+    module.addSymbolStub("SYqaqLuQU6w", "sceSystemServiceIsBgmPlaying", "libSceSystemService", "libSceSystemService");
     
     module.addSymbolStub("nT-7-iG55M8", "sceSystemServiceSetPowerSaveLevel", "libSceSystemServicePowerSaveLevel", "libSceSystemService");
     
@@ -44,6 +45,8 @@ void init(Module& module) {
     module.addSymbolStub("3JNHzrEDnrk", "sceShellCoreUtilIsPowerSaveAlertRequested", "libSceShellCoreUtil", "libSceSystemService");
     module.addSymbolStub("vzWoetyaUuA", "sceShellCoreUtilIsTemperatureDanger", "libSceShellCoreUtil", "libSceSystemService");
     module.addSymbolStub("GEZ9sIz3wuM", "sceShellCoreUtilIsShowCrashReport", "libSceShellCoreUtil", "libSceSystemService");
+    module.addSymbolStub("lAvSrKAjxCA", "sceShellCoreUtilGetBasicProductShape", "libSceShellCoreUtil", "libSceSystemService");
+    module.addSymbolStub("mpeGML7ulA8", "sceShellCoreUtilIsExternalStorageAppMoveInProgress", "libSceShellCoreUtil", "libSceSystemService");
     
     module.addSymbolStub("ze0ky5Q1yE8", "sceSystemStateMgrGetCurrentState", "libSceSystemStateMgr", "libSceSystemService");
     module.addSymbolStub("wlxvESTUplk", "sceSystemStateMgrGetTriggerCode", "libSceSystemStateMgr", "libSceSystemService");

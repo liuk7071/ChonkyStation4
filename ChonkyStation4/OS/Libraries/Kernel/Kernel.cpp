@@ -356,6 +356,8 @@ void init(Module& module) {
     module.addSymbolExport("UqDGjXA5yUM", "munmap", "libkernel", "libkernel", (void*)&kernel_munmap);
     module.addSymbolExport("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel", (void*)&kernel_munmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
+    module.addSymbolExport("C0f7TJcbfac", "sceKernelAvailableDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelAvailableDirectMemorySize);
+    module.addSymbolExport("aNz11fnnzi4", "sceKernelAvailableFlexibleMemorySize", "libkernel", "libkernel", (void*)&sceKernelAvailableFlexibleMemorySize);
     module.addSymbolExport("rVjRvHJ0X6c", "sceKernelVirtualQuery", "libkernel", "libkernel", (void*)&sceKernelVirtualQuery);
     module.addSymbolExport("WFcfL2lzido", "sceKernelQueryMemoryProtection", "libkernel", "libkernel", (void*)&sceKernelQueryMemoryProtection);
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
@@ -478,6 +480,9 @@ void init(Module& module) {
     module.addSymbolStub("H2QD+kNpa+U", "__inet_ntoa_r", "libkernel", "libkernel");
     module.addSymbolStub("4pYihoPggn8", "__inet_ntop", "libkernel", "libkernel");
     module.addSymbolStub("fyPeCKJ94Hg", "__inet_pton", "libkernel", "libkernel");
+    module.addSymbolStub("mTBZfEal2Bw", "mlock", "libkernel", "libkernel");
+    module.addSymbolStub("OG4RsDwLguo", "munlock", "libkernel", "libkernel");
+    module.addSymbolStub("iBQ2omlTuls", "sceKernelIccSetBuzzer", "libkernel", "libkernel");
     
     module.addSymbolExport("KiJEPEWRyUY", "sigaction", "libkernel", "libkernel", (void*)&kernel_sigaction);
     module.addSymbolStub("+F7C-hdk7+E", "sigemptyset", "libkernel", "libkernel");
@@ -488,6 +493,8 @@ void init(Module& module) {
     
     module.addSymbolExport("QuJYZ2KVGGQ", "shm_open", "libkernel", "libkernel", (void*)&kernel_shm_open);
     module.addSymbolStub("tPWsbOUGO8k", "shm_unlink", "libkernel", "libkernel");
+    module.addSymbolStub("n371J5cP+uo", "physhm_open", "libkernel", "libkernel", 10);
+    module.addSymbolStub("AUqJNkobQ1c", "physhm_unlink", "libkernel", "libkernel");
     
     module.addSymbolExport("Hk7iHmGxB18", "ipmimgr_call", "libkernel", "libkernel", (void*)&ipmimgr_call);
     
@@ -501,6 +508,7 @@ void init(Module& module) {
     module.addSymbolStub("UtO0OHMCgmI", "sceKernelIsDevelopmentMode", "libSceDipsw", "libSceDipsw");
     
     module.addSymbolStub("XFYItOxS6r0", "sceApplicationInitialize", "libSceSysCore", "libSceSysCore");
+    module.addSymbolStub("qTHiabfEukw", "sceApplicationSetCanvasHandle", "libSceSysCore", "libSceSysCore");
 
     // libSceLibcInternal HLE. Move these to their own file later
     //module.addSymbolExport("gQX+4GDQjpM", "malloc", "libSceLibcInternal", "libSceLibcInternal", (void*)&Kernel::malloc);
@@ -1109,6 +1117,7 @@ s32 PS4_FUNC ipmimgr_call(s64 cmd, s64 unk2, u32* res, u8* args, size_t arg_size
             ||  name == "SceStickerCoreServer"
             ||  name == "SceNpPartyIpc"
             ||  name == "ScePartyIpcService"
+            ||  name == "SceAppDbIpc"
            )
             *res = 0;
 
@@ -1427,6 +1436,23 @@ size_t PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
     //return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
     return 5_GB - 512_MB;   // total size - flexible mem size
+}
+
+s32 PS4_FUNC sceKernelAvailableDirectMemorySize(u64 search_start, u64 search_end, size_t alignment, u64* phys_addr_out, size_t* size_out) {
+    log("sceKernelAvailableDirectMemorySize(search_start=0x%llx, search_end=0x%llx, alignment=0x%llx, phys_addr_out=*%p, size_out=*%p)\n", search_start, search_end, alignment, phys_addr_out, size_out);
+
+    // TODO
+    *phys_addr_out = search_start;
+    *size_out = search_end - search_start;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceKernelAvailableFlexibleMemorySize(size_t* size_out) {
+    log("sceKernelAvailableFlexibleMemorySize(size_out=*%p)\n", size_out);
+
+    // TODO
+    *size_out = 1_GB;
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size) {

@@ -560,14 +560,14 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
 
                 TSharp* tsharp = buf_info.desc_info.asPtr<TSharp>();
                 
-                //if (Configuration::clamp_gpu_buffers) {
-                //    if (IsBadReadPtr(tsharp, sizeof(TSharp)) || IsBadReadPtr((const void*)tsharp->base_address, 1)) {
-                //        null_descriptor();
-                //        continue;
-                //        //buf_size = clamp_size((uptr)vsharp->base, buf_size);
-                //        //Helpers::panic("Invalid vsharp->base %p for shader %llx\n", guest_buf_data, data.hash);
-                //    }
-                //}
+                if (Configuration::clamp_gpu_buffers) {
+                    if (IsBadReadPtr(tsharp, sizeof(TSharp)) || IsBadReadPtr((const void*)((uptr)tsharp->base_address << 8), 1)) {
+                        null_descriptor();
+                        continue;
+                        //buf_size = clamp_size((uptr)vsharp->base, buf_size);
+                        //Helpers::panic("Invalid vsharp->base %p for shader %llx\n", guest_buf_data, data.hash);
+                    }
+                }
 
                 if (tsharp->data_format == 0 || tsharp->data_format == 45) {
                     null_descriptor();

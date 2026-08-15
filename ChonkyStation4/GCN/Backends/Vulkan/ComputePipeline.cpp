@@ -1,5 +1,6 @@
 #include "ComputePipeline.hpp"
 #include <Logger.hpp>
+#include <Configuration.hpp>
 #include <GCN/HostTessShaders.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
 #include <GCN/Backends/Vulkan/TextureCache.hpp>
@@ -104,13 +105,19 @@ std::vector<vk::WriteDescriptorSet> ComputePipeline::uploadBuffersAndTextures(Pu
                 const auto buf_size = Helpers::alignUp<size_t>((vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records, 16);
                 void* guest_buf_data = (void*)vsharp->base;
 
-                if ((u64)guest_buf_data < 0x10000) {
+                if ((u64)guest_buf_data < 0x10000 || buf_size == 0) {
                     null_descriptor();
                     continue;
                 }
 
-                //if (IsBadReadPtr((const void*)vsharp->base, buf_size))
-                //    Helpers::panic("Invalid vsharp->base %p for shader %llx\n", guest_buf_data, data.hash);
+                if (Configuration::clamp_gpu_buffers) {
+                    if (IsBadReadPtr((const void*)vsharp->base, buf_size)) {
+                        null_descriptor();
+                        continue;
+                        //buf_size = clamp_size((uptr)vsharp->base, buf_size);
+                        //Helpers::panic("Invalid vsharp->base %p for shader %llx\n", guest_buf_data, data.hash);
+                    }
+                }
 
                 auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);
 

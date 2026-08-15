@@ -67,6 +67,7 @@ void* PS4_FUNC initAndJumpToEntry(std::deque<std::shared_ptr<Module>>* modules) 
         params.argc = 2;
         params.argv[0] = "/app0/eboot.bin";
         params.argv[1] = "--cold-boot";
+        //params.argv[2] = "--detected-bad-power-down";
     }
 
     params.entry = (*modules)[0]->entry;
@@ -104,7 +105,7 @@ void App::run() {
     // Initialize system VideoOut port (used by VSH)
     // It looks like VSH expects this port to have handle 2.
     // We can change it because the first 0x100 handles are reserved (see SceObj.cpp) so handle 2 will never be allocated.
-    if (PS4::Configuration::is_vsh) {
+    if (PS4::Configuration::is_vsh || PS4::Configuration::force_init_sce_compositor) {
         using namespace PS4::OS::Libs::Kernel;
         using namespace PS4::OS::Libs::SceVideoOut;
 

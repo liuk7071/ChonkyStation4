@@ -18,7 +18,7 @@ void* sce_compositor_video_address = nullptr;
 size_t sce_compositor_video_size = 0;
 
 void init(Module& module) {
-    if (Configuration::is_vsh) {
+    if (Configuration::is_vsh || Configuration::force_init_sce_compositor) {
         sce_compositor_system_address = nullptr;
         sce_compositor_video_address = nullptr;
         Libs::Kernel::sceKernelMapFlexibleMemory(&sce_compositor_system_address, 512_MB, 0, 0);
@@ -27,12 +27,21 @@ void init(Module& module) {
         sce_compositor_video_size = 1_GB;
     }
 
-    module.addSymbolStub("IUlpGnuoR1c", "sceCompositorInitWithProcessOrder", "libSceComposite", "libSceComposite");
     module.addSymbolExport("T6CVkdCDO7o", "sceCompositorGetSystemAddress", "libSceComposite", "libSceComposite", (void*)&sceCompositorGetSystemAddress);
-    module.addSymbolStub("N6ID0KNnzY8", "sceCompositorGetSystemSize", "libSceComposite", "libSceComposite", sce_compositor_system_size);
     module.addSymbolExport("bxt+muwit0w", "sceCompositorGetVideoAddress", "libSceComposite", "libSceComposite", (void*)&sceCompositorGetVideoAddress);
+    module.addSymbolExport("DhtKelVAIaA", "sceCompositorSetGnmContextCommand", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetGnmContextCommand);
+    module.addSymbolExport("1oTrw-ivVpA", "sceCompositorSetFlipCommand", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetFlipCommand);
+    module.addSymbolExport("3Q85e5cS3e0", "sceCompositorSetPostEventCommand", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetPostEventCommand);
+    module.addSymbolExport("twGXom56jw0", "sceCompositorGetRenderTargetResolution", "libSceComposite", "libSceComposite", (void*)&sceCompositorGetRenderTargetResolution);
+    module.addSymbolExport("4yWqjTZtvs4", "sceCompsoitorGetGpuClock", "libSceComposite", "libSceComposite", (void*)&sceCompsoitorGetGpuClock);
+    module.addSymbolExport("deKovf3qViA", "sceCompositorWaitPostEvent", "libSceComposite", "libSceComposite", (void*)&sceCompositorWaitPostEvent);
+    module.addSymbolExport("gVoOE32ATg0", "sceCompositorSetCompositeCanvasCommandInC", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetCompositeCanvasCommandInC);
+    module.addSymbolStub("N6ID0KNnzY8", "sceCompositorGetSystemSize", "libSceComposite", "libSceComposite", sce_compositor_system_size);
     module.addSymbolStub("FTQCTDU0b4g", "sceCompositorGetSystemSize", "libSceComposite", "libSceComposite", sce_compositor_video_size);
-    module.addSymbolStub("G4Q8KNkb5XE", "sceCompositorAllocateIndex", "libSceComposite", "libSceComposite", 1);
+    
+    module.addSymbolStub("IUlpGnuoR1c", "sceCompositorInitWithProcessOrder", "libSceComposite", "libSceComposite");
+    module.addSymbolStub("G4Q8KNkb5XE", "sceCompositorAllocateIndex", "libSceComposite", "libSceComposite", 0);
+    module.addSymbolStub("ZwsBB3s8qMk", "sceCompositorReleaseIndex", "libSceComposite", "libSceComposite", 0);
     module.addSymbolStub("GgOrwi+9vcA", "sceCompositorLockCommandBuffer", "libSceComposite", "libSceComposite");
     module.addSymbolStub("1OXbuWLRxqI", "sceCompositorReleaseCommandBuffer", "libSceComposite", "libSceComposite");
     module.addSymbolStub("eLU8pDi9KN0", "sceCompositorSetResolutionCommand", "libSceComposite", "libSceComposite");
@@ -40,25 +49,26 @@ void init(Module& module) {
     module.addSymbolStub("XZzyQX4T5ts", "libSceComposite_XZzyQX4T5ts", "libSceComposite", "libSceComposite");
     module.addSymbolStub("q+Qw1ESxCj8", "sceCompositorIsDebugCaptureEnabled", "libSceComposite", "libSceComposite");
     module.addSymbolStub("YzI2BOoDw+I", "sceCompositorSetPatchCommand", "libSceComposite", "libSceComposite");
-    module.addSymbolExport("DhtKelVAIaA", "sceCompositorSetGnmContextCommand", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetGnmContextCommand);
-    module.addSymbolExport("1oTrw-ivVpA", "sceCompositorSetFlipCommand", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetFlipCommand);
-    module.addSymbolExport("3Q85e5cS3e0", "sceCompositorSetPostEventCommand", "libSceComposite", "libSceComposite", (void*)&sceCompositorSetPostEventCommand);
-    module.addSymbolExport("twGXom56jw0", "sceCompositorGetRenderTargetResolution", "libSceComposite", "libSceComposite", (void*)&sceCompositorGetRenderTargetResolution);
     module.addSymbolStub("qZNF03+ghLI", "sceCompositorFlush", "libSceComposite", "libSceComposite");
-    module.addSymbolExport("4yWqjTZtvs4", "sceCompsoitorGetGpuClock", "libSceComposite", "libSceComposite", (void*)&sceCompsoitorGetGpuClock);
     module.addSymbolStub("6bz4VVSSFyg", "sceCompositorCommandGpuPerfBegin", "libSceComposite", "libSceComposite");
     module.addSymbolStub("fH2IStnGK4M", "sceCompositorCommandGpuPerfEnd", "libSceComposite", "libSceComposite");
     module.addSymbolStub("H4EXZ9L3p2M", "sceCompositorSetMorpheusState", "libSceComposite", "libSceComposite");
-    module.addSymbolExport("deKovf3qViA", "sceCompositorWaitPostEvent", "libSceComposite", "libSceComposite", (void*)&sceCompositorWaitPostEvent);
+
+    // Used by piglet
+    module.addSymbolStub("dHK+qu5D2HM", "sceCompositorSetDebugPositionCommand", "libSceComposite", "libSceComposite");
+    module.addSymbolStub("N7PrM+lPMW0", "sceCompositorGetCanvasHandle", "libSceComposite", "libSceComposite");
+    module.addSymbolStub("9M7HkbwUs-E", "sceCompositorCheckCrash", "libSceComposite", "libSceComposite");
 }
 
 void* PS4_FUNC sceCompositorGetSystemAddress() {
     log("sceCompositorGetSystemAddress()\n");
+    log("system address is %p\n", sce_compositor_system_address);
     return sce_compositor_system_address;
 }
 
 void* PS4_FUNC sceCompositorGetVideoAddress() {
     log("sceCompositorGetVideoAddress()\n");
+    log("video address is %p\n", sce_compositor_video_address);
     return sce_compositor_video_address;
 }
 
@@ -96,6 +106,22 @@ s32 PS4_FUNC sceCompositorSetGnmContextCommand(u32* dcb_gpu_addr, u32 dcb_size, 
 s32 PS4_FUNC sceCompositorSetFlipCommand() {
     log("sceCompositorSetFlipCommand()\n");
     PS4::OS::Libs::SceVideoOut::sceVideoOutSubmitFlip(2, 0, 0, 0);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceCompositorSetCompositeCanvasCommandInC(void* unk1, void* unk2) {
+    log("sceCompositorSetCompositeCanvasCommandInC(unk1=%p, unk2=%p)\n", unk1, unk2);
+    
+    // unk2[0] appears to be the address of the surface to output shifted by 8.
+    // piglet apps call this function, but VSH doesn't, so I still don't know how I'm supposed to get the output buffer for VSH without the hack in CommandProcessor.cpp.
+    OS::Libs::SceVideoOut::bufs[0].base = (void*)((uptr)(*(u32*)unk2) << 8);
+    OS::Libs::SceVideoOut::bufs[0].attrib.width = 1920;
+    OS::Libs::SceVideoOut::bufs[0].attrib.height = 1080;
+
+    // I don't know what else this function does
+
+    sceCompositorSetFlipCommand();
+    sceCompositorWaitPostEvent();
     return SCE_OK;
 }
 

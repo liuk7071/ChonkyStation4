@@ -254,13 +254,27 @@ void addFloatConstTable(std::string name, float* table, size_t size) {
     const_tables += ");\n";
 }
 
-bool has_lds = false;
-void addLDS(ShaderStage stage) {
-    if (has_lds) return;
-    has_lds = true;
+bool need_lds = false;
+void addLDS(ShaderStage stage, ComputeJob* compute_job) {
+    const auto lds_size = stage == ShaderStage::Compute ? compute_job->lds_size_dwords : 8192;
 
-    // 8192 = 32 KB / sizeof(uint)
-    shader += stage == ShaderStage::Compute ? "shared uint lds[8192];\n" : "uint lds[8192];\n";
+    if (stage == ShaderStage::Compute)
+        shader += std::format("shared uint lds[{}];\n", lds_size);
+    else
+        shader += std::format("uint lds[{}];\n", lds_size);
+
+    shader += std::format(R"(
+void writeLDS(uint idx, uint data) {{
+    if (idx < {})
+        lds[idx] = data;
+}}
+
+uint readLDS(uint idx) {{
+    if (idx < {})
+        return lds[idx];
+    else return 0;
+}}
+)", lds_size, lds_size);
 }
 
 bool has_gds = false;
@@ -347,7 +361,18 @@ void addGetVGPRHelper() {
     shader += "    default: return 0;\n";
     shader += "    }\n";
     shader += "}\n";
+}
 
+bool need_set_vgpr_helper = false;
+void addSetVGPRHelper() {
+    shader += "void setVGPR(uint idx, uint data) {\n";
+    shader += "    switch (idx) {\n";
+    for (auto [vgpr, unused] : vgpr_map) {
+        shader += std::format("    case {}: v{} = data; return;\n", vgpr, vgpr);
+    }
+    shader += "    default: return;\n";
+    shader += "    }\n";
+    shader += "}\n";
 }
 
 enum class Type {
@@ -744,7 +769,7 @@ void trackAndCreateBuffers(u32* data, u32 start_pc, ShaderStage stage, ShaderDat
                         auto* tsharp = buf.desc_info.asPtr<TSharp>();
 
 #ifdef _WIN32
-                        //if (!IsBadReadPtr(tsharp, sizeof(TSharp)))
+                        if (!IsBadReadPtr(tsharp, sizeof(TSharp)))
 #endif
                             if (tsharp && tsharp->type == 10 /* COLOR 3D */) {
                                 type = "sampler3D";
@@ -1371,8 +1396,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::V_READFIRSTLANE_B32: {
-            code += "// TODO: V_READFIRSTLANE_B32\n";
-            code += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[0]));
+            code += setDST<Type::Uint>(instr.dst[0], std::format("subgroupBroadcastFirst({})", getSRC<Type::Uint>(instr.src[0])));
             break;
         }
 
@@ -1474,6 +1498,11 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::V_LSHL_B32: {
+            code += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+            break;
+        }
+
         case Shader::Opcode::V_LSHLREV_B32: {
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[0])));
             break;
@@ -1530,6 +1559,12 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
         case Shader::Opcode::V_SUB_I32: {
             code += setDST<Type::Int>(instr.dst[0], std::format("{} - {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+            // TODO: Carry out
+            break;
+        }
+
+        case Shader::Opcode::V_SUBREV_I32: {
+            code += setDST<Type::Int>(instr.dst[0], std::format("{} - {}", getSRC<Type::Int>(instr.src[1]), getSRC<Type::Int>(instr.src[0])));
             // TODO: Carry out
             break;
         }
@@ -1709,6 +1744,13 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::V_MOVRELD_B32: {
+            need_set_vgpr_helper = true;
+            code += std::format("setVGPR({} + m0, {});\n", instr.dst[0].code, getVGPR(instr.src[0].code));
+            code += setDST<Type::Uint>(instr.dst[0], std::format("getVGPR({} + m0)", instr.src[0].code));
+            break;
+        }
+
         case Shader::Opcode::V_MOVRELS_B32: {
             need_get_vgpr_helper = true;
             code += setDST<Type::Uint>(instr.dst[0], std::format("getVGPR({} + m0)", instr.src[0].code));
@@ -1722,7 +1764,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::V_MAD_I32_I24: {
-            code += setDST<Type::Uint>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff) + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
+            code += setDST<Type::Int>(instr.dst[0], std::format("({} & 0xffffff) * ({} & 0xffffff) + {}", getSRC<Type::Int>(instr.src[0]), getSRC<Type::Int>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
             break;
         }
 
@@ -1989,12 +2031,77 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::DS_MIN_U32: {
-            code += "// TODO: DS_MIN_U32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_XOR_B32: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += std::format("atomicMin(lds[{} >> 2], {});\n", addr0, data0);
             break;
         }
 
         case Shader::Opcode::DS_MAX_U32: {
-            code += "// TODO: DS_MAX_U32\n";
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_XOR_B32: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += std::format("atomicMax(lds[{} >> 2], {});\n", addr0, data0);
+            break;
+        }
+
+        case Shader::Opcode::DS_AND_B32: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_AND_B32: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += std::format("atomicAnd(lds[{} >> 2], {});\n", addr0, data0);
+            break;
+        }
+
+        case Shader::Opcode::DS_OR_B32: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_OR_B32: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += std::format("atomicOr(lds[{} >> 2], {});\n", addr0, data0);
+            break;
+        }
+
+        case Shader::Opcode::DS_XOR_B32: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_XOR_B32: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += std::format("atomicXor(lds[{} >> 2], {});\n", addr0, data0);
             break;
         }
 
@@ -2003,13 +2110,13 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_WRITE_B32: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
             const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
 
             const auto data0 = getVGPR(instr.src[1].code);
-            code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
+            code += std::format("writeLDS({} >> 2, {});\n", addr0, data0);
             
             // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
             if (stage == ShaderStage::Compute) {
@@ -2026,7 +2133,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_WRITE2_B32: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
             
@@ -2038,8 +2145,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             const auto data0 = getVGPR(instr.src[1].code);
             const auto data1 = getVGPR(instr.src[2].code);
 
-            code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
-            code += std::format("lds[{} >> 2] = {};\n", addr1, data1);
+            code += std::format("writeLDS({} >> 2, {});\n", addr0, data0);
+            code += std::format("writeLDS({} >> 2, {});\n", addr1, data1);
             
             // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
             if (stage == ShaderStage::Compute) {
@@ -2056,7 +2163,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_WRITE2ST64_B32: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
 
@@ -2067,8 +2174,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
             const auto data0 = getVGPR(instr.src[1].code);
             const auto data1 = getVGPR(instr.src[2].code);
-            code += std::format("lds[{} >> 2] = {};\n", addr0, data0);
-            code += std::format("lds[{} >> 2] = {};\n", addr1, data1);
+            code += std::format("writeLDS({} >> 2, {});\n", addr0, data0);
+            code += std::format("writeLDS({} >> 2, {});\n", addr1, data1);
             
             // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
             if (stage == ShaderStage::Compute) {
@@ -2080,8 +2187,23 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::DS_ADD_RTN_U32: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_ADD_RTN_U32: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+            
+            const auto data0 = getVGPR(instr.src[1].code);
+            code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(lds[{} >> 2], {})", addr0, data0));
+            break;
+        }
+
         case Shader::Opcode::DS_SWIZZLE_B32: {
-            code += setDST(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 */", getSRC(instr.src[0])));
+            code += setDST<Type::Uint>(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 */", getSRC<Type::Uint>(instr.src[0])));
             break;
         }
 
@@ -2090,21 +2212,21 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
                 code += "// TODO: DS_READ_B32: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
             const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
             code += std::format("addr0 = {} >> 2;\n", addr0);
-            code += std::format("{} = lds[addr0];\n", getVGPR(instr.dst[0].code));
+            code += std::format("{} = readLDS(addr0);\n", getVGPR(instr.dst[0].code));
             break;
         }
 
         case Shader::Opcode::DS_READ2_B32: {
             if (instr.control.ds.gds) {
-                code += "// TODO: DS_READ_B32: GDS write\n";
+                code += "// TODO: DS_READ2_B32: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
             
@@ -2115,17 +2237,17 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
             code += std::format("addr0 = {} >> 2;\n", addr0);
             code += std::format("addr1 = {} >> 2;\n", addr1);
-            code += std::format("{} = lds[addr0];\n", getVGPR(instr.dst[0].code + 0));
-            code += std::format("{} = lds[addr1];\n", getVGPR(instr.dst[0].code + 1));
+            code += std::format("{} = readLDS(addr0);\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = readLDS(addr1);\n", getVGPR(instr.dst[0].code + 1));
             break;
         }
 
         case Shader::Opcode::DS_READ2ST64_B32: {
             if (instr.control.ds.gds) {
-                code += "// TODO: DS_READ_B32: GDS write\n";
+                code += "// TODO: DS_READ2ST64_B32: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
 
@@ -2136,8 +2258,8 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
             code += std::format("addr0 = {} >> 2;\n", addr0);
             code += std::format("addr1 = {} >> 2;\n", addr1);
-            code += std::format("{} = lds[addr0];\n", getVGPR(instr.dst[0].code + 0));
-            code += std::format("{} = lds[addr1];\n", getVGPR(instr.dst[0].code + 1));
+            code += std::format("{} = readLDS(addr0);\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = readLDS(addr1);\n", getVGPR(instr.dst[0].code + 1));
             break;
         }
 
@@ -2163,12 +2285,83 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             break;
         }
 
+        case Shader::Opcode::DS_WRITE_B64: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_WRITE_B64: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+
+            code += std::format("writeLDS(({} >> 2) + 0, {});\n", addr0, getVGPR(instr.src[1].code + 0));
+            code += std::format("writeLDS(({} >> 2) + 1, {});\n", addr0, getVGPR(instr.src[1].code + 1));
+
+            // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
+            if (stage == ShaderStage::Compute) {
+                block.needs_barrier = true;
+                block.fallthrough = getOrCreateBlock(data, pc + instr.length, stage);
+                done = true;
+                break;
+            }
+            break;
+        }
+
+
+        case Shader::Opcode::DS_WRITE2_B64: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_WRITE2_B64: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+
+            // For pair instructions, the offsets are 32/64bit offsets instead of byte.
+            // The addr register is still a byte offset.
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 * 8);
+            const auto addr1 = std::format("({} + {})", addr, instr.control.ds.offset1 * 8);
+
+            const auto data0 = getVGPR(instr.src[1].code);
+            const auto data1 = getVGPR(instr.src[2].code);
+
+            code += std::format("writeLDS(({} >> 2) + 0, {});\n", addr0, getVGPR(instr.src[1].code + 0));
+            code += std::format("writeLDS(({} >> 2) + 1, {});\n", addr0, getVGPR(instr.src[1].code + 1));
+            code += std::format("writeLDS(({} >> 2) + 0, {});\n", addr1, getVGPR(instr.src[2].code + 0));
+            code += std::format("writeLDS(({} >> 2) + 1, {});\n", addr1, getVGPR(instr.src[2].code + 1));
+
+            // Stop the block here so that our emitter has the chance to emit a barrier, only for compute shaders
+            if (stage == ShaderStage::Compute) {
+                block.needs_barrier = true;
+                block.fallthrough = getOrCreateBlock(data, pc + instr.length, stage);
+                done = true;
+                break;
+            }
+            break;
+        }
+
+        case Shader::Opcode::DS_READ_B64: {
+            if (instr.control.ds.gds) {
+                code += "// TODO: DS_READ_B64: GDS write\n";
+                break;
+            }
+            need_lds = true;
+
+            const auto addr = getVGPR(instr.src[0].code);
+            const auto addr0 = std::format("({} + {})", addr, instr.control.ds.offset0 | (instr.control.ds.offset1 << 8));
+            code += std::format("addr0 = {} >> 2;\n", addr0);
+            code += std::format("{} = readLDS(addr0 + 0);\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = readLDS(addr0 + 1);\n", getVGPR(instr.dst[0].code + 1));
+            break;
+        }
+
         case Shader::Opcode::DS_READ2_B64: {
             if (instr.control.ds.gds) {
                 code += "// TODO: DS_READ2_B64: GDS write\n";
                 break;
             }
-            addLDS(stage);
+            need_lds = true;
 
             const auto addr = getVGPR(instr.src[0].code);
 
@@ -2179,10 +2372,10 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
             code += std::format("addr0 = {} >> 2;\n", addr0);
             code += std::format("addr1 = {} >> 2;\n", addr1);
-            code += std::format("{} = lds[addr0 + 0];\n", getVGPR(instr.dst[0].code + 0));
-            code += std::format("{} = lds[addr0 + 1];\n", getVGPR(instr.dst[0].code + 1));
-            code += std::format("{} = lds[addr1 + 0];\n", getVGPR(instr.dst[0].code + 2));
-            code += std::format("{} = lds[addr1 + 1];\n", getVGPR(instr.dst[0].code + 3));
+            code += std::format("{} = readLDS(addr0 + 0);\n", getVGPR(instr.dst[0].code + 0));
+            code += std::format("{} = readLDS(addr0 + 1);\n", getVGPR(instr.dst[0].code + 1));
+            code += std::format("{} = readLDS(addr1 + 0);\n", getVGPR(instr.dst[0].code + 2));
+            code += std::format("{} = readLDS(addr1 + 1);\n", getVGPR(instr.dst[0].code + 3));
             break;
         }
 
@@ -2400,7 +2593,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             // TODO: We use whatever T# the game set the first time the shader is compiled. In theory it can change.
             auto* tsharp = buf->desc_info.asPtr<TSharp>();
 #ifdef _WIN32
-            //if (IsBadReadPtr(tsharp, sizeof(TSharp))) tsharp = nullptr;
+            if (IsBadReadPtr(tsharp, sizeof(TSharp))) tsharp = nullptr;
 #endif
             const bool is_3d = tsharp ? tsharp->type == 10 : false;
 
@@ -2849,16 +3042,18 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
     has_cubemap_majoraxis_func = false;
     has_fetch_buffer_func_map.clear();
     has_store_buffer_func_map.clear();
-    has_lds = false;
     has_gds = false;
     vgpr_map.clear();
     sgpr_map.clear();
     lane_map.clear();
     need_get_vgpr_helper = false;
+    need_set_vgpr_helper = false;
+    need_lds = false;
 
     shader += R"(
 #version 450
 #extension GL_ARB_shading_language_packing : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 )";
 
@@ -3262,6 +3457,12 @@ bool v_cmp_class_f32(float x, uint mask) {
 
     if (need_get_vgpr_helper)
         addGetVGPRHelper();
+
+    if (need_set_vgpr_helper)
+        addSetVGPRHelper();
+
+    if (need_lds)
+        addLDS(stage, compute_job);
 
     // Print immediate post-dominators
     for (auto& block : blocks) {

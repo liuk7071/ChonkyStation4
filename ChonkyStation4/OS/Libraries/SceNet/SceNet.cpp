@@ -276,7 +276,12 @@ s32 PS4_FUNC sceNetBind(SceNetId s, const SceNetSockaddr* addr, SceNetSocklen ad
             auto* bind_addr = (SceNetSockaddrIn*)addr;
             const auto port = sceNetNtohs(bind_addr->port);
             log("binding udp socket to port %d\n", port);
-            sock->udp_sock->bind(udp::endpoint(udp::v4(), port));
+            try {
+                sock->udp_sock->bind(udp::endpoint(udp::v4(), port));
+            }
+            catch (const std::system_error& e) {
+                printf("sceNetBind failed on port %d: %s\n", bind_addr->port, e.what());
+            }
             break;
         }
         }
@@ -509,8 +514,8 @@ SceNetId /* doesn't actually return an id */ PS4_FUNC sceNetResolverGetError(Sce
 
 s32 PS4_FUNC sceNetCtlGetState(s32* state) {
     log("sceNetCtlGetState()\n");
-    *state = 0; // Disconnected
-    //*state = 3; // IP Obtained
+    //*state = 0; // Disconnected
+    *state = 3; // IP Obtained
     return SCE_OK;
 }
 

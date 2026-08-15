@@ -17,6 +17,7 @@ void init(Module& module) {
     module.addSymbolStub("eR2bZFAAU0Q", "sceSysmoduleUnloadModule", "libSceSysmodule", "libSceSysmodule");
     module.addSymbolStub("hHrGoGoNf+s", "sceSysmoduleLoadModuleInternalWithArg", "libSceSysmodule", "libSceSysmodule");
     module.addSymbolStub("D8cuU4d72xM", "sceSysmoduleGetModuleHandleInternal", "libSceSysmodule", "libSceSysmodule", 0);
+    module.addSymbolStub("vXZhrtJxkGc", "sceSysmoduleUnloadModuleInternal", "libSceSysmodule", "libSceSysmodule", 0);
 }
 
 s32 PS4_FUNC sceSysmoduleLoadModuleByNameInternal(char* name) {

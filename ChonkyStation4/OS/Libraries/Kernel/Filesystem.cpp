@@ -137,16 +137,6 @@ s64 PS4_FUNC sceKernelPread(s32 fd, u8* buf, u64 size, s64 offset) {
 
 s64 PS4_FUNC kernel_readlink(const char* path, u8* buf, size_t size) {
     log("readlink(path=\"%s\", buf=%p, size=%lld) @ %p\n", path, buf, size, RETURN_ADDRESS());
-    
-    //if (std::string(path) == "/app0/psm/Application/mscorlib.dll") {
-    //    std::strncpy((char*)buf, "/app0/psm/Application/mscorlib.dll.sprx", size);
-    //    return 0;
-    //}
-    //
-    //if (std::string(path) == "/app0/psm/Application") {
-    //    std::strncpy((char*)buf, "/app0/psm/Application/app.exe", size);
-    //    return 0;
-    //}
 
     *Kernel::kernel_error() = POSIX_EINVAL; // Not a symbolic link
     return -1;
@@ -216,6 +206,10 @@ s64 PS4_FUNC kernel_writev(s32 fd, SceKernelIovec* iov, int iovcnt) {
 s32 PS4_FUNC kernel_ftruncate(s32 fd, s64 len) {
     log("ftruncate(fd=%d, len=0x%llx)\n", fd, len);
     
+    // Piglet tries to ftruncate physhm.
+    // Shared memory isn't implemented, when it tries to open it we return handle 10.
+    if (fd == 10) return 0;
+
     if (!FS::exists(fd)) {
         *Kernel::kernel_error() = POSIX_ENOENT;
         return -1;

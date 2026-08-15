@@ -450,6 +450,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("xQeIryTX7dY", "sceRemoteplayApprove", "libSceRemoteplay", "libSceRemoteplay");
     module->addSymbolStub("mrNh78tBpmg", "sceRemoteplayProhibit", "libSceRemoteplay", "libSceRemoteplay");
     module->addSymbolStub("g3PNjYKWqnQ", "sceRemoteplayGetConnectionStatus", "libSceRemoteplay", "libSceRemoteplay");
+    module->addSymbolStub("7QLrixwVHcU", "sceRemoteplayProhibitStreaming", "libSceRemoteplay", "libSceRemoteplay");
     
     // libSceIme
     module->addSymbolStub("uTW+63goeJs", "InitializeImeModule", "libSceIme", "libSceIme");
@@ -547,7 +548,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("BZ0olR8Da0g", "sceBgftServiceIntInit", "libSceBgft", "libSceBgft");
     module->addSymbolStub("vJhYrkgTYWY", "sceBgftServiceIntGetNotificationEvent", "libSceBgft", "libSceBgft", 0x80020055 /* no event? */);
     
-    // libSceBgft
+    // libSceCdlgUtilServer
     module->addSymbolStub("33zrWSbHxcI", "libSceCdlgUtilServer_33zrWSbHxcI", "libSceCdlgUtilServer", "libSceCdlgUtilServer");
     
     // libSceKbEmulate

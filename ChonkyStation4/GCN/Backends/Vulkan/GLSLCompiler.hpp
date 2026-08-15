@@ -127,7 +127,13 @@ static const TBuiltInResource DefaultTBuiltInResource = {
 };
 
 #define SHADER_DEBUG
+
+#ifndef CHONKYSTATION4_HAS_NVIDIA_AFTERMATH
 //#define DUMP_SHADERS
+#else
+// We need to dump shaders for Aftermath to work.
+#define DUMP_SHADERS
+#endif
 
 inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage, std::string filename = "") {
     glslang::InitializeProcess();
@@ -137,7 +143,7 @@ inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage
     shader.setStrings(strings, 1);
     shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 450);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_2);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     shader.parse(
         &DefaultTBuiltInResource,  // default TBuiltInResource from ResourceLimits.h
         450,                    // default version

@@ -8,7 +8,7 @@
 
 namespace PS4::GCN::Vulkan::NVIDIA {
 
-static constexpr bool force_disable = true;
+static constexpr bool force_disable = false;
 
 void crashDumpCallback(const void* crash_dump, const u32 crash_dump_size, void* user_data) {
     std::ofstream file("crash.nv-gpudmp", std::ios::binary);

@@ -15,6 +15,7 @@ struct ComputeJob {
     u32 n_threads_x = 0;
     u32 n_threads_y = 0;
     u32 n_threads_z = 0;
+    u32 lds_size_dwords = 0;
     void* addr = nullptr;
 };
 

@@ -279,6 +279,7 @@ std::pair<vk::Format, size_t> getBufFormatAndSize(u32 dfmt, u32 nfmt) {
     case DataFormat::Format16_16_16_16: {
         switch ((NumberFormat)nfmt) {
 
+        case NumberFormat::Unorm:   return { vk::Format::eR16G16B16A16Unorm, sizeof(u16) * 4 };
         case NumberFormat::Snorm:   return { vk::Format::eR16G16B16A16Snorm, sizeof(u16) * 4 };
         case NumberFormat::Uscaled: return { vk::Format::eR16G16B16A16Uscaled, sizeof(u16) * 4 };
         case NumberFormat::Sscaled: return { vk::Format::eR16G16B16A16Sscaled, sizeof(u16) * 4 };

@@ -24,4 +24,6 @@ inline bool disable_sgpr_init_hack = false;
 inline bool clamp_gpu_buffers = false;
 inline bool skip_bindless_buffers = false;
 
+inline bool force_init_sce_compositor = false;
+
 }   // End namespace PS4::Configuration

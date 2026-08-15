@@ -80,6 +80,7 @@ void init(Module& module) {
     module.addSymbolForPartialLLE("cFCp0NX8wf0", "sceGnmSetVgtControl", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("ZFqKFl23aMc", "sceGnmRegisterOwner", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolForPartialLLE("iCO804ZgzdA", "sceGnmValidateCommandBuffers", "libSceGnmDriver", "libSceGnmDriver");
+    module.addSymbolForPartialLLE("rTIV11nMQuM", "sceGnmValidateOnSubmitEnabled", "libSceGnmDriver", "libSceGnmDriver");
     
     module.addSymbolStub("iBt3Oe00Kvc", "sceGnmFlushGarlic", "libSceGnmDriver", "libSceGnmDriver");
     module.addSymbolStub("PVT+fuoS9gU", "sceGnmDeleteEqEvent", "libSceGnmDriver", "libSceGnmDriver");
