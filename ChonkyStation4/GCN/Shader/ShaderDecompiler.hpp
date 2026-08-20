@@ -41,6 +41,8 @@ struct DescriptorLocation {
     bool ptr_is_from_buf = false;   // Whether or not to load the descriptor from the buffer below (bindless descriptor) or the user data
     Buffer* buf = nullptr;          // For bindless buffers, this is the buffer the descriptor is loaded from
     s32 buf_offs = 0;               // For bindless buffers, this is the offset (in DWORDs) into the buffer the descriptor is loaded from
+    bool ptr_is_inline = false;     // Whether or not this is an inline descriptor (the descriptor is constructed inside the shader itself)
+    void* inline_buffer = nullptr;
     DescriptorType type;
     ShaderStage stage;
 

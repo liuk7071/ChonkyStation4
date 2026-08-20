@@ -450,7 +450,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             }
             case 4: {
                 // TODO: gpu perf counter
-                const u64 dummy = 100000;
+                const u64 dummy = std::chrono::system_clock::now().time_since_epoch().count();
                 std::memcpy(dst_ptr, &dummy, sizeof(u64));
                 break;
             }
@@ -530,7 +530,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             case DmaData::DmaDataSrc::Memory:
             case DmaData::DmaDataSrc::MemoryUsingL2:    src = (void*)(src_addr_lo | ((u64)src_addr_hi << 32));  break;
             case DmaData::DmaDataSrc::Data:             is_fill = true;                                         break;
-            case DmaData::DmaDataSrc::Gds:              log("TODO: GDS READBACK\n"); dst = 0;                   break;
+            case DmaData::DmaDataSrc::Gds:              printf("TODO: GDS READBACK\n"); dst = 0;                break;
             default:
                 Helpers::panic("DmaData: unhandled src_sel %d\n", info.src_sel.Value());
             }
@@ -664,6 +664,11 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             const u32 draw_args_offs = *args++;
             // TODO: BASE_VTX_LOC
             renderer->drawIndirect(1, true, (void*)((uptr)indirect_args_base + draw_args_offs), index_base, n_indices);
+            break;
+        }
+
+        case PM4ItOpcode::NumInstances: {
+            renderer->regs[Reg::mmVGT_NUM_INSTANCES__CI__VI] = *args++;
             break;
         }
 

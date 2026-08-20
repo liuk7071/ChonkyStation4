@@ -481,6 +481,9 @@ T* DescriptorLocation::asPtr() {
             desc = (T*)((u32*)vsharp->base + buf_offs);
             return desc;
         }
+        else if (ptr_is_inline) {
+            return (T*)inline_buffer;
+        }
 
         std::memcpy(&desc, &GCN::renderer->regs[base + sgpr], sizeof(T*));
         desc = (T*)((u32*)desc + offs);  // The immediate is an offset in dwords
@@ -647,6 +650,68 @@ void trackAndCreateBuffers(u32* data, u32 start_pc, ShaderStage stage, ShaderDat
             if (backup_descs.contains(backup_idx)) {
                 descs[dest_sgpr] = backup_descs[backup_idx];
             }
+            break;
+        }
+
+        case Shader::Opcode::S_GETPC_B64: {
+            // Detect some patterns for descriptors created within the shader.
+            // This example is taken from Rise of the Tomb Raider (compute shader hash ad512f8dec0eede7)
+            ///*0000000004ec*/ s_getpc_b64     s[0:1]
+            ///*0000000004f0*/ s_add_u32       s0, 0x3f4, s0
+            ///*0000000004f8*/ s_addc_u32      s1, 0, s1
+            ///*0000000004fc*/ s_mov_b32       s2, 32
+            ///*000000000500*/ s_mov_b32       s3, 0x2000c004
+            ///*000000000508*/ tbuffer_load_format_xy v[128:129], v128, s[0:3], 0 offen format : [32_32, float]
+            
+            auto code_slice_copy = code_slice;
+
+            // S_GETPC_B64
+            const u64 getpc_addr = (u64)((u8*)data + pc + 4);
+            const auto getpc_dest = instr.dst[0].code;
+            DescriptorLocation desc_info = { .is_ptr = true, .ptr_is_inline = true };
+            // In theory this leaks memory, but we never free compiled shaders so it's fine.
+            desc_info.inline_buffer = new VSharp();     // TODO: I assume the type is V#. For this specific pattern, it should be fine (T# are twice as big).
+            auto* vsharp = desc_info.inline_buffer;
+
+            // S_ADD_U32
+            auto next_instr = decoder.decodeInstruction(code_slice_copy);
+            if (next_instr.opcode != Shader::Opcode::S_ADD_U32) break;
+            if (next_instr.dst[0].code != getpc_dest || next_instr.src[1].code != getpc_dest) break;
+            if (next_instr.src[0].field != Shader::OperandField::LiteralConst) break;
+            *(u64*)vsharp = getpc_addr + next_instr.src[0].code;
+
+            // S_ADDC_U32
+            next_instr = decoder.decodeInstruction(code_slice_copy);
+            if (next_instr.opcode != Shader::Opcode::S_ADDC_U32) break;
+            if (next_instr.dst[0].code != (getpc_dest + 1) || next_instr.src[1].code != (getpc_dest + 1)) break;
+            if (next_instr.src[0].field != Shader::OperandField::ConstZero && !(next_instr.src[0].field == Shader::OperandField::LiteralConst && next_instr.src[0].code == 0)) break;
+
+            // S_MOV_B32
+            auto match_s_mov_b32 = [](const GcnInst& instr) -> std::pair<bool, u32> {
+                if (instr.opcode != Shader::Opcode::S_MOV_B32) return { false, 0 };
+                
+                auto field = instr.src[0].field;
+                if (field != Shader::OperandField::LiteralConst && field != Shader::OperandField::SignedConstIntPos) return { false, 0 };
+                
+                if (field == Shader::OperandField::LiteralConst)
+                    return { true, instr.src[0].code };
+                else if (field == Shader::OperandField::SignedConstIntPos)
+                    return { true, (s32)instr.src[0].code - SignedConstIntPosMin + 1 };
+                else Helpers::panic("Unreachable\n");
+            };
+
+            next_instr = decoder.decodeInstruction(code_slice_copy);
+            auto [ok, val] = match_s_mov_b32(next_instr);
+            if (!ok) break;
+            *((u32*)vsharp + 2) = val;
+
+            // S_MOV_B32
+            next_instr = decoder.decodeInstruction(code_slice_copy);
+            auto [ok2, val2] = match_s_mov_b32(next_instr);
+            if (!ok2) break;
+            *((u32*)vsharp + 3) = val2;
+
+            descs[getpc_dest] = desc_info;
             break;
         }
 
@@ -987,6 +1052,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
 
         case Shader::Opcode::S_CSELECT_B64: {
             // TODO: 64bit
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("(scc == 1) ? {} : {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
@@ -998,6 +1064,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::S_AND_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} & {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
@@ -1010,42 +1077,49 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::S_OR_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} | {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
         case Shader::Opcode::S_XOR_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} ^ {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
         case Shader::Opcode::S_ANDN2_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} & ~{}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
         case Shader::Opcode::S_ORN2_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} | ~{}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
         case Shader::Opcode::S_NAND_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("~({} & {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
         case Shader::Opcode::S_NOR_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("~({} | {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
         }
 
         case Shader::Opcode::S_XNOR_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("~({} ^ {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
@@ -1123,11 +1197,13 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::S_MOV_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[0]));
             break;
         }
 
         case Shader::Opcode::S_NOT_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("~{}", getSRC<Type::Uint>(instr.src[0])));
             code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
             break;
@@ -1747,7 +1823,6 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         case Shader::Opcode::V_MOVRELD_B32: {
             need_set_vgpr_helper = true;
             code += std::format("setVGPR({} + m0, {});\n", instr.dst[0].code, getVGPR(instr.src[0].code));
-            code += setDST<Type::Uint>(instr.dst[0], std::format("getVGPR({} + m0)", instr.src[0].code));
             break;
         }
 
@@ -1877,6 +1952,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::V_LSHL_B64: {
+            code += "// B64\n";
             code += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x3f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
             break;
         }
@@ -2203,7 +2279,10 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
         }
 
         case Shader::Opcode::DS_SWIZZLE_B32: {
-            code += setDST<Type::Uint>(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 */", getSRC<Type::Uint>(instr.src[0])));
+            if (instr.control.ds.offset1 & 0x80)
+                code += setDST<Type::Uint>(instr.dst[0], std::format("subgroupQuadBroadcast({}, bitfieldExtract({}, int((gl_SubgroupInvocationID & 3) << 1), 2))", getSRC<Type::Uint>(instr.src[0]), instr.control.ds.offset0));
+            else
+                code += setDST<Type::Uint>(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 non-quad shuffle */", getSRC<Type::Uint>(instr.src[0])));
             break;
         }
 
@@ -2771,7 +2850,7 @@ void decompileBasicBlock(u32* data, u32 start_pc, ShaderStage stage, BasicBlock&
             int comp = 0;
             if (std::popcount(instr.control.mimg.dmask) == 1) {
                 for (comp = 0; comp < 4; comp++) {
-                    if (instr.control.mimg.dmask >> comp)
+                    if ((instr.control.mimg.dmask >> comp) & 1)
                         break;
                 }
             }
@@ -3009,7 +3088,7 @@ std::string emit(BasicBlock* from, BasicBlock* to, bool& needs_barrier, int leve
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job) {
     //std::ofstream out;
     ////if (stage == ShaderStage::Vertex) {
-    //if (out_data.hash == 0x317d9ad1494ad5f8) {
+    //if (out_data.hash == 0xad512f8dec0eede7) {
     //  out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
     //  out.write((char*)data, 12_KB);
     //  out.close();
@@ -3054,6 +3133,7 @@ void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchSh
 #version 450
 #extension GL_ARB_shading_language_packing : require
 #extension GL_KHR_shader_subgroup_ballot : require
+#extension GL_KHR_shader_subgroup_quad : require
 
 )";
 
@@ -3140,7 +3220,9 @@ bool v_cmp_class_f32(float x, uint mask) {
     main += "m0    = 0;\n";
     if (stage == ShaderStage::Vertex) {
         getVGPR(0);
+        getVGPR(3);
         main += "v0 = gl_VertexIndex;\n";
+        main += "v3 = gl_InstanceIndex;\n";
     } else if (stage == ShaderStage::Fragment) {
         getVGPR(2);
         getVGPR(3);
@@ -3151,6 +3233,7 @@ bool v_cmp_class_f32(float x, uint mask) {
     }
     else if (stage == ShaderStage::Compute) {
         getSGPR(12);
+        getSGPR(14);
         getSGPR(16);    // TODO: Register numbers hardcoded from Minecraft
         getSGPR(17);
         getSGPR(18);
@@ -3158,8 +3241,9 @@ bool v_cmp_class_f32(float x, uint mask) {
         getVGPR(1);
         getVGPR(2);
         main += "s12 = gl_WorkGroupID.x;\n";
+        main += "s14 = gl_WorkGroupID.x;\n";
         main += "s16 = gl_WorkGroupID.x;\n";
-        main += "v0 = gl_LocalInvocationID.x;\n";   // TODO: Or is it the opposite? (local invocation id in SGPRs)
+        main += "v0 = gl_LocalInvocationID.x;\n";
         main += "s17 = gl_WorkGroupID.y;\n";
         main += "v1 = gl_LocalInvocationID.y;\n";
         main += "s18 = gl_WorkGroupID.z;\n";
@@ -3454,6 +3538,12 @@ bool v_cmp_class_f32(float x, uint mask) {
     shader += "\n";
     shader += const_tables;
     shader += "\n";
+
+    if (need_get_vgpr_helper || need_set_vgpr_helper) {
+        // If either of these helpers is needed, we need to fallback and allocate all VGPRs because we can't know which ones will be used beforehand...
+        for (int i = 0; i < 256; i++)
+            getVGPR(i);
+    }
 
     if (need_get_vgpr_helper)
         addGetVGPRHelper();

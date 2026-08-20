@@ -812,13 +812,17 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     for (int i = 0; i < vtx_bindings->size(); i++)
         cmd_bufs[frame_idx].bindVertexBuffers(i, (*vtx_bindings)[i].buf, (*vtx_bindings)[i].offs_in_buf);
 
+    u32 num_instances = regs[Reg::mmVGT_NUM_INSTANCES__CI__VI];
+    if (num_instances == 0) num_instances = 1;
+
     const u32 vtx_offs = regs[Reg::mmVGT_INDX_OFFSET];
+    // TODO: Instance offset
     if (idx_buf_ptr) {
         cmd_bufs[frame_idx].bindIndexBuffer(vk_idx_buf, idx_buf_offs, index_type == IndexType::Uint16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
-        cmd_bufs[frame_idx].drawIndexed(cnt, 1, idx_offs, vtx_offs, 0);
+        cmd_bufs[frame_idx].drawIndexed(cnt, num_instances, idx_offs, vtx_offs, 0);
     }
     else {
-        cmd_bufs[frame_idx].draw(cnt, 1, vtx_offs, 0);
+        cmd_bufs[frame_idx].draw(cnt, num_instances, vtx_offs, 0);
     }
 }
 

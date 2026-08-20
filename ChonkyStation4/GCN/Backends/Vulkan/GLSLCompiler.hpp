@@ -143,7 +143,7 @@ inline std::vector<u32> compileGLSL(const std::string& source, EShLanguage stage
     shader.setStrings(strings, 1);
     shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 450);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_5);
     shader.parse(
         &DefaultTBuiltInResource,  // default TBuiltInResource from ResourceLimits.h
         450,                    // default version
