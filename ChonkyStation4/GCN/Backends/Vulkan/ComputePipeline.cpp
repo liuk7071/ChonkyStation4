@@ -1,5 +1,6 @@
 #include "ComputePipeline.hpp"
 #include <Logger.hpp>
+#include <Profiler.hpp>
 #include <Configuration.hpp>
 #include <GCN/HostTessShaders.hpp>
 #include <GCN/Backends/Vulkan/BufferCache.hpp>
@@ -16,6 +17,8 @@ namespace PS4::GCN::Vulkan {
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 ComputePipeline::ComputePipeline(ShaderCache::CachedShader* compute_shader) : compute_shader(compute_shader) {
+    //Profiler::Scope profiler("Compute Pipeline creation");
+
     // Create compute shader stage
     vk::PipelineShaderStageCreateInfo stage_info = { .stage = vk::ShaderStageFlagBits::eCompute, .module = compute_shader->vk_shader, .pName = "main" };
 

@@ -5,10 +5,12 @@
 #include <GCN/PM4.hpp>
 #include <GCN/ComputeJob.hpp>
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
+#include <GCN/Backends/Vulkan/ShaderCache.hpp>
 #include <BitField.hpp>
 #include <co.hpp>
 #include <thread>
 #include <atomic>
+#include <unordered_set>
 
 
 namespace PS4::GCN {
@@ -184,6 +186,130 @@ void processCcb(u32* ccb, size_t ccb_size) {
     });
 }
 
+// Scan the command buffer for new shaders, and feed them to our multithreaded decompiler
+void findNewShaders(u32* dcb, size_t dcb_size, u32* regs_to_copy = nullptr) {
+    u32 regs[0xd000];
+    std::memcpy(regs, regs_to_copy == nullptr ? renderer->regs : regs_to_copy, 0xd000 * sizeof(u32));
+
+    // TODO: Duplicated from PipelineCache.cpp
+    auto check_fetch_shader = [](const u8* vs_ptr) -> bool {
+        // The fetch shader jump is always a s_swappc_b64, but it's not always at the second instruction (most of the time it is).
+        // Check the first 0x20 bytes.
+        for (int i = 0; i < 0x20; i += 4) {
+            if (*(u32*)(vs_ptr + i) == 0xbe802100)
+                return true;
+        }
+        return false;
+    };
+
+    auto check_shader = [&]() {
+        const auto* vs_ptr = (u8*)(((u64)regs[Reg::mmSPI_SHADER_PGM_LO_VS] << 8) | ((u64)regs[Reg::mmSPI_SHADER_PGM_HI_VS] << 8 << 32));
+        const auto* ps_ptr = (u8*)(((u64)regs[Reg::mmSPI_SHADER_PGM_LO_PS] << 8) | ((u64)regs[Reg::mmSPI_SHADER_PGM_HI_PS] << 8 << 32));
+        
+        auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
+        if (!check_fetch_shader(vs_ptr))
+            fetch_shader_ptr = nullptr;
+        auto fetch_shader = std::make_shared<FetchShader>(fetch_shader_ptr);
+
+        const bool has_vs = vs_ptr != nullptr;
+        const bool has_ps = ps_ptr != nullptr;
+
+        if (!has_vs)
+            Helpers::panic("TODO: no vertex shader");
+
+        // I abstracted the CommandProcessor away from the graphics backend.
+        // But here, we need to make an exception and call into the Vulkan backend because the shader cache is part of it.
+        // I'm never going to add other backends anyway...
+
+        if (has_vs) Vulkan::ShaderCache::decompileLater(vs_ptr, Shader::ShaderStage::Vertex, fetch_shader, regs, nullptr);
+        if (has_ps) Vulkan::ShaderCache::decompileLater(ps_ptr, Shader::ShaderStage::Fragment, nullptr, regs, nullptr);
+    };
+
+    for (u32* ptr = dcb; (u8*)ptr < (u8*)dcb + dcb_size; ) {
+        PM4Header* pkt = (PM4Header*)ptr;
+        u32* args = ptr;
+        args++;
+
+        if (pkt->type == 0) {
+            ptr++;
+            continue;
+            Helpers::panic("PM4 type 0 packet\n");
+        }
+        else if (pkt->type == 1) {
+            Helpers::panic("PM4 type 1 packet\n");
+        }
+        else if (pkt->type == 2) {
+            printf("Encountered type 2 packet\n");
+            ptr++;
+            continue;
+        }
+
+        switch ((PM4ItOpcode)(u32)pkt->opcode) {
+        case PM4ItOpcode::IndirectBuffer: {
+            const u32 addr_lo = *args++;
+            const IndirectBuffer1 d1 = { .raw = *args++ };
+            const IndirectBuffer2 d2 = { .raw = *args++ };
+            const u32* ptr = (u32*)(addr_lo | ((u64)d1.addr_hi << 32));
+            findNewShaders((u32*)ptr, d2.size * sizeof(u32), regs);
+            break;
+        }
+
+        case PM4ItOpcode::DispatchDirect: {
+            renderer->getCSPtr();
+            
+            break;
+        }
+
+        case PM4ItOpcode::SetConfigReg: {
+            const u32 reg_offset = 0x2000 + (*args++ & 0xffff);    // 0x2000 is the offset for ConfigReg
+            log("Set context register 0x%x\n", reg_offset);
+            if (reg_offset < 0xd000)
+                std::memcpy(&regs[reg_offset], args, pkt->count * sizeof(u32));
+            else printf("Bad config register offset 0x%x\n", reg_offset);
+            break;
+        }
+
+        case PM4ItOpcode::SetContextReg: {
+            const u32 reg_offset = 0xa000 + (*args++ & 0xffff);    // 0xa000 is the offset for ContextReg
+            log("Set context register 0x%x\n", reg_offset);
+            if (reg_offset < 0xd000)
+                std::memcpy(&regs[reg_offset], args, pkt->count * sizeof(u32));
+            else printf("Bad context register offset 0x%x\n", reg_offset);
+            break;
+        }
+
+        case PM4ItOpcode::SetShReg: {
+            const u32 reg_offset = 0x2c00 + (*args++ & 0xffff);    // 0x2c00 is the offset for ShReg
+            log("Set shader register 0x%x\n", reg_offset);
+            if (reg_offset < 0xd000)
+                std::memcpy(&regs[reg_offset], args, pkt->count * sizeof(u32));
+            else printf("Bad shader register offset 0x%x\n", reg_offset);
+            break;
+        }
+
+        case PM4ItOpcode::SetUconfigReg: {
+            const u32 reg_offset = 0xc000 + (*args++ & 0xffff);    // 0xc000 is the offset for UconfigReg
+            log("Set Uconfig register 0x%x\n", reg_offset);
+            if (reg_offset < 0xd000)
+                std::memcpy(&regs[reg_offset], args, pkt->count * sizeof(u32));
+            else printf("Bad shader register offset 0x%x\n", reg_offset);
+            break;
+        }
+
+        case PM4ItOpcode::DrawIndexAuto:
+        case PM4ItOpcode::DrawIndexIndirect:
+        case PM4ItOpcode::DrawIndex2:
+        case PM4ItOpcode::DrawIndexOffset2: {
+            check_shader();
+            break;
+        }
+
+        }
+
+        ptr += pkt->count + 2;
+    }
+}
+
 void* index_base = nullptr;
 s32   n_indices = 0;
 void* indirect_args_base = nullptr;
@@ -196,7 +322,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
     if (ccb) {
         processCcb(ccb, ccb_size);
     }
-    
+
+    if (Configuration::shader_compiler_is_multithreaded && !is_indirect)
+        Vulkan::ShaderCache::setCallbackForCacheMiss([&]() { findNewShaders(dcb, dcb_size); });
+
     //Profiler::Scope profiler("processCommands");
 
     const bool is_compute = compute_queue != nullptr;
@@ -733,6 +862,9 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
 
         ptr += pkt->count + 2;
     }
+
+    if (Configuration::shader_compiler_is_multithreaded && !is_indirect)
+        Vulkan::ShaderCache::setCallbackForCacheMiss(nullptr);
 }
 
 }   // End namespace PS4::GCN

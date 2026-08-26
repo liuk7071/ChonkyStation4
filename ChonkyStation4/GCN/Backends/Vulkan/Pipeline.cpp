@@ -18,6 +18,8 @@ namespace PS4::GCN::Vulkan {
 MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 
 Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedShader* pixel_shader, FetchShader fetch_shader, PipelineConfig& cfg) : vert_shader(vert_shader), pixel_shader(pixel_shader), fetch_shader(fetch_shader), cfg(cfg) {
+    //Profiler::Scope profiler("Graphics Pipeline creation");
+    
     // Iterate over fetch shader bindings and convert them to vulkan binding/attribute descriptions, and create the vertex buffers
     std::vector<vk::VertexInputBindingDescription> bindings;
     std::vector<vk::VertexInputAttributeDescription> attribs;

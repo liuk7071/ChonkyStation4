@@ -245,6 +245,7 @@ s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len);
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
 s32 PS4_FUNC kernel_munmap(void* addr, size_t len);
 size_t PS4_FUNC sceKernelGetDirectMemorySize();
+s32 PS4_FUNC sceKernelGetDirectMemoryType(void* start, s32* out_type, void** out_region_start, void** out_region_end);
 s32 PS4_FUNC sceKernelAvailableDirectMemorySize(u64 search_start, u64 search_end, size_t alignment, u64* phys_addr_out, size_t* size_out);
 s32 PS4_FUNC sceKernelAvailableFlexibleMemorySize(size_t* size_out);
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size);

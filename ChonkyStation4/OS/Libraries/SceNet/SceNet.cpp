@@ -43,6 +43,10 @@ void init(Module& module) {
     module.addSymbolExport("fZOeZIOEmLw", "send", "libScePosix", "libkernel", (void*)&kernel_send);
     module.addSymbolExport("Ez8xjo9UF4E", "recv", "libkernel", "libkernel", (void*)&kernel_recv);
     module.addSymbolExport("Ez8xjo9UF4E", "recv", "libScePosix", "libkernel", (void*)&kernel_recv);
+    module.addSymbolExport("4n51s0zEf0c", "inet_pton", "libkernel", "libkernel", (void*)&sceNetInetPton);
+    module.addSymbolExport("4n51s0zEf0c", "inet_pton", "libScePosix", "libkernel", (void*)&sceNetInetPton);
+    module.addSymbolExport("5jRCs2axtr4", "inet_ntop", "libkernel", "libkernel", (void*)&sceNetInetNtop);
+    module.addSymbolExport("5jRCs2axtr4", "inet_ntop", "libScePosix", "libkernel", (void*)&sceNetInetNtop);
 
     module.addSymbolExport("C4UgDHHPvdw", "sceNetResolverCreate", "libSceNet", "libSceNet", (void*)&sceNetResolverCreate);
     module.addSymbolExport("Nd91WaWmG2w", "sceNetResolverStartNtoa", "libSceNet", "libSceNet", (void*)&sceNetResolverStartNtoa);

@@ -18,7 +18,7 @@ void Semaphore::signal(s32 count, bool is_from_cancel) {
 }
 
 bool Semaphore::wait(s32 count, u32 timeout, bool& was_cancelled) {
-    auto lk = std::unique_lock<std::mutex>(mtx);
+    //auto lk = std::unique_lock<std::mutex>(mtx);
     was_cancelled = false;
 
     if (!timeout) {
@@ -60,7 +60,7 @@ bool Semaphore::wait(s32 count, u32 timeout, bool& was_cancelled) {
 }
 
 bool Semaphore::poll(s32 count) {
-    auto lk = std::unique_lock<std::mutex>(mtx);
+    //auto lk = std::unique_lock<std::mutex>(mtx);
 
     if (counter >= count) {
         while (count--) {

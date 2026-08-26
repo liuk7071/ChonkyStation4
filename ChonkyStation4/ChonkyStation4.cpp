@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--lle-ssl", PS4::Configuration::lle_ssl, "LLE libSceSsl");
     run_cmd->add_option("--gpu", PS4::Configuration::gpu_device_id, "Choose GPU device ID");
     run_cmd->add_option("--resolution-scale", PS4::Configuration::resolution_scale, "Choose the resolution scale. This is experimental and won't work for most games");
+    run_cmd->add_option("--shader-compiler-threads", PS4::Configuration::shader_compiler_threads, "Choose the number of concurrent shader compiler threads. 1 disables multithreading");
     run_cmd->add_option("--copy-command-buffers", PS4::Configuration::copy_command_buffers, "Copy GPU command buffers to separate buffers on submit");
     run_cmd->add_option("--skip-async-compute-dispatches", PS4::Configuration::skip_async_compute_dispatches, "Skip compute dispatches in async compute queues");
     run_cmd->add_option("--skip-waitregmem", PS4::Configuration::skip_waitregmem, "Skip the WaitRegMem packet");
@@ -88,6 +89,8 @@ int main(int argc, char** argv) {
     PS4::Configuration::system_dir_path = system_path;
     PS4::Configuration::system_ex_dir_path = system_ex_path;
     PS4::Configuration::sysmodules_path = sysmodules_path;
+
+    PS4::Configuration::shader_compiler_is_multithreaded = PS4::Configuration::shader_compiler_threads > 1;
 
     fs::path file_path = file;
     PS4::loadAndRun(file);

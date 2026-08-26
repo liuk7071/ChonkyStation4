@@ -49,6 +49,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     if (!has_vs)
         Helpers::panic("TODO: no vertex shader");
 
+
     if (has_vs) {
         vert_shader = ShaderCache::getShader(vert_shader_code, Shader::ShaderStage::Vertex, &fetch_shader);
         cfg.vertex_hash = vert_shader->data.hash;

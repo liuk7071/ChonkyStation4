@@ -10,9 +10,11 @@ namespace PS4::GCN {
 
 MAKE_LOG_FUNCTION(log, gcn_fetch_shader);
 
-VSharp* VSharpLocation::asPtr() {
+VSharp* VSharpLocation::asPtr(u32* regs) {
+    if (regs == nullptr) regs = renderer->regs;
+
     VSharp* vsharp;
-    std::memcpy(&vsharp, &renderer->regs[Reg::mmSPI_SHADER_USER_DATA_VS_0 + sgpr], sizeof(VSharp*));
+    std::memcpy(&vsharp, &regs[Reg::mmSPI_SHADER_USER_DATA_VS_0 + sgpr], sizeof(VSharp*));
     vsharp = (VSharp*)((u32*)vsharp + offs);  // The immediate is an offset in dwords
     return vsharp;
 }

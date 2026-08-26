@@ -11,7 +11,7 @@ struct VSharpLocation {
     u32 sgpr = 0;   // SGPR pair that contains the pointer to the V#
     u32 offs = 0;   // Offset in DWORDs from the pointer above
 
-    VSharp* asPtr();
+    VSharp* asPtr(u32* regs = nullptr);
 
     bool operator==(const VSharpLocation& other) {
         return sgpr == other.sgpr && offs == other.offs;

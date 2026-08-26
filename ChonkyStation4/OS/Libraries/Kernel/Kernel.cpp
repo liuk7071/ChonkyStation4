@@ -356,6 +356,7 @@ void init(Module& module) {
     module.addSymbolExport("UqDGjXA5yUM", "munmap", "libkernel", "libkernel", (void*)&kernel_munmap);
     module.addSymbolExport("UqDGjXA5yUM", "munmap", "libScePosix", "libkernel", (void*)&kernel_munmap);
     module.addSymbolExport("pO96TwzOm5E", "sceKernelGetDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemorySize);
+    module.addSymbolExport("BC+OG5m9+bw", "sceKernelGetDirectMemoryType", "libkernel", "libkernel", (void*)&sceKernelGetDirectMemoryType);
     module.addSymbolExport("C0f7TJcbfac", "sceKernelAvailableDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelAvailableDirectMemorySize);
     module.addSymbolExport("aNz11fnnzi4", "sceKernelAvailableFlexibleMemorySize", "libkernel", "libkernel", (void*)&sceKernelAvailableFlexibleMemorySize);
     module.addSymbolExport("rVjRvHJ0X6c", "sceKernelVirtualQuery", "libkernel", "libkernel", (void*)&sceKernelVirtualQuery);
@@ -1180,13 +1181,14 @@ std::unordered_map<void*, u64> virt_dmem_map;
 std::unordered_map<u64, void*> dmem_virt_map;
 std::unordered_map<u64, size_t> dmem_size_map;
 
-u64 next_dmem_addr = 0x100;
+u64 next_dmem_addr = 0x10000;
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
     
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)next_dmem_addr++;
+    *out_addr = (void*)next_dmem_addr;
+    next_dmem_addr += size;
     return SCE_OK;
 }
 
@@ -1195,7 +1197,8 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
 
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
-    *out_addr = (void*)next_dmem_addr++;
+    *out_addr = (void*)next_dmem_addr;
+    next_dmem_addr += size; 
     return SCE_OK;
 }
 
@@ -1238,10 +1241,14 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
             printf("dmem %p was mapped at in_addr with size %d. mapping requested size %d\n", virt_dmem_map[in_addr], dmem_size_map[virt_dmem_map[in_addr]], len);
         }
 #ifdef _WIN32
-        MEMORY_BASIC_INFORMATION mbi;
-        VirtualQuery(in_addr, &mbi, sizeof(mbi));
+        uptr curr_addr = (uptr)in_addr;
+        while (curr_addr < (uptr)in_addr + len) {
+            MEMORY_BASIC_INFORMATION mbi;
+            VirtualQuery((void*)curr_addr, &mbi, sizeof(mbi));
 
-        printf("Memory was reserved from % p to % p with state 0x%x\n", mbi.BaseAddress, (uptr)mbi.BaseAddress + mbi.RegionSize, mbi.State);
+            printf("Memory was reserved from % p to % p with state 0x%x\n", mbi.BaseAddress, (uptr)mbi.BaseAddress + mbi.RegionSize, mbi.State);
+            curr_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+        }
 #endif
         Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
         //printf("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
@@ -1400,12 +1407,29 @@ s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
         sceKernelMunmap(virt_addr, len);
         virt_dmem_map.erase(virt_addr);
         dmem_virt_map.erase((u64)addr);
+
+        auto size = dmem_size_map[(u64)addr];
+        dmem_size_map.erase((u64)addr);
+        
+        if (len < size) {
+            const u64 new_virt_addr = (u64)virt_addr + len;
+            const u64 new_dmem_addr = (u64)addr + len;
+            const u64 new_size = size - len;
+            virt_dmem_map[(void*)new_virt_addr] = new_dmem_addr;
+            dmem_virt_map[new_dmem_addr] = (void*)new_virt_addr;
+            dmem_size_map[new_dmem_addr] = new_size;
+        }
+            
     }
+    else
+        printf("sceKernelReleaseDirectMemory: no match for %p\n", addr);
     return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len) {
     log("sceKernelCheckedReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
+
+    //if (!addr) return SCE_KERNEL_ERROR_ENOENT;
 
     // TODO: Check if an unallocated area is included
     return sceKernelReleaseDirectMemory(addr, len);
@@ -1434,8 +1458,23 @@ s32 PS4_FUNC kernel_munmap(void* addr, size_t len) {
 
 size_t PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
-    //return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
-    return 5_GB - 512_MB;   // total size - flexible mem size
+    return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
+    //return 5_GB - 512_MB;   // total size - flexible mem size
+}
+
+s32 PS4_FUNC sceKernelGetDirectMemoryType(void* start, s32* out_type, void** out_region_start, void** out_region_end) {
+    log("sceKernelGetDirectMemoryType(start=%p, out_type=*%p, out_region_start=*%p, out_region_end=*%p)\n", start, out_type, out_region_start, out_region_end);
+
+    // TODO: Stub until I implement proper direct memory mapping (soon)
+    *out_type = 0;
+    *out_region_start = start;
+    *out_region_end   = start;
+
+    if (dmem_size_map.contains((u64)start))
+        *out_region_end = (void*)((u64)start + dmem_size_map[(u64)start]);
+
+    log("out_region_start: %p, out_region_end: %p\n", *out_region_start, *out_region_end);
+    return SCE_OK;
 }
 
 s32 PS4_FUNC sceKernelAvailableDirectMemorySize(u64 search_start, u64 search_end, size_t alignment, u64* phys_addr_out, size_t* size_out) {
@@ -1523,7 +1562,7 @@ void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, 
 
     if (fd == -1) {
 #ifdef _WIN32
-        out_addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
+        out_addr = allocate(SYSTEM_MAPPING_AREA, SYSTEM_MAPPING_AREA + 2000_GB, Helpers::alignUp<size_t>(len, 16_KB), 16_KB);
 #else
         Helpers::panic("Unsupported platform\n");
 #endif

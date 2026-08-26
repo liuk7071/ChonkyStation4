@@ -46,7 +46,7 @@ struct DescriptorLocation {
     DescriptorType type;
     ShaderStage stage;
 
-    template<typename T> T* asPtr();
+    template<typename T> T* asPtr(u32* regs = nullptr);
 };
 
 struct Buffer {
@@ -60,7 +60,7 @@ struct Buffer {
 
 struct ShaderData {
     std::string source;
-    std::deque<Buffer> buffers; // Buffers required by this shader
+    std::deque<Buffer> buffers;     // Buffers required by this shader
     std::vector<int> vtx_outputs;   // For vertex shaders only, this is a list of the output attribute locations
     bool has_gds = false;
     u64 hash;
@@ -70,6 +70,6 @@ struct ShaderData {
     }
 };
 
-void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader = nullptr, ComputeJob* compute_job = nullptr);
+void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader = nullptr, ComputeJob* compute_job = nullptr, u32* regs = nullptr);
 
 }   // End namespace PS4::GCN::Shader

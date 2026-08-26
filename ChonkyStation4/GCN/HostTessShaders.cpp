@@ -73,7 +73,7 @@ void generateRectTES(Shader::ShaderData* vs_data, std::string& out_str) {
     out_str = R"(
 #version 450
 
-layout(quads, equal_spacing, ccw) in;
+layout(quads, equal_spacing, cw) in;
 )";
 
     for (auto& out : vs_data->vtx_outputs) {
@@ -151,7 +151,7 @@ void generateQuadTES(Shader::ShaderData* vs_data, std::string& out_str) {
     out_str = R"(
 #version 450
 
-layout(quads, equal_spacing, ccw) in;
+layout(quads, equal_spacing, cw) in;
 )";
 
     for (auto& out : vs_data->vtx_outputs) {

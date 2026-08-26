@@ -575,6 +575,9 @@ void VulkanRenderer::init() {
         .imageLayout = vk::ImageLayout::eUndefined
     };
 
+    if (PS4::Configuration::shader_compiler_is_multithreaded)
+        ShaderCache::initWorkerThreads(PS4::Configuration::shader_compiler_threads);
+
     printf("Using device %s\n", physical_device.getProperties().deviceName);
     log("Vulkan initialized successfully\n");
 }
