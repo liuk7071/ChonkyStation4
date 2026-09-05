@@ -13,6 +13,7 @@ static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM            
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_LEAVE_ROOM                              = 0x0103;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_GRANT_ROOM_OWNER                        = 0x0104;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_KICKOUT_ROOM_MEMBER                     = 0x0105;
+static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM                             = 0x0106;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SEND_ROOM_CHAT_MESSAGE                  = 0x0107;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SEND_ROOM_MESSAGE                       = 0x0108;
 static constexpr s32 SCE_NP_MATCHING2_REQUEST_EVENT_SET_ROOM_DATA_INTERNAL                  = 0x0109;

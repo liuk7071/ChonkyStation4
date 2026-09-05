@@ -128,6 +128,11 @@ u64 open(fs::path path, u32& err, u32 flags) {
         }
     }
 
+    // Some games read without seeking to 0 first.
+    // It probably works like this with host files too but just seek explicitly to make sure.
+    if (!is_dir)
+        std::fseek(file, 0, SEEK_SET);
+
     file_desc->file = file;
     log("Opened file %s with id %d\n", host_path.generic_string().c_str(), new_file_id);
     return new_file_id;
@@ -153,6 +158,8 @@ void close(u64 file_id) {
         std::fclose(file.file);
     }
     open_files.erase(file_id);
+
+    log("Closed file with id %lld\n", file_id);
 }
 
 void closedir(u64 file_id) {
@@ -187,7 +194,7 @@ u64 seek(u64 file_id, s64 offs, u32 mode) {
 
     FILE* file = getFileFromID(file_id).file;
 #ifdef _WIN32
-    _fseeki64(file, offs, mode);
+    Helpers::debugAssert(_fseeki64(file, offs, mode) == 0, "Filesystem: _fseeki64 failed\n");
     return _ftelli64(file);
 #else
     std::fseek(file, offs, mode);
@@ -215,7 +222,7 @@ bool mkdir(fs::path path) {
 
 std::unique_lock<std::mutex> getFileLock(u64 file_id) {
     auto& file = getFileFromID(file_id);
-    return std::unique_lock<std::mutex>(file.mtx);
+    return std::move(std::unique_lock<std::mutex>(file.mtx));
 }
 
 u64 getFileSize(u64 file_id) {
@@ -323,6 +330,21 @@ std::string deviceToString(Device device) {
     switch (device) {
     case Device::APP0:          return "app0";
     case Device::SAVEDATA0:     return "savedata0";
+    case Device::SAVEDATA1:     return "savedata1";
+    case Device::SAVEDATA2:     return "savedata2";
+    case Device::SAVEDATA3:     return "savedata3";
+    case Device::SAVEDATA4:     return "savedata4";
+    case Device::SAVEDATA5:     return "savedata5";
+    case Device::SAVEDATA6:     return "savedata6";
+    case Device::SAVEDATA7:     return "savedata7";
+    case Device::SAVEDATA8:     return "savedata8";
+    case Device::SAVEDATA9:     return "savedata9";
+    case Device::SAVEDATA10:    return "savedata10";
+    case Device::SAVEDATA11:    return "savedata11";
+    case Device::SAVEDATA12:    return "savedata12";
+    case Device::SAVEDATA13:    return "savedata13";
+    case Device::SAVEDATA14:    return "savedata14";
+    case Device::SAVEDATA15:    return "savedata15";
     case Device::DEV:           return "dev";
     case Device::TEMP0:         return "temp0";
     case Device::SYSTEM:        return "system";
@@ -333,6 +355,21 @@ std::string deviceToString(Device device) {
 Device stringToDevice(std::string device) {
     if      (device == "app0")          return Device::APP0;
     else if (device == "savedata0")     return Device::SAVEDATA0;
+    else if (device == "savedata1")     return Device::SAVEDATA1;
+    else if (device == "savedata2")     return Device::SAVEDATA2;
+    else if (device == "savedata3")     return Device::SAVEDATA3;
+    else if (device == "savedata4")     return Device::SAVEDATA4;
+    else if (device == "savedata5")     return Device::SAVEDATA5;
+    else if (device == "savedata6")     return Device::SAVEDATA6;
+    else if (device == "savedata7")     return Device::SAVEDATA7;
+    else if (device == "savedata8")     return Device::SAVEDATA8;
+    else if (device == "savedata9")     return Device::SAVEDATA9;
+    else if (device == "savedata10")    return Device::SAVEDATA10;
+    else if (device == "savedata11")    return Device::SAVEDATA11;
+    else if (device == "savedata12")    return Device::SAVEDATA12;
+    else if (device == "savedata13")    return Device::SAVEDATA13;
+    else if (device == "savedata14")    return Device::SAVEDATA14;
+    else if (device == "savedata15")    return Device::SAVEDATA15;
     else if (device == "dev")           return Device::DEV;
     else if (device == "temp0")         return Device::TEMP0;
     else if (device == "system")        return Device::SYSTEM;

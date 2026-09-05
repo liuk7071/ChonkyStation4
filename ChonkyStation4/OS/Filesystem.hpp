@@ -32,9 +32,24 @@ static constexpr s32 SCE_KERNEL_S_IFREG = 0100000;
 static constexpr s32 SCE_KERNEL_DT_DIR = 0040000;
 static constexpr s32 SCE_KERNEL_DT_REG = 0100000;
 
-enum class Device {
+enum class Device : u32 {
     APP0,
     SAVEDATA0,
+    SAVEDATA1,
+    SAVEDATA2,
+    SAVEDATA3,
+    SAVEDATA4,
+    SAVEDATA5,
+    SAVEDATA6,
+    SAVEDATA7,
+    SAVEDATA8,
+    SAVEDATA9,
+    SAVEDATA10,
+    SAVEDATA11,
+    SAVEDATA12,
+    SAVEDATA13,
+    SAVEDATA14,
+    SAVEDATA15,
     DEV,
     TEMP0,
     SYSTEM,

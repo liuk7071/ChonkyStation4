@@ -108,7 +108,9 @@ s64 PS4_FUNC sceKernelRead(s32 fd, u8* buf, u64 size) {
 
 s64 PS4_FUNC kernel_pread(s32 fd, u8* buf, u64 size, s64 offset) {
     log("pread(fd=%d, buf=%p, size=%lld, offset=%lld)\n", fd, buf, size, offset);
-    auto lock = FS::getFileLock(fd);
+    //auto lock = FS::getFileLock(fd);
+    auto& file = FS::getFileFromID(fd);
+    std::unique_lock<std::mutex> lk(file.mtx);
 
     // Save old seek position
     const auto old_pos = FS::tell(fd);
@@ -123,7 +125,7 @@ s64 PS4_FUNC kernel_pread(s32 fd, u8* buf, u64 size, s64 offset) {
 s64 PS4_FUNC kernel_readv(s32 fd, SceKernelIovec* iov, int iovcnt) {
     log("kernel_readv(fd=%d, iov=*%p, iovcnt=%d)\n", fd, iov, iovcnt);
 
-    s32 total = 0;
+    s64 total = 0;
     for (int i = 0; i < iovcnt; i++)
         total += kernel_read(fd, (u8*)iov[i].iov_base, iov[i].iov_len);
     return total;

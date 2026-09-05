@@ -601,6 +601,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             void* dst_ptr = (void*)(addr_lo | ((u64)(cmd_ctrl & 0xffff) << 32));
             const u32 cmd = (cmd_ctrl >> 29) & 7;
             switch (cmd) {
+            case 1: printf("TODO: EventWriteEos GDS store\n");  break;
             case 2: std::memcpy(dst_ptr, &data, sizeof(u32));   break;
             default: Helpers::panic("EventWriteEos: unhandled cmd %d\n", cmd);
             }
@@ -659,7 +660,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             case DmaData::DmaDataSrc::Memory:
             case DmaData::DmaDataSrc::MemoryUsingL2:    src = (void*)(src_addr_lo | ((u64)src_addr_hi << 32));  break;
             case DmaData::DmaDataSrc::Data:             is_fill = true;                                         break;
-            case DmaData::DmaDataSrc::Gds:              printf("TODO: GDS READBACK\n"); dst = 0;                break;
+            case DmaData::DmaDataSrc::Gds:              printf("TODO: GDS READBACK\n"); src = 0;                break;
             default:
                 Helpers::panic("DmaData: unhandled src_sel %d\n", info.src_sel.Value());
             }
@@ -670,6 +671,9 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             if (is_fill && info.dst_sel == DmaData::DmaDataDst::Gds) {
                 renderer->fillGDS((size_t)dst_addr_lo, fill_data, size);
             }
+            else if (info.dst_sel == DmaData::DmaDataDst::Gds) {
+                printf("TODO: GDS WRITE (not fill)\n");
+            }
             else {
                 if (is_fill) {
                     if (dst)
@@ -678,6 +682,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
                 else {
                     if (dst && src)
                         std::memcpy(dst, src, size);
+                    else if (dst && info.src_sel == DmaData::DmaDataSrc::Gds)
+                        std::memset(dst, 0, size);  // TODO: GDS readback
                 }
             }
             break;

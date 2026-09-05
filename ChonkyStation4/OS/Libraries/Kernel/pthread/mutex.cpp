@@ -42,7 +42,9 @@ s32 PS4_FUNC kernel_pthread_mutex_trylock(pthread_mutex_t* mutex) {
     }
 
     auto ret = pthread_mutex_trylock(mutex);
-    //PTHREAD_CHECK_RESULT(ret);
+    if (ret == EBUSY)
+        return POSIX_EBUSY;
+    PTHREAD_CHECK_RESULT(ret);
     return ret;
 }
 

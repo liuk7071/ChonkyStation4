@@ -119,21 +119,26 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             size_t out_size = 0;
             size_t out_off = 0;
             if (!Configuration::disable_gnmdetiler_texture_size) {
-                for (int slice = 0; slice < tex_info.numslices; slice++) {
-                    for (int mip = 0; mip < tex_info.nummips; mip++) {
-                        size_t tmp = 0;
-                        size_t tmp2 = 0;
-                        gpaComputeSurfaceSizeOffset(&tmp, &tmp2, &tex_info, mip, slice);
-                        in_size += tmp;
-                        //in_size += tmp2;
-
-                        tmp = 0;
-                        tmp2 = 0;
-                        gpaComputeSurfaceSizeOffset(&tmp, &tmp2, &out_tex_info, mip, slice);
-                        out_size += tmp;
-                        //out_size += tmp2;
-                    }
-                }
+                u32 tmp;
+                gnmTexCalcByteSize(&in_size, &tmp, (GnmTexture*)&tex->tsharp);
+                auto out_tsharp = tex->tsharp;
+                out_tsharp.tiling_index = GNM_TM_DISPLAY_LINEAR_GENERAL;
+                gnmTexCalcByteSize(&out_size, &tmp, (GnmTexture*)&out_tsharp);
+                //for (int slice = 0; slice < tex_info.numslices; slice++) {
+                //    for (int mip = 0; mip < tex_info.nummips; mip++) {
+                //        size_t tmp = 0;
+                //        size_t tmp2 = 0;
+                //        gpaComputeSurfaceSizeOffset(&tmp, &tmp2, &tex_info, mip, slice);
+                //        in_size += tmp;
+                //        //in_size += tmp2;
+                //
+                //        tmp = 0;
+                //        tmp2 = 0;
+                //        gpaComputeSurfaceSizeOffset(&tmp, &tmp2, &out_tex_info, mip, slice);
+                //        out_size += tmp;
+                //        //out_size += tmp2;
+                //    }
+                //}
             }
             else {
                 in_size = img_size;
@@ -141,7 +146,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             }
 
             detiled_buf = std::make_unique<u8[]>(out_size);
-
             GpaError err = gpaTileTextureAll(ptr, in_size, detiled_buf.get(), out_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
             //if (err != 0) Helpers::panic("gpaTileTextureAll failed with error %d\n", err);
             img_ptr = detiled_buf.get();
@@ -333,6 +337,20 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         vk::ComponentSwizzle::eB,       // 6 - DSEL_B
         vk::ComponentSwizzle::eA,       // 7 - DSEL_A
     };
+
+    auto remap_swizzle = [&]() {
+        switch ((DataFormat)tsharp->data_format) {
+        case DataFormat::Format5_6_5: {
+            // RGBA -> BGRA
+            swizzle_map[4] = vk::ComponentSwizzle::eB;
+            swizzle_map[6] = vk::ComponentSwizzle::eR;
+            break;
+        }
+        }
+    };
+
+    remap_swizzle();
+
     auto& img_view = tex->view;
     vk::ImageViewCreateInfo view_info = {
         .image = *img,

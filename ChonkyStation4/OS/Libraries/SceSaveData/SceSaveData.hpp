@@ -10,6 +10,8 @@ namespace PS4::OS::Libs::SceSaveData {
 
 void init(Module& module);
 
+static constexpr s32 SCE_SAVE_DATA_ERROR_EXISTS             = 0x809f0007;
+static constexpr s32 SCE_SAVE_DATA_ERROR_NOT_FOUND          = 0x809f0008;
 static constexpr s32 SCE_SAVE_DATA_ERROR_MEMORY_NOT_READY   = 0x809f0012;
 
 static constexpr s32 SCE_SAVE_DATA_MOUNT_POINT_DATA_MAXSIZE = 16;
@@ -18,6 +20,13 @@ static constexpr s32 SCE_SAVE_DATA_DIRNAME_DATA_MAXSIZE     = 32;
 static constexpr s32 SCE_SAVE_DATA_TITLE_MAXSIZE            = 128;
 static constexpr s32 SCE_SAVE_DATA_SUBTITLE_MAXSIZE         = 128;
 static constexpr s32 SCE_SAVE_DATA_DETAIL_MAXSIZE           = 1024;
+
+static constexpr s32 SCE_SAVE_DATA_MOUNT_MODE_RDONLY        = 1;
+static constexpr s32 SCE_SAVE_DATA_MOUNT_MODE_RDWR          = 2;
+static constexpr s32 SCE_SAVE_DATA_MOUNT_MODE_CREATE        = 4;
+static constexpr s32 SCE_SAVE_DATA_MOUNT_MODE_DESTRUCT_OFF  = 8;
+static constexpr s32 SCE_SAVE_DATA_MOUNT_MODE_COPY_ICON     = 16;
+static constexpr s32 SCE_SAVE_DATA_MOUNT_MODE_CREATE2       = 32;
 
 struct SceSaveDataFingerprint;
 
@@ -117,6 +126,8 @@ struct SceSaveDataMountInfo {
 
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result);
 s32 PS4_FUNC sceSaveDataMount2(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result);
+s32 PS4_FUNC sceSaveDataUmount(const SceSaveDataMountPoint* mount_point);
+s32 PS4_FUNC sceSaveDataUmountWithBackup(const SceSaveDataMountPoint* mount_point);
 s32 PS4_FUNC sceSaveDataSetupSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, const size_t memory_size, SceSaveDataParam* param);
 s32 PS4_FUNC sceSaveDataGetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);
 s32 PS4_FUNC sceSaveDataSetSaveDataMemory(const SceUserService::SceUserServiceUserId user_id, void* buf, const size_t buf_size, const s64 offset);

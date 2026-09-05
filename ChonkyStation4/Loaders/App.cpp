@@ -11,15 +11,10 @@ void PS4_FUNC exitFunc() {
     exit(0);
 }
 
-struct Params {
-    int argc;
-    u32 padding;
-    const char* argv[33];
-    void* entry;
-};
-
-void* PS4_FUNC initAndJumpToEntry(std::deque<std::shared_ptr<Module>>* modules) {
+void* PS4_FUNC initAndJumpToEntry(App* app) {
     PS4::init();
+
+    auto* modules = &app->modules;
 
     printf("Initializing modules:\n", modules->size() - 1);
     for (int i = 0; i < modules->size(); i++) {
@@ -59,18 +54,17 @@ void* PS4_FUNC initAndJumpToEntry(std::deque<std::shared_ptr<Module>>* modules) 
     }
 
     // Dummy arguments
-    Params params;
-    std::memset(params.argv, 0, 33 * sizeof(char*));
-    params.argc = 0;
+    std::memset(app->params.argv, 0, 33 * sizeof(char*));
+    app->params.argc = 1;
+    app->params.argv[0] = "/app0/eboot.bin";
     
     if (PS4::Configuration::is_vsh) {
-        params.argc = 2;
-        params.argv[0] = "/app0/eboot.bin";
-        params.argv[1] = "--cold-boot";
+        app->params.argc = 2;
+        app->params.argv[1] = "--cold-boot";
         //params.argv[2] = "--detected-bad-power-down";
     }
 
-    params.entry = (*modules)[0]->entry;
+    app->params.entry = (*modules)[0]->entry;
 
     asm volatile(R"(
         # Align stack
@@ -88,7 +82,7 @@ void* PS4_FUNC initAndJumpToEntry(std::deque<std::shared_ptr<Module>>* modules) 
         jmp *%0
     )"
     :
-    : "r"(params.entry), "r"((u64)params.argc), "r"(params.argv[0]), "r"(&params), "r"(exitFunc)
+    : "r"(app->params.entry), "r"((u64)app->params.argc), "r"(app->params.argv[0]), "r"(&app->params), "r"(exitFunc)
     : "rax", "rsi", "rdi"
     );
 
@@ -143,7 +137,7 @@ void App::run() {
     }
 
     // Create main thread
-    auto& main_thread = PS4::OS::Thread::createThread("main", (PS4::OS::Thread::ThreadStartFunc)initAndJumpToEntry, &modules);
+    auto& main_thread = PS4::OS::Thread::createThread("main", (PS4::OS::Thread::ThreadStartFunc)initAndJumpToEntry, this);
 
     void* val;
     PS4::OS::Thread::joinThread(main_thread, &val);
@@ -190,6 +184,7 @@ std::shared_ptr<Module> App::findModuleByAddress(void* addr) {
         if (Helpers::inRangeSized<uptr>((uptr)addr, (uptr)m->base_address, (uptr)m->size))
             return m;
     }
+    return nullptr;
     Helpers::panic("App::findModuleByAddress: no module found at address %p\n", addr);
 }
 

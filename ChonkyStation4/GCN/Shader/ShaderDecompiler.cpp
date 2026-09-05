@@ -878,11 +878,12 @@ uint readLDS(uint idx) {{
 
     std::string branchCondition(GcnInst& instr) {
         switch (instr.opcode) {
-        case Shader::Opcode::S_CBRANCH_EXECZ: return "exec == 0";
-        case Shader::Opcode::S_CBRANCH_VCCNZ: return "vcc != 0";
-        case Shader::Opcode::S_CBRANCH_SCC0:  return "scc == 0";
-        case Shader::Opcode::S_CBRANCH_SCC1:  return "scc == 1";
-        case Shader::Opcode::S_CBRANCH_VCCZ:  return "vcc == 0";
+        case Shader::Opcode::S_CBRANCH_EXECZ:  return "exec == 0";
+        case Shader::Opcode::S_CBRANCH_EXECNZ: return "exec != 0";
+        case Shader::Opcode::S_CBRANCH_VCCNZ:  return "vcc != 0";
+        case Shader::Opcode::S_CBRANCH_SCC0:   return "scc == 0";
+        case Shader::Opcode::S_CBRANCH_SCC1:   return "scc == 1";
+        case Shader::Opcode::S_CBRANCH_VCCZ:   return "vcc == 0";
 
         default: {
             //Helpers::panic("Unhandled branch condition for instruction %d\n", instr.opcode);
@@ -1325,6 +1326,17 @@ uint readLDS(uint idx) {{
                 continue;
             }
 
+            case Shader::Opcode::S_CBRANCH_EXECNZ: {
+                const auto branch_target = instr.BranchTarget(pc);
+                code += std::format("// S_CBRANCH_EXECNZ {:08x}\n", branch_target);
+
+                block.branch_instr = instr;
+                block.branch_to = getOrCreateBlock(data, branch_target, stage);
+                block.fallthrough = getOrCreateBlock(data, pc + instr.length, stage);
+                done = true;
+                continue;
+            }
+
             case Shader::Opcode::S_AND_SAVEEXEC_B64: {
                 code += setDST<Type::Uint>(instr.dst[0], "exec");
                 code += std::format("exec = {} & exec;\n", getSRC<Type::Uint>(instr.src[0]));
@@ -1418,6 +1430,11 @@ uint readLDS(uint idx) {{
 
             case Shader::Opcode::S_BARRIER: {
                 code += "barrier();\n";
+                break;
+            }
+
+            case Shader::Opcode::S_ICACHE_INV: {
+                code += "// S_ICACHE_INV\n";
                 break;
             }
 
@@ -1733,6 +1750,11 @@ uint readLDS(uint idx) {{
 
             case Shader::Opcode::V_LDEXP_F32: {
                 code += setDST<Type::Float>(instr.dst[0], std::format("ldexp({}, {})", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Int>(instr.src[1])));
+                break;
+            }
+
+            case Shader::Opcode::V_CVT_PKNORM_U16_F32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("packUnorm2x16(vec2({}, {}))", getSRC(instr.src[0]), getSRC(instr.src[1])));
                 break;
             }
 
@@ -3125,8 +3147,8 @@ template TSharp* DescriptorLocation::asPtr<TSharp>(u32* regs);
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job, u32* regs) {
     //std::ofstream out;
-    ////if (stage == ShaderStage::Vertex) {
-    //if (out_data.hash == 0x94720a3237573b18) {
+    //if (stage == ShaderStage::Vertex) {
+    //if (out_data.hash == 0x1181cc94aa502108) {
     //  out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
     //  out.write((char*)data, 12_KB);
     //  out.close();

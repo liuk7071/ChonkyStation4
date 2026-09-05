@@ -32,7 +32,9 @@ struct SceNpWebApiResponseInformationOption {
 };
 
 s32 PS4_FUNC sceNpWebApiCreateRequest(s32 user_ctx_id, const char* api_group, const char* path, SceNpWebApiHttpMethod method, const SceNpWebApiContentParameter* content_parameter, s64* req_id);
+s32 PS4_FUNC sceNpWebApiSendRequest(s64 req_id, const void* data, size_t data_size);
 s32 PS4_FUNC sceNpWebApiSendRequest2(s64 req_id, const void* data, size_t data_size, SceNpWebApiResponseInformationOption* error_response);
+s32 PS4_FUNC sceNpWebApiGetHttpStatusCode(s64 req_id, s32* status_code);
 s32 PS4_FUNC sceNpWebApiReadData(s64 req_id, void* data, size_t size);
 
 }   // End namespace PS4::OS::Libs::SceNpWebApi

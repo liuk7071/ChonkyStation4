@@ -296,7 +296,7 @@ s32 PS4_FUNC sceNpMatching2SearchRoom(const SceNpMatching2ContextId ctx_id, cons
     req.ctx_id = ctx->handle;
     req.param = param ? *param : ctx->default_req_param;
     req.event = SCE_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A;
-    //req.event = 0x106;
+    //req.event = SCE_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM;
     req.data = std::vector<u8>(sizeof(SceNpMatching2SearchRoomResponseA));
 
     auto* res = (SceNpMatching2SearchRoomResponseA*)req.data.data();

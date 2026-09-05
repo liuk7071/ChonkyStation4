@@ -10,6 +10,13 @@
 #include <deque>
 
 
+struct Params {
+    int argc;
+    u32 padding;
+    const char* argv[33];
+    void* entry;
+};
+
 class App {
 public:
     App() {}
@@ -19,6 +26,8 @@ public:
     std::deque<std::shared_ptr<Module>> modules;
     std::deque<std::string> unresolved_symbols;
     std::vector<std::unique_ptr<Xbyak::CodeGenerator>> unresolved_symbol_handlers;
+
+    Params params;
 
     void run();
     std::tuple<u8*, size_t, size_t> getTLSImage(u32 modid);

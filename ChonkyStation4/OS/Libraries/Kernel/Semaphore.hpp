@@ -29,7 +29,7 @@ struct Semaphore {
     std::atomic<s32> woke_from_cancel = 0;
 
     void signal(s32 count, bool is_from_cancel = false);
-    bool wait(s32 count, u32 timeout, bool& was_cancelled);
+    bool wait(s32 count, s64 timeout, bool& was_cancelled);
     bool poll(s32 count);
     int cancel(s32 new_count);
 };
@@ -42,6 +42,7 @@ s32 PS4_FUNC sceKernelSignalSema(SceKernelSema sem, s32 count);
 s32 PS4_FUNC sceKernelWaitSema(SceKernelSema sem, s32 count, u32* timeout);
 s32 PS4_FUNC sceKernelPollSema(SceKernelSema sem, s32 count);
 s32 PS4_FUNC sceKernelCancelSema(SceKernelSema sem, s32 set_count, s32* n_released_threads);
+s32 PS4_FUNC sceKernelDeleteSema(SceKernelSema sem);
 
 s32 PS4_FUNC kernel_sem_init(SceKernelSema* sem, s32 pshared, u32 value);
 s32 PS4_FUNC kernel_sem_post(SceKernelSema* sem);
@@ -49,5 +50,6 @@ s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem);
 s32 PS4_FUNC kernel_sem_trywait(SceKernelSema* sem);
 s32 PS4_FUNC kernel_sem_timedwait(SceKernelSema* sem, const SceKernelTimespec* time);
 s32 PS4_FUNC kernel_sem_getvalue(SceKernelSema* sem, s32* val);
+s32 PS4_FUNC kernel_sem_destroy(SceKernelSema* sem);
 
 };  // End namespace PS4::OS::Libs::Kernel

@@ -3,6 +3,7 @@
 #include <Loaders/App.hpp>
 #include <OS/UserManagement.hpp>
 #include <OS/Filesystem.hpp>
+#include <mutex>
 
 
 extern App g_app;
@@ -11,9 +12,13 @@ namespace PS4::OS::Libs::SceSaveData {
 
 MAKE_LOG_FUNCTION(log, lib_sceSaveData);
 
+bool mounted_slots[16];
+
 void init(Module& module) {
     module.addSymbolExport("32HQAQdwM2o", "sceSaveDataMount", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataMount);
     module.addSymbolExport("0z45PIH+SNI", "sceSaveDataMount2", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataMount2);
+    module.addSymbolExport("BMR4F-Uek3E", "sceSaveDataUmount", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataUmount);
+    module.addSymbolExport("VwadwBBBJ80", "sceSaveDataUmountWithBackup", "libSceSaveData", "libSceSaveData", (void*)sceSaveDataUmountWithBackup);
     module.addSymbolExport("v7AAAMo0Lz4", "sceSaveDataSetupSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataSetupSaveDataMemory);
     module.addSymbolExport("7Bt5pBC-Aco", "sceSaveDataGetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataGetSaveDataMemory);
     module.addSymbolExport("h3YURzXGSVQ", "sceSaveDataSetSaveDataMemory", "libSceSaveData", "libSceSaveData", (void*)&sceSaveDataSetSaveDataMemory);
@@ -28,12 +33,12 @@ void init(Module& module) {
     module.addSymbolStub("XgvSuIdnMlw", "sceSaveDataGetParam", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("oQySEUfgXRA", "sceSaveDataSetupSaveDataMemory2", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("QwOO7vegnV8", "sceSaveDataGetSaveDataMemory2", "libSceSaveData", "libSceSaveData");
-    module.addSymbolStub("BMR4F-Uek3E", "sceSaveDataUmount", "libSceSaveData", "libSceSaveData");
-    module.addSymbolStub("VwadwBBBJ80", "sceSaveDataUmountWithBackup", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("j8xKtiFj0SY", "sceSaveDataGetEventResult", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("cGjO3wM3V28", "sceSaveDataLoadIcon", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("S1GkePI17zQ", "sceSaveDataDelete", "libSceSaveData", "libSceSaveData");
     module.addSymbolStub("yKDy8S5yLA0", "sceSaveDataTerminate", "libSceSaveData", "libSceSaveData");
+
+    std::memset(mounted_slots, false, sizeof(bool) * 16);
 }
 
 s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountResult* mount_result) {
@@ -47,24 +52,79 @@ s32 PS4_FUNC sceSaveDataMount(const SceSaveDataMount* mount, SceSaveDataMountRes
     return sceSaveDataMount2(&mount2, mount_result);
 }
 
+std::mutex savedata_mtx;
 s32 PS4_FUNC sceSaveDataMount2(const SceSaveDataMount2* mount, SceSaveDataMountResult* mount_result) {
     log("sceSaveDataMount2(mount=*%p, mount_result=*%p)\n", mount, mount_result);
     log("uid=%d, dir_name=\"%s\"\n", mount->user_id, mount->dir_name->data);
     
+    std::unique_lock<std::mutex> lk(savedata_mtx);
+
+    // TODO: Do you also need RDWR?
+    const bool create_if_not_exists = mount->mount_mode & (SCE_SAVE_DATA_MOUNT_MODE_CREATE | SCE_SAVE_DATA_MOUNT_MODE_CREATE2);
+    const bool error_if_exists      = mount->mount_mode & SCE_SAVE_DATA_MOUNT_MODE_CREATE;
+
     // Get the user's savedata directory
     const auto user_save_dir = User::getUser(mount->user_id)->getHomeDir() / "savedata";
     // Get the specified savedata directory
     const auto mountpoint = user_save_dir / g_app.title_id / std::string(mount->dir_name->data);
     
+    // Find an available mountpoint
+    int slot;
+    for (slot = 0; slot < 16; slot++) {
+        if (!mounted_slots[slot])
+            break;
+    }
+
+    if (slot == 16) Helpers::panic("sceSaveDataMount2: no available slot\n");
+
+    // Check if it already exists
+    if (fs::exists(mountpoint)) {
+        if (error_if_exists) {
+            log("SCE_SAVE_DATA_ERROR_EXISTS\n");
+            return SCE_SAVE_DATA_ERROR_EXISTS;
+        }
+    }
+    else if (!create_if_not_exists) {
+        log("SCE_SAVE_DATA_ERROR_NOT_FOUND\n");
+        return SCE_SAVE_DATA_ERROR_NOT_FOUND;
+    }
+
     // Ensure the directory exists and mount it
-    // TODO: We only support 1 savedata mountpoint for now
     fs::create_directories(mountpoint);
-    FS::mount(FS::Device::SAVEDATA0, mountpoint);
+    FS::mount((FS::Device)((u32)FS::Device::SAVEDATA0 + slot), mountpoint);
+    mounted_slots[slot] = true;
 
     // Copy to mount result
+    auto guest_mountpoint = std::format("/savedata{}", slot);
     std::memset(mount_result->mount_point.data, 0, SCE_SAVE_DATA_MOUNT_POINT_DATA_MAXSIZE);
-    std::strcpy(mount_result->mount_point.data, "/savedata0");
+    std::strcpy(mount_result->mount_point.data, guest_mountpoint.c_str());
     return SCE_OK;
+}
+
+s32 PS4_FUNC sceSaveDataUmount(const SceSaveDataMountPoint* mount_point) {
+    log("sceSaveDataUmount(mount_point=\"%s\")\n", mount_point->data);
+    
+    std::unique_lock<std::mutex> lk(savedata_mtx);
+
+    auto dev = FS::getDeviceFromPath(mount_point->data);
+    if (dev == FS::Device::INVALID)
+        Helpers::panic("sceSaveDataUmount: path is invalid\n");
+
+    int slot = (s32)dev - (s32)FS::Device::SAVEDATA0;
+    if (slot < 0 || slot > 15)
+        Helpers::panic("sceSaveDataUmount: device is not savedata\n");
+
+    if (!mounted_slots[slot])
+        Helpers::panic("sceSaveDataUmount: savedata%d was not mounted\n", slot);
+
+    mounted_slots[slot] = false;
+    FS::umount(dev);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceSaveDataUmountWithBackup(const SceSaveDataMountPoint* mount_point) {
+    log("sceSaveDataUmountWithBackup(mount_point=\"%s\") [forwarding to sceSaveDataUmount]\n", mount_point->data);
+    return sceSaveDataUmount(mount_point);
 }
 
 s32 PS4_FUNC sceSaveDataSetupSaveDataMemory(SceUserService::SceUserServiceUserId user_id, size_t memory_size, SceSaveDataParam* param) {
@@ -129,7 +189,7 @@ s32 PS4_FUNC sceSaveDataSetSaveDataMemory(const SceUserService::SceUserServiceUs
 s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, SceSaveDataDirNameSearchResult* result) {
     log("sceSaveDataDirNameSearch(cond=*%p, result=*%p) TODO\n", cond, result);
 
-    const auto dir_name = cond->dir_name ? std::string(cond->dir_name->data) : "";
+    auto dir_name = cond->dir_name ? std::string(cond->dir_name->data) : "";
     log("dir_name=\"%s\"\n", dir_name.c_str());
 
     // If a dir_name is specified, check if this directory exists.

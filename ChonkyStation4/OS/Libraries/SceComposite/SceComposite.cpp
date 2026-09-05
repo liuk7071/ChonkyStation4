@@ -6,6 +6,7 @@
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
 #include <OS/Libraries/SceGnmDriver/SceGnmDriver.hpp>
 #include <GCN/GCN.hpp>
+#include <GCN/TSharp.hpp>
 
 
 namespace PS4::OS::Libs::SceComposite {
@@ -109,14 +110,15 @@ s32 PS4_FUNC sceCompositorSetFlipCommand() {
     return SCE_OK;
 }
 
-s32 PS4_FUNC sceCompositorSetCompositeCanvasCommandInC(void* unk1, void* unk2) {
-    log("sceCompositorSetCompositeCanvasCommandInC(unk1=%p, unk2=%p)\n", unk1, unk2);
+s32 PS4_FUNC sceCompositorSetCompositeCanvasCommandInC(void* unk1, TSharp* tsharp) {
+    log("sceCompositorSetCompositeCanvasCommandInC(unk1=%p, tsharp=%p)\n", unk1, tsharp);
     
-    // unk2[0] appears to be the address of the surface to output shifted by 8.
+    // tsharp describes the output surface to display.
     // piglet apps call this function, but VSH doesn't, so I still don't know how I'm supposed to get the output buffer for VSH without the hack in CommandProcessor.cpp.
-    OS::Libs::SceVideoOut::bufs[0].base = (void*)((uptr)(*(u32*)unk2) << 8);
-    OS::Libs::SceVideoOut::bufs[0].attrib.width = 1920;
-    OS::Libs::SceVideoOut::bufs[0].attrib.height = 1080;
+    
+    OS::Libs::SceVideoOut::bufs[0].base             = (void*)(tsharp->base_address << 8);
+    OS::Libs::SceVideoOut::bufs[0].attrib.width     = tsharp->width + 1;
+    OS::Libs::SceVideoOut::bufs[0].attrib.height    = tsharp->height + 1;
 
     // I don't know what else this function does
 

@@ -4,6 +4,7 @@
 #include <Loaders/App/AppLoader.hpp>
 #include <Loaders/ELF/CodePatcher.hpp>
 #include <Loaders/Linker/Linker.hpp>
+#include <OS/Libraries/SceNpManager/SceNpManager.hpp>
 #include <OS/Thread.hpp>
 #include <OS/Filesystem.hpp>
 #include <OS/UserManagement.hpp>
@@ -42,6 +43,13 @@ void loadAndRun(const fs::path& path) {
     try {
         // Login our user to PSN.
         //PSN::psn->login(OS::User::current);
+
+        // Send login and presence events to SceNpManager
+        // These events are not sent when the game is launched while the user is already logged in. I left them here for debugging purposes
+        //if (OS::User::current->is_logged_in_psn) {
+        //    OS::Libs::SceNpManager::pushStateEvent(OS::User::current->getID(), OS::Np::SceNpState::SCE_NP_STATE_SIGNED_IN);
+        //    OS::Libs::SceNpManager::pushPresenceEvent(OS::User::current->getID(), OS::Libs::SceNpManager::SceNpGamePresenceStatus::SCE_NP_GAME_PRESENCE_STATUS_ONLINE);
+        //}
 
         // The threading system needs to be initialized before we run the app.
         // Everything else will be initialized in the init() function, which is called by g_app.run() from the app's main thread (NOT the host's)

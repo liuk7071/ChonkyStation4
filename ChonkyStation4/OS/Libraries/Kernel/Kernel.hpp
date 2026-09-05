@@ -32,6 +32,7 @@ static constexpr s32 SCE_KERNEL_MAP_FIXED = 0x10;
 
 static constexpr s32 SCE_DBG_MAX_NAME_LENGTH = 256;
 static constexpr s32 SCE_DBG_MAX_SEGMENTS    = 4;
+static constexpr s32 SCE_DBG_NUM_FINGERPRINT = 20;
 
 static constexpr s32 KERNEL_RLIMIT_CPU      = 0;       /* maximum cpu time in seconds */
 static constexpr s32 KERNEL_RLIMIT_FSIZE    = 1;       /* maximum file size */
@@ -124,6 +125,14 @@ struct SceKernelModuleSegmentInfo {
     s32 prot;
 };
 
+struct SceKernelModuleInfo {
+    u64 st_size = sizeof(SceKernelModuleInfo);
+    char name[SCE_DBG_MAX_NAME_LENGTH];
+    SceKernelModuleSegmentInfo segments[SCE_DBG_MAX_SEGMENTS];
+    u32 segment_count;
+    u8 fingerprint[SCE_DBG_NUM_FINGERPRINT];
+};
+
 struct SceKernelModuleInfoEx {
     u64 st_size;
     char name[SCE_DBG_MAX_NAME_LENGTH];
@@ -191,6 +200,8 @@ u64 PS4_FUNC sceKernelGetTscFrequency();
 s32 PS4_FUNC sceKernelGetAppInfo(s32 pid, SceKernelAppInfo* app_info);
 s32 PS4_FUNC sceKernelTitleWorkaroundIsEnabled(SceKernelTitleWorkaround* workaround, s32 bit, s32* result);
 s32 PS4_FUNC sceKernelGetSystemSwVersion(SceKernelSwVersion* ver);
+s32 PS4_FUNC sceKernelGetModuleInfo2(s32 handle, SceKernelModuleInfo* info);
+s32 PS4_FUNC sceKernelGetModuleList2(s32* handles, u64 n_handles, u64* out_n_handles);
 s32 PS4_FUNC sceKernelGetModuleInfoFromAddr(void* addr, s32 flags, SceKernelModuleInfoEx* info);
 s32 PS4_FUNC sceKernelGetModuleInfoForUnwind(void* addr, s32 flags, SceKernelModuleInfoForUnwind* info);
 s32 PS4_FUNC sceKernelDebugRaiseExceptionOnReleaseMode(u32 error);
@@ -200,6 +211,8 @@ s32 PS4_FUNC sceKernelGetCompiledSdkVersion(s32* ver);
 s32 PS4_FUNC sceKernelGetProcessName(s64 pid, char* name);
 s32 PS4_FUNC sceKernelGetDataTransferMode(s32* mode);
 s32 PS4_FUNC sceKernelGetBackupRestoreMode(s32* mode);
+s32 PS4_FUNC kernel_getargc();
+const char** PS4_FUNC kernel_getargv();
 
 s32 PS4_FUNC kernel_getpid();
 s32 PS4_FUNC kernel_sched_get_priority_max();
@@ -224,6 +237,7 @@ struct Sigaction {
 };
 
 s32 PS4_FUNC kernel_sigaction(s32 sig, Sigaction* act, Sigaction* oact);
+s32 PS4_FUNC kernel_sigprocmask();
 
 // Shared memory
 s32 PS4_FUNC kernel_shm_open(const char* path, s32 flags, s32 /* mode_t */ mode);
@@ -245,6 +259,7 @@ s32 PS4_FUNC sceKernelCheckedReleaseDirectMemory(void* addr, size_t len);
 s32 PS4_FUNC sceKernelMunmap(void* addr, size_t len);
 s32 PS4_FUNC kernel_munmap(void* addr, size_t len);
 size_t PS4_FUNC sceKernelGetDirectMemorySize();
+s32 PS4_FUNC sceKernelConfiguredFlexibleMemorySize(size_t* out_size);
 s32 PS4_FUNC sceKernelGetDirectMemoryType(void* start, s32* out_type, void** out_region_start, void** out_region_end);
 s32 PS4_FUNC sceKernelAvailableDirectMemorySize(u64 search_start, u64 search_end, size_t alignment, u64* phys_addr_out, size_t* size_out);
 s32 PS4_FUNC sceKernelAvailableFlexibleMemorySize(size_t* size_out);
@@ -253,6 +268,7 @@ s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 s32 PS4_FUNC sceKernelMmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs, void** res);
 s32 PS4_FUNC sceKernelBatchMap(SceKernelBatchMapEntry* entries, s32 n_entries, s32* n_processed);
+s32 PS4_FUNC sceKernelBatchMap2(SceKernelBatchMapEntry* entries, s32 n_entries, s32* n_processed, s32 flags);
 
 // Module
 SceKernelModule PS4_FUNC sceKernelLoadStartModule(const char* module_path, size_t args, const void* argp, u32 flags, const SceKernelLoadModuleOpt* opt, s32* res);

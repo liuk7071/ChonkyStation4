@@ -64,7 +64,7 @@ s32 PS4_FUNC sceSslGetCaCerts(s32 ctx_id, SceSslCaCerts* certs) {
 }
 
 s32 PS4_FUNC sceNpPartyGetState(s16* state) {
-    printf("sceNpPartyGetState(state=*%p)\n");
+    printf("sceNpPartyGetState(state=*%p)\n", state);
     *state = 2;     // SCE_NP_PARTY_STATE_NOT_IN_PARTY
     return SCE_OK;
 }
@@ -194,7 +194,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("0Sp9vJcB1-w", "sceNpProfileDialogTerminate", "libSceNpProfileDialog", "libSceNpProfileDialog");
     
     // libSceNpCommerce
-    module->addSymbolStub("LR5cwFMMCVE", "sceNpCommerceDialogUpdateStatus", "libSceNpCommerce", "libSceNpCommerce", 3);
+    module->addSymbolStub("LR5cwFMMCVE", "sceNpCommerceDialogUpdateStatus", "libSceNpCommerce", "libSceNpCommerce", 0);
     module->addSymbolStub("r42bWcQbtZY", "sceNpCommerceDialogGetResult", "libSceNpCommerce", "libSceNpCommerce");
     module->addSymbolStub("m-I92Ab50W8", "sceNpCommerceDialogTerminate", "libSceNpCommerce", "libSceNpCommerce");
     
@@ -465,6 +465,7 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceRudp
     module->addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");
     module->addSymbolStub("6PBNpsgyaxw", "sceRudpEnableInternalIOThread", "libSceRudp", "libSceRudp");
+    module->addSymbolStub("SUEVes8gvmw", "sceRudpSetEventHandler", "libSceRudp", "libSceRudp");
     
     // libSceCompanionUtil
     module->addSymbolStub("xb1xlIhf0QY", "sceCompanionUtilInitialize", "libSceCompanionUtil", "libSceCompanionUtil");

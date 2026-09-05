@@ -15,7 +15,10 @@ static constexpr s32 SCE_NP_POLL_ASYNC_RET_RUNNING  = 1;
 
 void init(Module& module) {
     module.addSymbolExport("3Zl8BePTh9Y", "sceNpCheckCallback", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckCallback);
+    module.addSymbolExport("VfRSmPmj8Q8", "sceNpRegisterStateCallback", "libSceNpManager", "libSceNpManager", (void*)&sceNpRegisterStateCallback);
+    module.addSymbolExport("uFJpaKNBAj4", "sceNpRegisterGamePresenceCallback", "libSceNpManager", "libSceNpManager", (void*)&sceNpRegisterGamePresenceCallback);
     module.addSymbolExport("eQH7nWPcAgc", "sceNpGetState", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetState);
+    module.addSymbolExport("IPb1hd1wAGc", "sceNpGetGamePresenceStatus", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetGamePresenceStatus);
     module.addSymbolExport("p-o74CnoNzY", "sceNpGetNpId", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetNpId);
     module.addSymbolExport("Oad3rvY-NJQ", "sceNpHasSignedUp", "libSceNpManager", "libSceNpManager", (void*)&sceNpHasSignedUp);
     module.addSymbolExport("rbknaUjpqWo", "sceNpGetAccountIdA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetAccountIdA);
@@ -28,11 +31,12 @@ void init(Module& module) {
     module.addSymbolExport("ilwLM4zOmu4", "sceNpGetParentalControlInfo", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetParentalControlInfo);
     module.addSymbolExport("m9L3O6yst-U", "sceNpGetParentalControlInfoA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetParentalControlInfoA);
     module.addSymbolExport("TPMbgIxvog0", "sceNpGetAccountLanguageA", "libSceNpManager", "libSceNpManager", (void*)&sceNpGetAccountLanguageA);
+    module.addSymbolExport("2rsFmlGWleQ", "sceNpCheckNpAvailability", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckNpAvailability);
     module.addSymbolExport("8Z2Jc5GvGDI", "sceNpCheckNpAvailabilityA", "libSceNpManager", "libSceNpManager", (void*)&sceNpCheckNpAvailabilityA);
     
     module.addSymbolStub("Ec63y59l9tw", "sceNpSetNpTitleId", "libSceNpManager", "libSceNpManager");
+    //module.addSymbolStub("e-ZuhGEoeC4", "sceNpGetNpReachabilityState", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("A2CQ3kgSopQ", "sceNpSetContentRestriction", "libSceNpManager", "libSceNpManager");
-    module.addSymbolStub("VfRSmPmj8Q8", "sceNpRegisterStateCallback", "libSceNpManager", "libSceNpManager", 0);
     module.addSymbolStub("qQJfO8HAiaY", "sceNpRegisterStateCallbackA", "libSceNpManager", "libSceNpManager", 1);
     module.addSymbolStub("oPO9U42YpgI", "sceNpGetGamePresenceStatusA", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("mjjTXh+NHWY", "sceNpUnregisterStateCallback", "libSceNpManager", "libSceNpManager");
@@ -40,14 +44,11 @@ void init(Module& module) {
     module.addSymbolStub("hw5KNqAAels", "sceNpRegisterNpReachabilityStateCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("cRILAEvn+9M", "sceNpUnregisterNpReachabilityStateCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GImICnh+boA", "sceNpRegisterPlusEventCallback", "libSceNpManager", "libSceNpManager");
-    module.addSymbolStub("uFJpaKNBAj4", "sceNpRegisterGamePresenceCallback", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("KswxLxk4c1Y", "sceNpRegisterGamePresenceCallbackA", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GpLQDNKICac", "sceNpCreateRequest", "libSceNpManager", "libSceNpManager", 1);
-    module.addSymbolStub("2rsFmlGWleQ", "sceNpCheckNpAvailability", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("S7QTn72PrDw", "sceNpDeleteRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("OzKvTvg3ZYU", "sceNpAbortRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("GFhVUpRmbHE", "sceNpInGameMessageInitialize", "libSceNpManager", "libSceNpManager");
-    module.addSymbolStub("IPb1hd1wAGc", "sceNpGetGamePresenceStatus", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("TJqSgUEzexM", "sceNpSetNpTitleIdVsh", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("rT9Yk55JGho", "sceNpServiceCheckerIntInitialize", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("-Afi-JoRZ-U", "sceNpServiceChecker2IntInitialize", "libSceNpManager", "libSceNpManager");
@@ -55,6 +56,7 @@ void init(Module& module) {
     module.addSymbolStub("DK6xpBP1gxw", "sceNpAppLaunchLink2IntInitialize", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("l6Dl+2zlua0", "sceNpAppInfoIntInitialize", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("m87BHxt-H60", "sceNpGameIntentInitialize", "libSceNpManager", "libSceNpManager");
+    module.addSymbolStub("Gaxrp3EWY-M", "sceNpNotifyPlusFeature", "libSceNpManager", "libSceNpManager");
 
     module.addSymbolStub("AUuzKQIwhXY", "sceNpManagerIntAbortRequest", "libSceNpManager", "libSceNpManager");
     module.addSymbolStub("HLQfohD2YuE", "sceNpManagerIntAccountId2UserId", "libSceNpManager", "libSceNpManager");
@@ -263,12 +265,114 @@ void init(Module& module) {
     module.addSymbolStub("VfRSmPmj8Q8", "sceNpRegisterStateCallback", "libSceNpManagerCompat", "libSceNpManager");
 }
 
+struct {
+    SceNpStateCallback func = nullptr;
+    void* userdata = nullptr;
+} state_callback;
+
+struct StateEvent {
+    SceUserService::SceUserServiceUserId uid;
+    SceNpState state;
+    SceNpId np_id;
+};
+std::deque<StateEvent> state_events;
+std::mutex state_event_mtx;
+
+void pushStateEvent(const SceUserService::SceUserServiceUserId& uid, const SceNpState& state) {
+    const std::unique_lock<std::mutex> lk(state_event_mtx);
+
+    StateEvent event;
+    event.uid = uid;
+    event.state = state;
+    sceNpGetNpId(uid, &event.np_id);
+    state_events.push_back(event);
+}
+
+struct {
+    SceNpGamePresenceCallback func = nullptr;
+    void* userdata = nullptr;
+} presence_callback;
+
+struct PresenceEvent {
+    SceNpOnlineId online_id;
+    SceNpGamePresenceStatus status;
+};
+std::deque<PresenceEvent> presence_events;
+std::mutex presence_event_mtx;
+
+void pushPresenceEvent(const SceUserService::SceUserServiceUserId& uid, const SceNpGamePresenceStatus& status) {
+    const std::unique_lock<std::mutex> lk(presence_event_mtx);
+
+    PresenceEvent event;
+    sceNpGetOnlineId(uid, &event.online_id);
+    event.status = status;
+    presence_events.push_back(event);
+}
+
 s32 PS4_FUNC sceNpCheckCallback() {
     log("sceNpCheckCallback()\n");
+
+    {
+        const std::unique_lock<std::mutex> lk(state_event_mtx);
+
+        if (state_callback.func) {
+            while (state_events.size()) {
+                auto event = state_events.front();
+                state_events.pop_front();
+
+                // Does the callback expect the NpId to live after it returns? No right...?
+                state_callback.func(event.uid, event.state, &event.np_id, state_callback.userdata);
+            }
+        }
+    }
+
+    {
+        const std::unique_lock<std::mutex> lk(presence_event_mtx);
+
+        if (presence_callback.func) {
+            while (presence_events.size()) {
+                auto event = presence_events.front();
+                presence_events.pop_front();
+
+                // Does the callback expect the OnlineId to live after it returns? No right...?
+                presence_callback.func(&event.online_id, event.status, presence_callback.userdata);
+            }
+        }
+    }
 
     SceNpMatching::checkCallback();
     // TODO: Other callbacks
     return SCE_OK;
+}
+
+s32 PS4_FUNC sceNpRegisterStateCallback(SceNpStateCallback callback, void* userdata) {
+    log("sceNpRegisterStateCallback(callback=%p, userdata=%p)\n", callback, userdata);
+    
+    const std::unique_lock<std::mutex> lk(state_event_mtx);
+
+    if (state_callback.func) {
+        log("sceNpRegisterStateCallback: tried to register twice\n");
+        return SCE_NP_ERROR_CALLBACK_ALREADY_REGISTERED;
+    }
+
+    state_callback.func     = callback;
+    state_callback.userdata = userdata;
+    return SCE_OK;   // TODO: Does this return SCE_OK or the callback id?
+}
+
+s32 PS4_FUNC sceNpRegisterGamePresenceCallback(SceNpGamePresenceCallback callback, void* userdata) {
+    log("sceNpRegisterGamePresenceCallback(callback=%p, userdata=%p)\n", callback, userdata);
+
+    const std::unique_lock<std::mutex> lk(presence_event_mtx);
+
+    if (presence_callback.func) {
+        log("sceNpRegisterGamePresenceCallback: tried to register twice\n");
+        return SCE_NP_ERROR_CALLBACK_ALREADY_REGISTERED;
+    }
+
+    presence_callback.func      = callback;
+    presence_callback.userdata  = userdata;
+    return SCE_OK;   // TODO: Does this return SCE_OK or the callback id?
 }
 
 s32 PS4_FUNC sceNpGetState(SceUserService::SceUserServiceUserId uid, SceNpState* state) {
@@ -282,6 +386,14 @@ s32 PS4_FUNC sceNpGetState(SceUserService::SceUserServiceUserId uid, SceNpState*
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceNpGetGamePresenceStatus(SceNpOnlineId* online_id, SceNpGamePresenceStatus* status) {
+    log("sceNpGetGamePresenceStatus(online_id=\"%s\", status=*%p)\n", online_id->data, status);
+
+    // TODO: lookup by online id
+    *status = OS::User::current->is_logged_in_psn ? SceNpGamePresenceStatus::SCE_NP_GAME_PRESENCE_STATUS_ONLINE : SceNpGamePresenceStatus::SCE_NP_GAME_PRESENCE_STATUS_OFFLINE;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceNpGetNpId(SceUserService::SceUserServiceUserId uid, SceNpId* np_id) {
     log("sceNpGetNpId(uid=%d, np_id=*%p)\n", uid, np_id);
 
@@ -292,7 +404,7 @@ s32 PS4_FUNC sceNpGetNpId(SceUserService::SceUserServiceUserId uid, SceNpId* np_
     if (!user->is_logged_in_psn)
         return SCE_NP_ERROR_SIGNED_OUT;
 
-    // Return dummy NpId
+    // TODO: opt
     std::memset(np_id, 0, sizeof(SceNpId));
     std::strcpy(np_id->handle.data, user->online_id.c_str());
     return SCE_OK;
@@ -463,6 +575,32 @@ s32 PS4_FUNC sceNpGetAccountLanguageA(s32 req_id, SceUserService::SceUserService
         req->result = SCE_OK;
     }
     return SCE_OK;
+}
+
+s32 PS4_FUNC sceNpCheckNpAvailability(s32 req_id, const Np::SceNpOnlineId* online_id, void* reserved) {
+    log("sceNpCheckNpAvailability(req_id=%d, online_id=*%p, reserved=%p)\n", req_id, online_id, reserved);
+
+    auto* req = OS::find<SceNpRequest>(req_id);
+    if (!req) return SCE_NP_ERROR_REQUEST_NOT_FOUND;
+
+    auto ret = SCE_OK;
+
+    // TODO: Find user by online id
+    auto* user = User::current;
+
+    if (!user) {
+        ret = SCE_NP_ERROR_USER_NOT_FOUND;
+    }
+    else if (!user->is_logged_in_psn) {
+        ret = SCE_NP_ERROR_SIGNED_OUT;
+    }
+
+    if (req->is_async) {
+        req->state = SceNpRequest::State::Finished;
+        req->result = ret;
+    }
+
+    return ret;
 }
 
 s32 PS4_FUNC sceNpCheckNpAvailabilityA(s32 req_id, SceUserService::SceUserServiceUserId uid) {

@@ -50,6 +50,7 @@ void init(Module& module) {
 
     module.addSymbolExport("C4UgDHHPvdw", "sceNetResolverCreate", "libSceNet", "libSceNet", (void*)&sceNetResolverCreate);
     module.addSymbolExport("Nd91WaWmG2w", "sceNetResolverStartNtoa", "libSceNet", "libSceNet", (void*)&sceNetResolverStartNtoa);
+    module.addSymbolExport("6Oc0bLsIYe0", "sceNetGetMacAddress", "libSceNet", "libSceNet", (void*)&sceNetGetMacAddress);
     
     module.addSymbolStub("Nlev7Lg8k3A", "sceNetInit", "libSceNet", "libSceNet", 0);
     module.addSymbolStub("6MojQ8uFHEI", "sceNetInitParam", "libSceNet", "libSceNet", 0);
@@ -65,7 +66,6 @@ void init(Module& module) {
     module.addSymbolStub("TSM6whtekok", "sceNetShutdown", "libSceNet", "libSceNet");
     module.addSymbolStub("zJGf8xjFnQE", "sceNetSocketAbort", "libSceNet", "libSceNet");
     module.addSymbolStub("45ggEzakPJQ", "sceNetSocketClose", "libSceNet", "libSceNet");
-    module.addSymbolStub("6Oc0bLsIYe0", "sceNetGetMacAddress", "libSceNet", "libSceNet");
     module.addSymbolStub("Inp1lfL+Jdw", "sceNetEpollDestroy", "libSceNet", "libSceNet");
     module.addSymbolStub("P4zZXE7bpsA", "sceNetBandwidthControlSetDefaultParam", "libSceNet", "libSceNet");
     module.addSymbolStub("7Z1hhsEmkQU", "sceNetBandwidthControlSetPolicy", "libSceNet", "libSceNet");
@@ -74,12 +74,12 @@ void init(Module& module) {
     // libSceNetCtl
     module.addSymbolExport("uBPlr0lbuiI", "sceNetCtlGetState", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetState);
     module.addSymbolExport("obuxdTiwkF8", "sceNetCtlGetInfo", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetInfo);
+    module.addSymbolExport("JO4yuTuMoKI", "sceNetCtlGetNatInfo", "libSceNetCtl", "libSceNetCtl", (void*)&sceNetCtlGetNatInfo);
     
     module.addSymbolStub("gky0+oaNM4k", "sceNetCtlInit", "libSceNetCtl", "libSceNetCtl");
     module.addSymbolStub("UJ+Z7Q+4ck0", "sceNetCtlRegisterCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
     module.addSymbolStub("Rqm2OnZMCz0", "sceNetCtlUnregisterCallback", "libSceNetCtl", "libSceNetCtl");
-    module.addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");   // Should store callback id
-    module.addSymbolStub("JO4yuTuMoKI", "sceNetCtlGetNatInfo", "libSceNetCtl", "libSceNetCtl");
+    module.addSymbolStub("iQw3iQPhvUQ", "sceNetCtlCheckCallback", "libSceNetCtl", "libSceNetCtl");
     module.addSymbolStub("Z4wwCFiBELQ", "sceNetCtlTerm", "libSceNetCtl", "libSceNetCtl");
 }
 
@@ -514,6 +514,15 @@ SceNetId /* doesn't actually return an id */ PS4_FUNC sceNetResolverGetError(Sce
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceNetGetMacAddress(SceNetEtherAddr* addr, s32 flags) {
+    log("sceNetGetMacAddress(addr=*%p, flags=%d)\n", addr, flags);
+
+    // TODO
+    constexpr std::array<u8, SCE_NET_ETHER_ADDR_LEN> ether_addr = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
+    std::memcpy(addr->data, ether_addr.data(), SCE_NET_ETHER_ADDR_LEN);
+    return SCE_OK;
+}
+
 // SceNetCtl (TODO: Move to separate file)
 
 s32 PS4_FUNC sceNetCtlGetState(s32* state) {
@@ -534,7 +543,13 @@ s32 PS4_FUNC sceNetCtlGetInfo(s32 code, SceNetCtlInfo* info) {
     }
 
     case SCE_NET_CTL_INFO_LINK: {
-        info->link = 0;
+        info->link = 1;
+        break;
+    }
+
+    case SCE_NET_CTL_INFO_IP_ADDRESS: {
+        //std::strncpy(info->ip_address, "127.0.0.1", 16);
+        std::strncpy(info->ip_address, "192.168.1.10", 16);
         break;
     }
 
@@ -558,6 +573,17 @@ s32 PS4_FUNC sceNetCtlGetInfo(s32 code, SceNetCtlInfo* info) {
     }
     }
 
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceNetCtlGetNatInfo(SceNetCtlNatInfo* info) {
+    log("sceNetCtlGetNatInfo(info=*%p)\n", info);
+
+    // TODO: Proper STUN request to find our public IP address
+    info->stun_status = 2;  // STUN succeeded
+    info->nat_type    = 1;  // NAT type 1
+    //sceNetInetPton(SCE_NET_AF_INET, "127.0.0.1", &info->mapped_addr);
+    sceNetInetPton(SCE_NET_AF_INET, "200.0.0.100", &info->mapped_addr);
     return SCE_OK;
 }
 

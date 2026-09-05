@@ -28,6 +28,8 @@ static constexpr s32 SCE_NET_EPOLLERR       = 0x8;
 static constexpr s32 SCE_NET_EPOLLHUP       = 0x10;
 static constexpr s32 SCE_NET_EPOLLDESCID    = 0x10000;
 
+static constexpr s32 SCE_NET_ETHER_ADDR_LEN = 6;
+
 using SceNetId = s32;
 using SceNetSaFamily = u8;
 using SceNetInPort = u16;
@@ -64,6 +66,10 @@ struct SceNetSockaddrIn {
     char pad[6];
 };
 
+struct SceNetEtherAddr {
+    u8 data[SCE_NET_ETHER_ADDR_LEN];
+};
+
 s32* PS4_FUNC sceNetErrnoLoc();
 SceNetId PS4_FUNC sceNetEpollCreate(const char* name, int flags);
 s32 PS4_FUNC sceNetEpollControl(SceNetId eid, s32 op, SceNetId id, SceNetEpollEvent* event);
@@ -89,6 +95,7 @@ s32 PS4_FUNC kernel_recv(SceNetId s, void* buf, size_t len, int flags);
 SceNetId PS4_FUNC sceNetResolverCreate(const char* name, s32 memid, s32 flags);
 SceNetId PS4_FUNC sceNetResolverStartNtoa(SceNetId resolver_id, const char* hostname, SceNetInAddr* addr, int timeout, int retry, int flags);
 SceNetId PS4_FUNC sceNetResolverGetError(SceNetId resolver_id, s32* result);
+s32 PS4_FUNC sceNetGetMacAddress(SceNetEtherAddr* addr, s32 flags);
 
 // SceNetCtl
 
@@ -96,7 +103,6 @@ static constexpr s32 SCE_NET_CTL_SSID_LEN           = 32 + 1;
 static constexpr s32 SCE_NET_CTL_HOSTNAME_LEN       = 255 + 1;
 static constexpr s32 SCE_NET_CTL_AUTH_NAME_LEN      = 127 + 1;
 static constexpr s32 SCE_NET_CTL_IPV4_ADDR_STR_LEN  = 16;
-static constexpr s32 SCE_NET_ETHER_ADDR_LEN         = 6;
 
 static constexpr s32 SCE_NET_CTL_INFO_DEVICE            = 1;
 static constexpr s32 SCE_NET_CTL_INFO_ETHER_ADDR        = 2;
@@ -119,10 +125,6 @@ static constexpr s32 SCE_NET_CTL_INFO_SECONDARY_DNS     = 18;
 static constexpr s32 SCE_NET_CTL_INFO_HTTP_PROXY_CONFIG = 19;
 static constexpr s32 SCE_NET_CTL_INFO_HTTP_PROXY_SERVER = 20;
 static constexpr s32 SCE_NET_CTL_INFO_HTTP_PROXY_PORT   = 21;
-
-struct SceNetEtherAddr {
-    u8 data[SCE_NET_ETHER_ADDR_LEN];
-};
 
 union SceNetCtlInfo {
     u32 device;
@@ -148,7 +150,15 @@ union SceNetCtlInfo {
     u16 http_proxy_port;
 };
 
+struct SceNetCtlNatInfo {
+    u32 size;
+    s32 stun_status;
+    s32 nat_type;
+    SceNetInAddr mapped_addr;
+};
+
 s32 PS4_FUNC sceNetCtlGetState(s32* state);
 s32 PS4_FUNC sceNetCtlGetInfo(s32 code, SceNetCtlInfo* info);
+s32 PS4_FUNC sceNetCtlGetNatInfo(SceNetCtlNatInfo* info);
 
 }   // End namespace PS4::OS::Libs::SceNet

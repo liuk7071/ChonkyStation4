@@ -17,7 +17,7 @@ void Semaphore::signal(s32 count, bool is_from_cancel) {
     }
 }
 
-bool Semaphore::wait(s32 count, u32 timeout, bool& was_cancelled) {
+bool Semaphore::wait(s32 count, s64 timeout, bool& was_cancelled) {
     //auto lk = std::unique_lock<std::mutex>(mtx);
     was_cancelled = false;
 
@@ -33,7 +33,7 @@ bool Semaphore::wait(s32 count, u32 timeout, bool& was_cancelled) {
     else {
         using namespace std::chrono;
         const auto start = steady_clock::now();
-        const auto deadline = start + microseconds(timeout);
+        const auto deadline = start + nanoseconds(timeout);
         s32 decremented_count = 0;  // Count to re-add in case we timeout
 
         waiters++;
@@ -109,7 +109,7 @@ s32 PS4_FUNC sceKernelWaitSema(SceKernelSema sem, s32 count, u32* timeout) {
     log("sceKernelWaitSema(sem=%p, count=%d, timeout=*%p)\n", sem, count, timeout);
 
     bool was_cancelled = false;
-    if (!sem->wait(count, timeout ? *timeout : 0, was_cancelled))
+    if (!sem->wait(count, timeout ? (*timeout * 1000 /* sem->wait takes nanoseconds */) : 0, was_cancelled))
         return SCE_KERNEL_ERROR_ETIMEDOUT;
     
     if (was_cancelled)
@@ -134,6 +134,19 @@ s32 PS4_FUNC sceKernelCancelSema(SceKernelSema sem, s32 set_count, s32* n_releas
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceKernelDeleteSema(SceKernelSema sem) {
+    log("sceKernelDeleteSema(sem=%p)\n", sem);
+
+    if (sem->waiters > 0) {
+        *Kernel::kernel_error() = POSIX_EBUSY;
+        return -1;
+    }
+
+    delete sem;
+    sem = nullptr;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC kernel_sem_init(SceKernelSema* sem, s32 pshared, u32 value) {
     log("sem_init(sem=*%p, pshared=%d, value=%d)\n", sem, pshared, value);
 
@@ -143,14 +156,14 @@ s32 PS4_FUNC kernel_sem_init(SceKernelSema* sem, s32 pshared, u32 value) {
 
 s32 PS4_FUNC kernel_sem_post(SceKernelSema* sem) {
     log("sem_post(sem=*%p)\n", sem);
-
+    
     (*sem)->signal(1);
     return 0;
 }
 
 s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem) {
     log("sem_wait(sem=*%p)\n", sem);
-
+    
     bool was_cancelled = false;
     (*sem)->wait(1, 0, was_cancelled);
 
@@ -161,23 +174,38 @@ s32 PS4_FUNC kernel_sem_wait(SceKernelSema* sem) {
 
 s32 PS4_FUNC kernel_sem_trywait(SceKernelSema* sem) {
     log("sem_trywait(sem=*%p)\n", sem);
-
-    if (!(*sem)->poll(1)) {
+    
+    if (!(*sem)->std_sema->try_acquire()) {
+        log("failed. counter was %lld\n", (*sem)->counter.load());
         *Kernel::kernel_error() = POSIX_EAGAIN;
         return -1;
     }
+
+    log("success\n");
+    (*sem)->counter.fetch_sub(1);
     return SCE_OK;
 }
 
 s32 PS4_FUNC kernel_sem_timedwait(SceKernelSema* sem, const SceKernelTimespec* time) {
-    log("sem_timedwait(sem=*%p)\n", sem);
+    log("sem_timedwait(sem=*%p, time=*%p)\n", sem, time);
 
-    using namespace std::chrono;
-    //auto us = duration_cast<microseconds>(seconds(time->tv_sec) + nanoseconds(time->tv_nsec)).count();
-    auto us = 1000;
+    SceKernelTimespec now;
+    kernel_clock_gettime(SCE_KERNEL_CLOCK_REALTIME, &now);
 
+    s64 sec = time->tv_sec - now.tv_sec;
+    s64 nsec = time->tv_nsec - now.tv_nsec;
+    if (nsec < 0) {
+        sec--;
+        nsec += 1000000000;
+    }
+
+    s64 offs_ns = sec * 1000000000 + nsec;
+    log("timeout=%lld ns\n", offs_ns);
+    offs_ns = 1000; // TODO: Some games use a huge offset and hang, fix
+    
     bool was_cancelled = false;
-    if (!(*sem)->wait(1, us, was_cancelled)) {
+    if (!(*sem)->wait(1, offs_ns, was_cancelled)) {
+        log("timed out\n");
         *Kernel::kernel_error() = POSIX_ETIMEDOUT;
         return -1;
     }
@@ -192,6 +220,19 @@ s32 PS4_FUNC kernel_sem_getvalue(SceKernelSema* sem, s32* val) {
 
     *val = (*sem)->counter;
     return 0;
+}
+
+s32 PS4_FUNC kernel_sem_destroy(SceKernelSema* sem) {
+    log("sem_destroy(sem=*%p)\n", sem);
+
+    if ((*sem)->waiters > 0) {
+        *Kernel::kernel_error() = POSIX_EBUSY;
+        return -1;
+    }
+
+    delete *sem;
+    *sem = nullptr;
+    return SCE_OK;
 }
 
 };  // End namespace PS4::OS::Libs::Kernel

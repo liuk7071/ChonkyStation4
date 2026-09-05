@@ -111,6 +111,8 @@ void pollPads() {
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y))               pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_TRIANGLE);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER))    pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_L1);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))   pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_R1);
+        if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSTICK))       pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_L3);
+        if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSTICK))      pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_R3);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_TOUCHPAD))        pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_TOUCH_PAD);
         float left_x  = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX)  / 32767.0f;
         float left_y  = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY)  / 32767.0f;

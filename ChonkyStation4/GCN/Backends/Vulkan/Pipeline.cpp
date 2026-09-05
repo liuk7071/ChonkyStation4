@@ -427,8 +427,34 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
         // Get pointer to the V#
         VSharp* vsharp = vtx_binding.fetch_shader_binding.vsharp_loc.asPtr();
         // Setup vertex buffer and copy data
-        const auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
+        auto buf_size = (vsharp->stride == 0 ? 1 : vsharp->stride) * vsharp->num_records;
         void* guest_vtx_buf_data = (void*)(vsharp->base /* + vtx_binding.fetch_shader_binding.voffs */ + vtx_binding.fetch_shader_binding.inst_offs);
+
+        if (Configuration::clamp_gpu_buffers) {
+            if (IsBadReadPtr((const void*)guest_vtx_buf_data, buf_size)) {
+                auto clamp_size = [&](uptr start, size_t size) -> size_t {
+                    uptr curr = start;
+                    uptr end = start + size;
+                    while (curr < end) {
+                        MEMORY_BASIC_INFORMATION mbi;
+                        if (!VirtualQuery((void*)curr, &mbi, sizeof(mbi)))
+                            break;
+
+                        if (mbi.State != MEM_COMMIT)
+                            break;
+
+                        curr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+                    }
+                    return std::min(curr, end) - start;
+                };
+
+                //vtx_binding.buf = nullptr;
+                //vtx_binding.offs_in_buf = 0;
+                //continue;
+                buf_size = clamp_size((uptr)guest_vtx_buf_data, buf_size);
+            }
+        }
+
         auto [buf, offs, was_dirty] = Cache::getBuffer(guest_vtx_buf_data, buf_size);
         vtx_binding.buf = buf;
         vtx_binding.offs_in_buf = offs;
