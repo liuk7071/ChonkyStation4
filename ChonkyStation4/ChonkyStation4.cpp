@@ -35,6 +35,8 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--system-path", system_path, "Path of the /system directory");
     run_cmd->add_option("--system-ex-path", system_ex_path, "Path of the /system_ex directory");
     run_cmd->add_option("--sysmodules-path", sysmodules_path, "Path of the system modules");
+    run_cmd->add_option("--connect-to-network", PS4::Configuration::connect_to_network, "Obtain an IP address and connect to the internet");
+    run_cmd->add_option("--psn", PS4::Configuration::connect_to_psn, "Connect to the PSN Provider defined for the current user, if any");
     run_cmd->add_option("--lle-ssl", PS4::Configuration::lle_ssl, "LLE libSceSsl");
     run_cmd->add_option("--gpu", PS4::Configuration::gpu_device_id, "Choose GPU device ID");
     run_cmd->add_option("--resolution-scale", PS4::Configuration::resolution_scale, "Choose the resolution scale. This is experimental and won't work for most games");

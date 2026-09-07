@@ -3,6 +3,7 @@
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
 #include <OS/SceObj.hpp>
+#include <unordered_set>
 
 
 namespace PS4::OS::Libs::SceNpWebApi {
@@ -17,22 +18,23 @@ s32 PS4_FUNC sceNpWebApiIntInitialize() {
 }
 
 void init(Module& module) {
+    module.addSymbolExport("x1Y7yiYSk7c", "sceNpWebApiCreateContext", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiCreateContext);
     module.addSymbolExport("rdgs5Z1MyFw", "sceNpWebApiCreateRequest", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiCreateRequest);
     module.addSymbolExport("kVbL4hL3K7w", "sceNpWebApiSendRequest", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiSendRequest);
     module.addSymbolExport("KjNeZ-29ysQ", "sceNpWebApiSendRequest2", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiSendRequest2);
     module.addSymbolExport("k210oKgP80Y", "sceNpWebApiGetHttpStatusCode", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiGetHttpStatusCode);
     module.addSymbolExport("CQtPRSF6Ds8", "sceNpWebApiReadData", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiReadData);
+    module.addSymbolExport("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiCreatePushEventFilter);
+    module.addSymbolExport("PfSTDCgNMgc", "sceNpWebApiRegisterPushEventCallback", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiRegisterPushEventCallback);
+    module.addSymbolExport("or0e885BlXo", "sceNpWebApiUtilityParseNpId", "libSceNpWebApi", "libSceNpWebApi", (void*)&sceNpWebApiUtilityParseNpId);
 
     module.addSymbolStub("G3AnLNdRBjE", "sceNpWebApiInitialize", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("79M-JqvvGo0", "sceNpWebApiCreateHandle", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module.addSymbolStub("x1Y7yiYSk7c", "sceNpWebApiCreateContext", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("zk6c65xoyO0", "sceNpWebApiCreateContextA", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module.addSymbolStub("y5Ta5JCzQHY", "sceNpWebApiCreatePushEventFilter", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("gVNNyxf-1Sg", "sceNpWebApiCheckTimeout", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("qWcbJkBj1Lg", "sceNpWebApiSetRequestTimeout", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("kJQJE0uKm5w", "sceNpWebApiRegisterServicePushEventCallback", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("M2BUB+DNEGE", "sceNpWebApiCreateExtdPushEventFilter", "libSceNpWebApi", "libSceNpWebApi", 1);
-    module.addSymbolStub("PfSTDCgNMgc", "sceNpWebApiRegisterPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("jhXKGQJ4egI", "sceNpWebApiRegisterExtdPushEventCallbackA", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("PqCY25FMzPs", "sceNpWebApiUnregisterExtdPushEventCallback", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("sIFx734+xys", "sceNpWebApiCreateServicePushEventFilter", "libSceNpWebApi", "libSceNpWebApi", 1);
@@ -70,6 +72,74 @@ struct SceNpWebApiRequest : SceObj {
     u64 read_cursor = 0;
     u64 to_read = 0;
 };
+
+struct ScePushEventFilter : SceObj {
+    std::unordered_set<std::string> data_types;
+};
+
+s32 next_push_event_callback_id = 1;
+std::mutex push_event_callback_mtx;
+struct PushEventCallback {
+    s32 id = 0;
+    ScePushEventFilter* filter = nullptr;
+    SceNpWebApiPushEventCallback func = nullptr;
+    void* userdata = nullptr;
+};
+std::vector<PushEventCallback> push_event_callbacks;
+
+struct PushEvent {
+    SceNpWebApiPushEventDataType data_type;
+    std::optional<SceNpPeerAddress> to;
+    std::optional<SceNpPeerAddress> from;
+    std::optional<std::string> data;
+};
+std::vector<PushEvent> push_events;
+
+void sendPushEvent(const std::string& data_type, const std::optional<SceNpPeerAddress> to, const std::optional<SceNpPeerAddress> from, const std::optional<std::string> data) {
+    const std::unique_lock<std::mutex> lk(push_event_callback_mtx);
+
+    PushEvent push_event;
+    std::strncpy(push_event.data_type.data, data_type.c_str(), sizeof(push_event.data_type.data));
+    push_event.to = to;
+    push_event.from = from;
+    push_event.data = data;
+
+    push_events.push_back(push_event);   
+}
+
+void checkCallback() {
+    // TODO: Use correct user_ctx_id
+    const std::unique_lock<std::mutex> lk(push_event_callback_mtx);
+    
+    for (auto it = push_events.begin(); it != push_events.end(); ) {
+        auto& push_event = *it;
+        bool consumed = false;
+
+        for (auto& cb : push_event_callbacks) {
+            if (cb.filter->data_types.contains(push_event.data_type.data)) {
+                cb.func(1, cb.id,
+                    push_event.to.has_value() ? &push_event.to.value() : nullptr,
+                    push_event.from.has_value() ? &push_event.from.value() : nullptr,
+                    &push_event.data_type,
+                    push_event.data.has_value() ? push_event.data.value().data() : nullptr,
+                    push_event.data.has_value() ? push_event.data.value().size() : 0,
+                    cb.userdata
+                );
+
+                consumed = true;
+            }
+        }
+
+        if (consumed) it = push_events.erase(it);
+        else          it++;
+    }
+}
+
+s32 next_user_ctx_id = 1;
+s32 PS4_FUNC sceNpWebApiCreateContext(s32 lib_ctx_id, SceUserService::SceUserServiceUserId uid) {
+    log("sceNpWebApiCreateContext(lib_ctx_id=%d, uid=%d)\n", lib_ctx_id, uid);
+    return next_user_ctx_id++;
+}
 
 s32 PS4_FUNC sceNpWebApiCreateRequest(s32 user_ctx_id, const char* api_group, const char* path, SceNpWebApiHttpMethod method, const SceNpWebApiContentParameter* content_parameter, s64* req_id) {
     log("sceNpWebApiCreateRequest(user_ctx_id=%d, api_group=\"%s\", path=\"%s\", method=%d, content_parameter=*%p)\n", user_ctx_id, api_group, path, method, content_parameter);
@@ -202,6 +272,47 @@ s32 PS4_FUNC sceNpWebApiReadData(s64 req_id, void* data, size_t size) {
 
     log("read %d bytes\n", to_read);
     return to_read;
+}
+
+s32 PS4_FUNC sceNpWebApiCreatePushEventFilter(s32 lib_ctx_id, const SceNpWebApiPushEventDataType* data_type, size_t n_data_types) {
+    log("sceNpWebApiCreatePushEventFilter(lib_ctx_id=%d, data_type=*%p, n_data_types=%lld)\n", lib_ctx_id, data_type, n_data_types);
+
+    auto* filter = OS::make<ScePushEventFilter>();
+
+    for (int i = 0; i < n_data_types; i++) {
+        log("data_type#%02d: %s\n", i, data_type[i].data);
+        filter->data_types.insert(data_type[i].data);
+    }
+
+    return filter->handle;
+}
+
+s32 PS4_FUNC sceNpWebApiRegisterPushEventCallback(s32 user_ctx_id, s32 filter_id, SceNpWebApiPushEventCallback cb_func, void* userdata) {
+    log("sceNpWebApiRegisterPushEventCallback(user_ctx_id=%d, filter_id=%d, cb_func=%p, userdata=%p)\n", user_ctx_id, filter_id, cb_func, userdata);
+
+    auto* filter = OS::find<ScePushEventFilter>(filter_id);
+    if (!filter) {
+        Helpers::panic("sceNpWebApiRegisterPushEventCallback: filter_id %d does not exist\n", filter_id);
+    }
+
+    const std::unique_lock<std::mutex> lk(push_event_callback_mtx);
+    
+    auto& callback = push_event_callbacks.emplace_back();
+    callback.id = next_push_event_callback_id++;
+    callback.filter = filter;
+    callback.func = cb_func;
+    callback.userdata = userdata;
+    return callback.id;
+}
+
+
+s32 PS4_FUNC sceNpWebApiUtilityParseNpId(const char* json_np_id, SceNpId* np_id) {
+    log("sceNpWebApiUtilityParseNpId(json_np_id=\"%s\", np_id=*%p)\n", json_np_id, np_id);
+
+    // TODO
+    np_id->handle = Np::makeOnlineId("dgb");
+
+    return SCE_OK;
 }
 
 }   // End namespace PS4::OS::Libs::SceNpWebApi

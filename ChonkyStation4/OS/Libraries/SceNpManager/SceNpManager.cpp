@@ -4,6 +4,7 @@
 #include <OS/UserManagement.hpp>
 #include <OS/Libraries/Kernel/Kernel.hpp>
 #include <OS/Libraries/SceNpMatching/SceNpMatching.hpp>
+#include <OS/Libraries/SceNpWebApi/SceNpWebApi.hpp>
 
 
 namespace PS4::OS::Libs::SceNpManager {
@@ -341,7 +342,7 @@ s32 PS4_FUNC sceNpCheckCallback() {
     }
 
     SceNpMatching::checkCallback();
-    // TODO: Other callbacks
+    SceNpWebApi::checkCallback();
     return SCE_OK;
 }
 

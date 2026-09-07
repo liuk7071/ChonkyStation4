@@ -290,7 +290,7 @@ float cubema(float x, float y, float z) {
     }
 
     void addLDS(ShaderStage stage, ComputeJob* compute_job) {
-        const auto lds_size = stage == ShaderStage::Compute ? compute_job->lds_size_dwords : 8192;
+        const auto lds_size = stage == ShaderStage::Compute ? compute_job->lds_size_dwords : 100;
 
         if (stage == ShaderStage::Compute)
             shader += std::format("shared uint lds[{}];\n", lds_size);
@@ -555,6 +555,15 @@ uint readLDS(uint idx) {{
                 break;
             }
 
+            case Shader::Opcode::S_MOV_B32: {
+                const u32 dest_sgpr = instr.dst[0].code;
+                const u32 src_sgpr = instr.src[0].code;
+
+                if (descs.contains(src_sgpr))
+                    descs[dest_sgpr] = descs[src_sgpr];
+                break;
+            }
+
             case Shader::Opcode::V_WRITELANE_B32: {
                 const u32 dest_vgpr = instr.dst[0].code;
                 const u32 src_sgpr = instr.src[0].code; // TODO: Verify this is an sgpr?
@@ -591,6 +600,17 @@ uint readLDS(uint idx) {{
 
                 auto code_slice_copy = code_slice;
 
+                // The instructions aren't necessarily next to each other. Scan forward, but with a limit to avoid false positives.
+                auto search_forward = [&](Shader::Opcode opcode, GcnInst& instr) -> bool {
+                    int limit = 3;
+                    do {
+                        instr = decoder.decodeInstruction(code_slice_copy);
+                        if (limit-- == 0) break;
+                    } while (instr.opcode != opcode);
+
+                    return instr.opcode == opcode;
+                };
+
                 // S_GETPC_B64
                 const u64 getpc_addr = (u64)((u8*)data + pc + 4);
                 const auto getpc_dest = instr.dst[0].code;
@@ -600,22 +620,19 @@ uint readLDS(uint idx) {{
                 auto* vsharp = desc_info.inline_buffer;
 
                 // S_ADD_U32
-                auto next_instr = decoder.decodeInstruction(code_slice_copy);
-                if (next_instr.opcode != Shader::Opcode::S_ADD_U32) break;
+                GcnInst next_instr;
+                if (!search_forward(Shader::Opcode::S_ADD_U32, next_instr)) break;
                 if (next_instr.dst[0].code != getpc_dest || next_instr.src[1].code != getpc_dest) break;
                 if (next_instr.src[0].field != Shader::OperandField::LiteralConst) break;
                 *(u64*)vsharp = getpc_addr + next_instr.src[0].code;
 
                 // S_ADDC_U32
-                next_instr = decoder.decodeInstruction(code_slice_copy);
-                if (next_instr.opcode != Shader::Opcode::S_ADDC_U32) break;
+                if (!search_forward(Shader::Opcode::S_ADDC_U32, next_instr)) break;
                 if (next_instr.dst[0].code != (getpc_dest + 1) || next_instr.src[1].code != (getpc_dest + 1)) break;
                 if (next_instr.src[0].field != Shader::OperandField::ConstZero && !(next_instr.src[0].field == Shader::OperandField::LiteralConst && next_instr.src[0].code == 0)) break;
 
                 // S_MOV_B32
                 auto match_s_mov_b32 = [](const GcnInst& instr) -> std::pair<bool, u32> {
-                    if (instr.opcode != Shader::Opcode::S_MOV_B32) return { false, 0 };
-
                     auto field = instr.src[0].field;
                     if (field != Shader::OperandField::LiteralConst && field != Shader::OperandField::SignedConstIntPos) return { false, 0 };
 
@@ -624,15 +641,15 @@ uint readLDS(uint idx) {{
                     else if (field == Shader::OperandField::SignedConstIntPos)
                         return { true, (s32)instr.src[0].code - SignedConstIntPosMin + 1 };
                     else Helpers::panic("Unreachable\n");
-                    };
+                };
 
-                next_instr = decoder.decodeInstruction(code_slice_copy);
+                if (!search_forward(Shader::Opcode::S_MOV_B32, next_instr)) break;
                 auto [ok, val] = match_s_mov_b32(next_instr);
                 if (!ok) break;
                 *((u32*)vsharp + 2) = val;
 
                 // S_MOV_B32
-                next_instr = decoder.decodeInstruction(code_slice_copy);
+                if (!search_forward(Shader::Opcode::S_MOV_B32, next_instr)) break;
                 auto [ok2, val2] = match_s_mov_b32(next_instr);
                 if (!ok2) break;
                 *((u32*)vsharp + 3) = val2;
@@ -698,7 +715,16 @@ uint readLDS(uint idx) {{
                 auto get_buffer = [&](const DescriptorLocation& desc, bool is_image_store = false) -> Buffer& {
                     // Check if the buffer already exists
                     for (auto& buf : out_data.buffers) {
-                        if (buf.desc_info.sgpr == desc.sgpr && buf.desc_info.is_ptr == desc.is_ptr && buf.desc_info.offs == desc.offs && buf.desc_info.type == desc.type && buf.is_image_store == is_image_store) {
+                        if (buf.desc_info.sgpr == desc.sgpr
+                            && buf.desc_info.is_ptr == desc.is_ptr
+                            && buf.desc_info.ptr_is_from_buf == desc.ptr_is_from_buf
+                            && buf.desc_info.buf_offs == desc.buf_offs
+                            && buf.desc_info.ptr_is_inline == desc.ptr_is_inline
+                            && buf.desc_info.inline_buffer == desc.inline_buffer
+                            && buf.desc_info.offs == desc.offs
+                            && buf.desc_info.type == desc.type
+                            && buf.is_image_store == is_image_store
+                        ) {
                             // The buffer already exists
                             return buf;
                         }
@@ -777,7 +803,7 @@ uint readLDS(uint idx) {{
                     }
 
                     return buf;
-                    };
+                };
 
                 bool is_img = instr.inst_class == InstClass::VectorMemImgSmp || instr.inst_class == InstClass::VectorMemImgNoSmp || instr.inst_class == InstClass::VectorMemImgUt;
                 bool is_vector_mem = instr.inst_class == InstClass::VectorMemBufFmt || instr.inst_class == InstClass::VectorMemBufNoFmt || instr.inst_class == InstClass::VectorMemBufAtomic;
@@ -2582,12 +2608,15 @@ uint readLDS(uint idx) {{
                 // TODO: soffset ???
                 // TODO: Format conversion
                 for (int elem = 0; elem < instr.control.mtbuf.count; elem++) {
-                    const std::string elem_addr = std::format("tmp_u + ({} << 2u)", elem);  // elem * sizeof(u32)
-                    code += std::format("{} = 0;\n", getVGPR(instr.src[1].code + elem));
-                    code += std::format("{} |= fetchBufferByte{}({} + 0) <<  0u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
-                    code += std::format("{} |= fetchBufferByte{}({} + 1) <<  8u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
-                    code += std::format("{} |= fetchBufferByte{}({} + 2) << 16u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
-                    code += std::format("{} |= fetchBufferByte{}({} + 3) << 24u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                    const std::string elem_addr = std::format("(tmp_u + ({} << 2u))", elem);  // elem * sizeof(u32)
+                    //code += std::format("{} = 0;\n", getVGPR(instr.src[1].code + elem));
+                    //code += std::format("{} |= fetchBufferByte{}({} + 0) <<  0u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                    //code += std::format("{} |= fetchBufferByte{}({} + 1) <<  8u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                    //code += std::format("{} |= fetchBufferByte{}({} + 2) << 16u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+                    //code += std::format("{} |= fetchBufferByte{}({} + 3) << 24u;\n", getVGPR(instr.src[1].code + elem), buf->binding, elem_addr);
+
+                    // For DWORDs, fetch them directly
+                    code += std::format("{} = {}.data[{} >> 2u];\n", getVGPR(instr.src[1].code + elem), ssbo_name, elem_addr);
                 }
 
                 // Swizzle
@@ -2643,11 +2672,14 @@ uint readLDS(uint idx) {{
                 // TODO: soffset ???
                 // TODO: Format conversion
                 for (int elem = 0; elem < instr.control.mtbuf.count; elem++) {
-                    const std::string elem_addr = std::format("tmp_u + ({} << 2u)", elem);  // elem * sizeof(u32)
-                    code += std::format("storeBufferByte{}({} + 0, {} >>  0u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
-                    code += std::format("storeBufferByte{}({} + 1, {} >>  8u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
-                    code += std::format("storeBufferByte{}({} + 2, {} >> 16u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
-                    code += std::format("storeBufferByte{}({} + 3, {} >> 24u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                    const std::string elem_addr = std::format("(tmp_u + ({} << 2u))", elem);  // elem * sizeof(u32)
+                    //code += std::format("storeBufferByte{}({} + 0, {} >>  0u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                    //code += std::format("storeBufferByte{}({} + 1, {} >>  8u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                    //code += std::format("storeBufferByte{}({} + 2, {} >> 16u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+                    //code += std::format("storeBufferByte{}({} + 3, {} >> 24u);\n", buf->binding, elem_addr, getVGPR(instr.src[1].code + elem));
+
+                    // For DWORDs, store them directly
+                    code += std::format("{}.data[{} >> 2u] = {};\n", ssbo_name, elem_addr, getVGPR(instr.src[1].code + elem));
                 }
                 break;
             }
@@ -3146,13 +3178,13 @@ template VSharp* DescriptorLocation::asPtr<VSharp>(u32* regs);
 template TSharp* DescriptorLocation::asPtr<TSharp>(u32* regs);
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job, u32* regs) {
-    //std::ofstream out;
+    std::ofstream out;
     //if (stage == ShaderStage::Vertex) {
-    //if (out_data.hash == 0x1181cc94aa502108) {
-    //  out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
-    //  out.write((char*)data, 12_KB);
-    //  out.close();
-    //}
+    if (out_data.hash == 0x35bcdca1b0bffc8a) {
+      out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
+      out.write((char*)data, 12_KB);
+      out.close();
+    }
 
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());

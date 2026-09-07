@@ -43,6 +43,11 @@ struct SceNpId {
     u8 reserved[8];
 };
 
+struct SceNpPeerAddress {
+    SceNpOnlineId online_id;
+    SceNpPlatformType platform;
+};
+
 struct SceNpPeerAddressA {
     SceNpAccountId account_id;
     SceNpPlatformType platform;
@@ -73,5 +78,16 @@ struct SceNpCountryCode {
     char term;
     char padding[1];
 };
+
+inline SceNpOnlineId makeOnlineId(const std::string& handle) {
+    SceNpOnlineId online_id;
+    std::strncpy(online_id.data, handle.c_str(), sizeof(online_id.data));
+    online_id.term = '\0';
+    return online_id;
+}
+
+inline SceNpPeerAddress makePeerAddress(const std::string& handle, SceNpPlatformType platform) {
+    return { .online_id = makeOnlineId(handle), .platform = platform };
+}
 
 }   // End namespace PS4::OS::Np

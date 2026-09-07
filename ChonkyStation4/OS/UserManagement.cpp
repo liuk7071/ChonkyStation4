@@ -1,4 +1,5 @@
 #include "UserManagement.hpp"
+#include <Configuration.hpp>
 #include <PSN/PSN.hpp>
 #include <PSN/Providers/ChonkyNet/ChonkyNet.hpp>
 #include <SDL.h>    // For SDL_GetPrefPath
@@ -44,9 +45,11 @@ void init() {
     }
     next_user_id = highest_id + 1;
 
-    // Initialize PSN provider
-    PSN::psn = std::make_unique<PSN::ChonkyNetProvider>();
-    //PSN::psn->init();
+    if (Configuration::connect_to_psn) {
+        // Initialize PSN provider
+        PSN::psn = std::make_unique<PSN::ChonkyNetProvider>();
+        PSN::psn->init();
+    }
 }
 
 // Create a new user and return its id

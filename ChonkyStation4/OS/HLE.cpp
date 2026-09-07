@@ -194,7 +194,7 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("0Sp9vJcB1-w", "sceNpProfileDialogTerminate", "libSceNpProfileDialog", "libSceNpProfileDialog");
     
     // libSceNpCommerce
-    module->addSymbolStub("LR5cwFMMCVE", "sceNpCommerceDialogUpdateStatus", "libSceNpCommerce", "libSceNpCommerce", 0);
+    module->addSymbolStub("LR5cwFMMCVE", "sceNpCommerceDialogUpdateStatus", "libSceNpCommerce", "libSceNpCommerce", 1);
     module->addSymbolStub("r42bWcQbtZY", "sceNpCommerceDialogGetResult", "libSceNpCommerce", "libSceNpCommerce");
     module->addSymbolStub("m-I92Ab50W8", "sceNpCommerceDialogTerminate", "libSceNpCommerce", "libSceNpCommerce");
     

@@ -62,6 +62,8 @@ s32 PS4_FUNC kernel_pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t
 s32 PS4_FUNC kernel_pthread_cond_reltimedwait_np(pthread_cond_t* cond, pthread_mutex_t* mutex, u64 us) {
     log("pthread_cond_reltimedwait_np(cond=*%p, mutex=*%p, abstime=*%p)\n", cond, mutex, us);
 
+    if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
+
     timespec time;
     auto now = std::chrono::system_clock::now();
     auto timeout = now + std::chrono::microseconds(us);
@@ -91,6 +93,7 @@ s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mute
     time.tv_sec = secs.time_since_epoch().count();
     time.tv_nsec = nsec.count();
     const auto ret = pthread_cond_timedwait(cond, mutex, &time);
+    
     if (ret == ETIMEDOUT)
         return SCE_KERNEL_ERROR_ETIMEDOUT;
     else if (ret == 0)

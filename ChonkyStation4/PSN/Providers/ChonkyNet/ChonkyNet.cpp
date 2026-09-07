@@ -41,7 +41,7 @@ void ChonkyNetProvider::init() {
 
     // Connect to server
     // TODO: Make it configurable
-    sock->connect(tcp::endpoint(asio::ip::make_address("127.0.0.1"), 12345));
+    sock->connect(tcp::endpoint(asio::ip::make_address("127.0.0.1"), 70000));
 }
 
 // Login using a previously generated session token.

@@ -2,6 +2,7 @@
 #define ASIO_STANDALONE
 #include <asio.hpp>
 #include <Logger.hpp>
+#include <Configuration.hpp>
 #include <Loaders/Module.hpp>
 #include <Common/ErrorCodes.hpp>
 #include <OS/SceObj.hpp>
@@ -39,10 +40,14 @@ void init(Module& module) {
 
     module.addSymbolExport("TU-d9PfIHPM", "socket", "libkernel", "libkernel", (void*)&kernel_socket);
     module.addSymbolExport("TU-d9PfIHPM", "socket", "libScePosix", "libkernel", (void*)&kernel_socket);
+    module.addSymbolExport("KuOmgKoqCdY", "bind", "libkernel", "libkernel", (void*)&sceNetBind);
+    module.addSymbolExport("KuOmgKoqCdY", "bind", "libScePosix", "libkernel", (void*)&sceNetBind);
     module.addSymbolExport("fZOeZIOEmLw", "send", "libkernel", "libkernel", (void*)&kernel_send);
     module.addSymbolExport("fZOeZIOEmLw", "send", "libScePosix", "libkernel", (void*)&kernel_send);
     module.addSymbolExport("Ez8xjo9UF4E", "recv", "libkernel", "libkernel", (void*)&kernel_recv);
     module.addSymbolExport("Ez8xjo9UF4E", "recv", "libScePosix", "libkernel", (void*)&kernel_recv);
+    module.addSymbolExport("lUk6wrGXyMw", "recvfrom", "libkernel", "libkernel", (void*)&kernel_recvfrom);
+    module.addSymbolExport("lUk6wrGXyMw", "recvfrom", "libScePosix", "libkernel", (void*)&kernel_recvfrom);
     module.addSymbolExport("4n51s0zEf0c", "inet_pton", "libkernel", "libkernel", (void*)&sceNetInetPton);
     module.addSymbolExport("4n51s0zEf0c", "inet_pton", "libScePosix", "libkernel", (void*)&sceNetInetPton);
     module.addSymbolExport("5jRCs2axtr4", "inet_ntop", "libkernel", "libkernel", (void*)&sceNetInetNtop);
@@ -61,7 +66,10 @@ void init(Module& module) {
     module.addSymbolStub("2mKX2Spso7I", "sceNetSetsockopt", "libSceNet", "libSceNet");
     module.addSymbolStub("kOj1HiAGE54", "sceNetListen", "libSceNet", "libSceNet");
     module.addSymbolStub("9wO9XrMsNhc", "sceNetRecv", "libSceNet", "libSceNet");
+    module.addSymbolStub("hLuXdjHnhiI", "sceNetGetSockInfo", "libSceNet", "libSceNet");
     module.addSymbolStub("hoOAofhhRvE", "sceNetGetsockname", "libSceNet", "libSceNet");
+    module.addSymbolStub("RenI1lL1WFk", "getsockname", "libkernel", "libkernel");
+    module.addSymbolStub("RenI1lL1WFk", "getsockname", "libScePosix", "libkernel");
     module.addSymbolStub("Apb4YDxKsRI", "sceNetResolverStartAton", "libSceNet", "libSceNet");
     module.addSymbolStub("TSM6whtekok", "sceNetShutdown", "libSceNet", "libSceNet");
     module.addSymbolStub("zJGf8xjFnQE", "sceNetSocketAbort", "libSceNet", "libSceNet");
@@ -453,6 +461,11 @@ s32 PS4_FUNC kernel_recv(SceNetId s, void* buf, size_t len, int flags) {
     return sceNetRecv(s, buf, len, flags);
 }
 
+s32 PS4_FUNC kernel_recvfrom(SceNetId s, void* buf, size_t len, s32 flags, SceNetSockaddr* addr, SceNetSocklen* addr_len) {
+    log("recvfrom(s=%d, buf=%p, len=%lld, flags=%d, addr=*%p, addr_len=*%p) [forwarding to sceNetRecvfrom]\n", s, buf, len, flags, addr, addr_len);
+    return sceNetRecvfrom(s, buf, len, flags, addr, addr_len);
+}
+
 SceNetId PS4_FUNC sceNetResolverCreate(const char* name, s32 memid, s32 flags) {
     log("sceNetResolverCreate(name=\"%s\", memid=%d, flags=%d)\n", name, memid, flags);
 
@@ -527,8 +540,10 @@ s32 PS4_FUNC sceNetGetMacAddress(SceNetEtherAddr* addr, s32 flags) {
 
 s32 PS4_FUNC sceNetCtlGetState(s32* state) {
     log("sceNetCtlGetState()\n");
-    //*state = 0; // Disconnected
-    *state = 3; // IP Obtained
+    if (Configuration::connect_to_network)
+        *state = 3; // IP Obtained
+    else
+        *state = 0; // Disconnected
     return SCE_OK;
 }
 

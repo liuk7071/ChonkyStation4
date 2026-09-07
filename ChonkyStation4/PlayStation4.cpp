@@ -5,6 +5,7 @@
 #include <Loaders/ELF/CodePatcher.hpp>
 #include <Loaders/Linker/Linker.hpp>
 #include <OS/Libraries/SceNpManager/SceNpManager.hpp>
+#include <OS/Libraries/SceNpWebApi/SceNpWebApi.hpp>
 #include <OS/Thread.hpp>
 #include <OS/Filesystem.hpp>
 #include <OS/UserManagement.hpp>
@@ -39,10 +40,21 @@ void init() {
     while (!GCN::initialized) std::this_thread::sleep_for(std::chrono::microseconds(1000));
 }
 
+//void PS4_FUNC minecraftDebugPrintfHook(void* app, const char* fmt, ...) {
+void PS4_FUNC minecraftDebugPrintfHook(void* app, const char* fmt, u64 a1, u64 a2, u64 a3, u64 a4) {
+    std::printf(fmt, a1, a2, a3, a4);
+    //va_list va;
+    //va_start(va, fmt);
+    //std::vprintf(fmt, va);
+    //va_end(va);
+}
+
 void loadAndRun(const fs::path& path) {
     try {
-        // Login our user to PSN.
-        //PSN::psn->login(OS::User::current);
+        if (Configuration::connect_to_psn) {
+            // Login our user to PSN.
+            PSN::psn->login(OS::User::current);
+        }
 
         // Send login and presence events to SceNpManager
         // These events are not sent when the game is launched while the user is already logged in. I left them here for debugging purposes
@@ -50,6 +62,22 @@ void loadAndRun(const fs::path& path) {
         //    OS::Libs::SceNpManager::pushStateEvent(OS::User::current->getID(), OS::Np::SceNpState::SCE_NP_STATE_SIGNED_IN);
         //    OS::Libs::SceNpManager::pushPresenceEvent(OS::User::current->getID(), OS::Libs::SceNpManager::SceNpGamePresenceStatus::SCE_NP_GAME_PRESENCE_STATUS_ONLINE);
         //}
+
+//        std::thread([&]() {
+//            std::this_thread::sleep_for(std::chrono::seconds(10));
+//            auto me = OS::Np::makePeerAddress(OS::User::current->online_id, OS::Np::SCE_NP_PLATFORM_TYPE_PS4);
+//            OS::Libs::SceNpWebApi::sendPushEvent("np:service:friendlist:friend", me, std::nullopt, R"(
+//{ 
+//    "trigger": {
+//        "friend": "Albert",
+//        "event": "add"
+//    }
+//}
+//)");
+//    
+//            auto albert = OS::Np::makePeerAddress("Albert", OS::Np::SCE_NP_PLATFORM_TYPE_PS4);
+//            OS::Libs::SceNpWebApi::sendPushEvent("np:service:presence:onlineStatus", me, albert, std::nullopt);
+//        }).detach();
 
         // The threading system needs to be initialized before we run the app.
         // Everything else will be initialized in the init() function, which is called by g_app.run() from the app's main thread (NOT the host's)
@@ -81,6 +109,13 @@ void loadAndRun(const fs::path& path) {
         // Game specific patches. Move these elsewhere when I have a proper patch system.
         if (g_app.title_id == "CUSA00107") {
             Loader::ELF::patchRedZone((u8*)0x8000D86F30, (u8*)0x8000D87189, (u8*)0x8000D86F30, (size_t)0xD86F3A - (size_t)0xD86F30, (u8*)0x8000D8717F, (size_t)0xD8718A - (size_t)0xD8717F);
+        }
+        else if (g_app.title_id == "CUSA00744") {
+            using namespace Xbyak::util;
+
+            auto code = std::make_unique<Xbyak::CodeGenerator>(128, (void*)((uptr)g_app.modules[0]->base_address + 0x20280));
+            code->mov(rax, (uptr)&minecraftDebugPrintfHook);
+            code->jmp(rax);
         }
 
         g_app.run();

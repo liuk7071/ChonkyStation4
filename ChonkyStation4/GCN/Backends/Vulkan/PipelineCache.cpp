@@ -17,6 +17,8 @@ MAKE_LOG_FUNCTION(log, gcn_vulkan_renderer);
 std::unordered_map<u64, Pipeline*> pipelines;
 std::unordered_map<u64, ComputePipeline*> compute_pipelines;
 
+thread_local XXH3_state_t* state = XXH3_createState();  // thread_local in case this is ever called from multiple threads - it currently isn't.
+
 Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, const u8* fetch_shader_code, const u32* regs) {
     //Profiler::Scope profiler("getPipeline");
     // Compile shaders
@@ -60,7 +62,6 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     }
 
     // Hash fetch shader V#s
-    XXH3_state_t* state = XXH3_createState();
     XXH3_64bits_reset(state);
     int index = 0;
     for (auto& binding : fetch_shader.bindings) {
@@ -75,8 +76,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
         index++;
     }
     cfg.binding_hash = XXH3_64bits_digest(state);
-    XXH3_freeState(state);
-
+    
     // Primitive info
     cfg.prim_type = regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI];
 
@@ -85,7 +85,6 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
         cfg.blend_control[i].raw = regs[Reg::mmCB_BLEND0_CONTROL + i];
 
     u64 blend_hash;
-    state = XXH3_createState();
     XXH3_64bits_reset(state);
     for (int i = 0; i < 8; i++) {
         const bool enable = cfg.blend_control[i].enable;
@@ -94,8 +93,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
             XXH3_64bits_update(state, &cfg.blend_control[i].raw, sizeof(BlendControl));
     }
     blend_hash = XXH3_64bits_digest(state);
-    XXH3_freeState(state);
-
+    
     // Color
     cfg.degamma_enable = (regs[Reg::mmCB_COLOR_CONTROL] >> 3) & 1;
 
@@ -133,7 +131,6 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     cfg.dx_clip_space_enable = (regs[Reg::mmPA_CL_CLIP_CNTL] >> 19) & 1;
 
     // Calculate final pipeline hash
-    state = XXH3_createState();
     XXH3_64bits_reset(state);
 
     XXH3_64bits_update(state, &cfg.has_vs, sizeof(cfg.has_vs));
@@ -169,7 +166,6 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     XXH3_64bits_update(state, &cfg.binding_hash, sizeof(cfg.binding_hash));
 
     const u64 pipeline_hash = XXH3_64bits_digest(state);
-    XXH3_freeState(state);
     
     if (pipelines.contains(pipeline_hash))
         return *pipelines[pipeline_hash];

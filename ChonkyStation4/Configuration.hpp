@@ -9,6 +9,9 @@ inline std::string system_dir_path      = "./system";
 inline std::string system_ex_dir_path   = "./system_ex";
 inline std::string sysmodules_path = "";
 
+inline bool connect_to_network = false;
+inline bool connect_to_psn = false;
+
 inline bool is_vsh = false;
 
 inline bool lle_ssl = false;

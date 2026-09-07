@@ -318,7 +318,8 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     
     auto lk = std::unique_lock<std::mutex>(cache_mtx);
 
-    const bool is_hash = size < page_size / 4;
+    //const bool is_hash = size < page_size / 4;
+    const bool is_hash = false;
 
     // Check if we already cached this buffer
     if (!is_hash) {

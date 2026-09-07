@@ -993,6 +993,7 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     );
 }
 
+std::chrono::milliseconds cpu_stall = std::chrono::milliseconds(0);
 static bool fullscreen = false;
 static bool force_recreate_swapchain = false;
 static int texture_free_counter = 0;
@@ -1148,7 +1149,10 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         const u64 curr_ticks = SDL_GetTicks64();
         const double curr_time = curr_ticks / 1000.0;
         if (curr_time - last_time > 1.0) {
-            SDL_SetWindowTitle(window, std::format("ChonkyStation4 | {} | {} | {} FPS", CHONKYSTATION4_VERSION, g_app.name, frame_count).c_str());
+            if (frame_count > 1)
+                cpu_stall /= frame_count - 1;
+
+            SDL_SetWindowTitle(window, std::format("ChonkyStation4 | {} | {} | {} FPS | {} ms stall", CHONKYSTATION4_VERSION, g_app.name, frame_count, cpu_stall.count()).c_str());
             last_time = curr_time;
             frame_count = 0;
         }
@@ -1157,9 +1161,13 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
 
         // Wait for rendering to be done
         {
+            const auto start = std::chrono::steady_clock::now();
             //Profiler::Scope profiler("Wait for GPU");
             while (vk::Result::eTimeout == device.waitForFences(*draw_fence[frame_idx], vk::True, UINT64_MAX));
             device.resetFences(*draw_fence[frame_idx]);
+            const auto end = std::chrono::steady_clock::now();
+
+            cpu_stall +=  std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         }
 
         // Cleanup

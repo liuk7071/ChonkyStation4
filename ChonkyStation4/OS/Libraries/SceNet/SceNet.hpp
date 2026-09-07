@@ -92,6 +92,7 @@ s32 PS4_FUNC sceNetGetsockopt(SceNetId s, s32 level, s32 option_name, void* val,
 s32 PS4_FUNC kernel_socket(s32 family, s32 type, s32 protocol);
 s32 PS4_FUNC kernel_send(SceNetId s, const void* buf, size_t len, int flags);
 s32 PS4_FUNC kernel_recv(SceNetId s, void* buf, size_t len, int flags);
+s32 PS4_FUNC kernel_recvfrom(SceNetId s, void* buf, size_t len, s32 flags, SceNetSockaddr* addr, SceNetSocklen* addr_len);
 SceNetId PS4_FUNC sceNetResolverCreate(const char* name, s32 memid, s32 flags);
 SceNetId PS4_FUNC sceNetResolverStartNtoa(SceNetId resolver_id, const char* hostname, SceNetInAddr* addr, int timeout, int retry, int flags);
 SceNetId PS4_FUNC sceNetResolverGetError(SceNetId resolver_id, s32* result);
