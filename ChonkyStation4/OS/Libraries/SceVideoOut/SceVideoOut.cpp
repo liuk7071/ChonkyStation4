@@ -20,6 +20,7 @@ void init(Module& module) {
     module.addSymbolExport("w3BY+tAEiQY", "sceVideoOutRegisterBuffers", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutRegisterBuffers);
     module.addSymbolExport("i6-sR91Wt-4", "sceVideoOutSetBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSetBufferAttribute);
     module.addSymbolExport("IOdgHlCGU-k", "sceVideoOutSubmitChangeBufferAttribute", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitChangeBufferAttribute);
+    module.addSymbolExport("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutColorSettingsSetGamma_);
     module.addSymbolExport("U46NwOiJpys", "sceVideoOutSubmitFlip", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutSubmitFlip);
     module.addSymbolExport("SbU3dwp80lQ", "sceVideoOutGetFlipStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetFlipStatus);
     module.addSymbolExport("1FZBKy8HeNU", "sceVideoOutGetVblankStatus", "libSceVideoOut", "libSceVideoOut", (void*)&sceVideoOutGetVblankStatus);
@@ -32,7 +33,6 @@ void init(Module& module) {
     
     module.addSymbolStub("zgXifHT9ErY", "sceVideoOutIsFlipPending", "libSceVideoOut", "libSceVideoOut", 0); // TODO: Important
     module.addSymbolStub("N5KDtkIjjJ4", "sceVideoOutUnregisterBuffers", "libSceVideoOut", "libSceVideoOut"); // TODO: Important
-    module.addSymbolStub("DYhhWbJSeRg", "sceVideoOutColorSettingsSetGamma_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pv9CI5VC+R0", "sceVideoOutAdjustColor_", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("MTxxrOCeSig", "sceVideoOutSetWindowModeMargins", "libSceVideoOut", "libSceVideoOut");
     module.addSymbolStub("pjkDsgxli6c", "sceVideoOutModeSetAny_", "libSceVideoOut", "libSceVideoOut");
@@ -202,6 +202,13 @@ s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVide
     log("sceVideoOutSubmitChangeBufferAttribute(handle=%d, idx=%d, attrib=*%p)\n", handle, idx, attrib);
 
     bufs[idx].attrib = *attrib;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceVideoOutColorSettingsSetGamma_(SceVideoOutColorSettings* settings, float gamma) {
+    log("sceVideoOutColorSettingsSetGamma_(settings=*%p, gamma=%f)\n", settings, gamma);
+
+    settings->gamma = gamma;
     return SCE_OK;
 }
 

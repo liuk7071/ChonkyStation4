@@ -172,7 +172,7 @@ void init() {
 }
 
 void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0) {
-    ////Profiler::Scope profiler("updateBuffer");
+    //Profiler::Scope profiler("updateBuffer");
     auto& staging_vk_buf    = buf->staging_buf;
     auto& vk_buf            = buf->buf;
     auto& staging_alloc     = buf->staging_alloc;

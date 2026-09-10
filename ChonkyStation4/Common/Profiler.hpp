@@ -34,15 +34,21 @@ public:
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ~Scope() {
+    void stop() {
         const auto end = std::chrono::high_resolution_clock::now();
         const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
         Profiler::add(name, elapsed);
+        was_manual_stopped = true;
+    }
+
+    ~Scope() {
+        if (!was_manual_stopped) stop();
     }
 
 private:
     std::string name;
     std::chrono::high_resolution_clock::time_point start;
+    bool was_manual_stopped = false;
 };
 
 class Timer {

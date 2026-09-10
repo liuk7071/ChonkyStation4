@@ -207,6 +207,12 @@ GnmError gnmCreateTexture(GnmTexture* tex, const GnmTextureCreateInfo* ci) {
 GnmError gnmTexCalcByteSize(
     uint64_t* outsize, uint32_t* outalignment, const GnmTexture* tex
 ) {
+    if (outsize)
+        *outsize = 0;
+    
+    if (outalignment)
+        *outalignment = 0;
+
 	if (!tex) {
 		return GNM_ERROR_INVALID_ARGS;
 	}
@@ -240,7 +246,11 @@ GnmError gnmTexCalcByteSize(
 	for (uint32_t i = 0; i < texinfo.nummips; i += 1) {
 		tp.linearwidth = umax(texinfo.width >> i, 1);
 		tp.linearheight = umax(texinfo.height >> i, 1);
-		tp.lineardepth = umax(texinfo.depth >> i, 1);
+        if (texinfo.type == GNM_TEXTURE_3D)
+            tp.lineardepth = umax(texinfo.depth >> i, 1);
+        else
+            tp.lineardepth = 1;
+
 		tp.miplevel = i;
 
 		err = gpaComputeSurfaceInfo(&surfinfo, &tp);

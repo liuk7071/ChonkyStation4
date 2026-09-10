@@ -46,6 +46,11 @@ struct SceVideoOutBuffer {
 };
 inline SceVideoOutBuffer bufs[16];
 
+struct SceVideoOutColorSettings {
+    float gamma;
+    u32 reserved[3];
+};
+
 struct SceVideoOutFlipStatus {
 	u64 count;
 	u64 process_time;
@@ -106,6 +111,7 @@ s32 PS4_FUNC sceVideoOutWaitVblank(s32 handle);
 s32 PS4_FUNC sceVideoOutRegisterBuffers(s32 handle, s32 start_idx, void** addrs, s32 n_bufs, SceVideoOutBufferAttribute* attrib);
 s32 PS4_FUNC sceVideoOutSetBufferAttribute(SceVideoOutBufferAttribute* attrib, u32 pixel_format, u32 tiling_mode, u32 aspect_ratio, u32 width, u32 height, u32 pitch_in_pixels);
 s32 PS4_FUNC sceVideoOutSubmitChangeBufferAttribute(s32 handle, s32 idx, SceVideoOutBufferAttribute* attrib);
+s32 PS4_FUNC sceVideoOutColorSettingsSetGamma_(SceVideoOutColorSettings* settings, float gamma);
 s32 PS4_FUNC sceVideoOutSubmitFlip(s32 handle, s32 buf_idx, s32 flip_mode, s64 flip_arg);
 s32 PS4_FUNC sceVideoOutGetFlipStatus(s32 handle, SceVideoOutFlipStatus* status);
 s32 PS4_FUNC sceVideoOutGetVblankStatus(s32 handle, SceVideoOutVblankStatus* status);

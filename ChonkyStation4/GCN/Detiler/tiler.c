@@ -9,7 +9,7 @@ GpaError gpaTpInit(
 	if (!tp || !tex) {
 		return GPA_ERR_INVALID_ARGS;
 	}
-	if (miplevel > tex->nummips) {
+	if (miplevel >= tex->nummips) {
 		return GPA_ERR_INVALID_ARGS;
 	}
 
@@ -21,14 +21,6 @@ GpaError gpaTpInit(
 	const uint32_t texelsperelem = gnmDfGetTexelsPerElement(fmt);
 
 	uint32_t numarrayslices = tex->numslices;
-	if (tex->type == GNM_TEXTURE_CUBEMAP) {
-		numarrayslices *= 6;
-	} else if (tex->type == GNM_TEXTURE_3D) {
-		numarrayslices = 1;
-	}
-	if (tex->pow2pad) {
-		numarrayslices = NextPow2(numarrayslices);
-	}
 
 	if (arrayslice >= numarrayslices) {
 		return GPA_ERR_INVALID_ARGS;
@@ -39,8 +31,12 @@ GpaError gpaTpInit(
 
 	tp->linearwidth = umax(tex->width >> miplevel, 1);
 	tp->linearheight = umax(tex->height >> miplevel, 1);
-	tp->lineardepth = umax(tex->depth >> miplevel, 1);
-	tp->numfragsperpixel = tex->numfrags;
+    if (isvolume)
+        tp->lineardepth = umax(tex->depth >> miplevel, 1);
+    else
+        tp->lineardepth = 1;
+    
+    tp->numfragsperpixel = tex->numfrags;
 	tp->basetiledpitch = tex->pitch;
 
 	tp->miplevel = miplevel;

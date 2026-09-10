@@ -57,7 +57,7 @@ void transitionImageLayout(const vk::Image& image, const vk::Format fmt, vk::Ima
         .image = image,
         .subresourceRange = {
             get_aspect(fmt),
-            0, 1, 
+            0, vk::RemainingMipLevels, 
             0, 1
         }
     };

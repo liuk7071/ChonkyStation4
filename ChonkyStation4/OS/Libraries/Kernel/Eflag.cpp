@@ -158,7 +158,7 @@ s32 PS4_FUNC sceKernelWaitEventFlag(SceKernelEventFlag ef, u64 bitptn, u32 wait_
     // TODO: Error checks
     if (timeout && *timeout) {
         //Helpers::panic("TODO: event flag timeout\n");
-        printf("TODO: event flag timeout\n");
+        //printf("TODO: event flag timeout\n");
     }
 
     u64 ret;

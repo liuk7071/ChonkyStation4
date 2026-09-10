@@ -143,7 +143,7 @@ std::vector<vk::WriteDescriptorSet> ComputePipeline::uploadBuffersAndTextures(Pu
                     push_constants.stride[buf_info.binding] = vsharp->stride;
                     //push_constants.fmt[buf_info.binding]    = vsharp->dfmt | (vsharp->nfmt << 8);
                 }
-                else printf("TODO: buf_info.binding >= 48\n");
+                //else printf("TODO: buf_info.binding >= 48\n");
                 break;
             }
 

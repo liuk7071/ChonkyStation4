@@ -79,6 +79,7 @@ struct DecompilerState {
 
     bool need_get_vgpr_helper = false;
     bool need_set_vgpr_helper = false;
+    bool need_mbcnt_helpers = false;
 
     std::vector<std::unique_ptr<BasicBlock>> blocks;
     std::unordered_map<u32, BasicBlock*> block_map;
@@ -290,7 +291,7 @@ float cubema(float x, float y, float z) {
     }
 
     void addLDS(ShaderStage stage, ComputeJob* compute_job) {
-        const auto lds_size = stage == ShaderStage::Compute ? compute_job->lds_size_dwords : 100;
+        const auto lds_size = stage == ShaderStage::Compute ? compute_job->lds_size_dwords : 8192;
 
         if (stage == ShaderStage::Compute)
             shader += std::format("shared uint lds[{}];\n", lds_size);
@@ -372,6 +373,23 @@ uint readLDS(uint idx) {{
         shader += "}\n";
     }
 
+    void addMBCNTHelpers() {
+        shader += R"(
+uint mbcntThreadMask(uint lane) {
+    return lane == 0u ? 0u : ((lane >= 32u) ? 0xffffffff : ((1u << lane) - 1u));
+}
+
+uint mbcntLo(uint src, uint addend) {
+    return addend + bitCount(src & mbcntThreadMask(gl_SubgroupInvocationID));
+}
+
+uint mbcntHi(uint src, uint addend) {
+    uint lane = gl_SubgroupInvocationID;
+    return addend + bitCount(src & mbcntThreadMask((lane > 31u) ? lane - 32u : 0u));
+}
+)";
+    }
+
     template<Type type = Type::Float>
     std::string getSRC(const PS4::GCN::Shader::InstOperand& op) {
         constexpr bool is_float = type == Type::Float;
@@ -403,6 +421,7 @@ uint readLDS(uint idx) {{
         case OperandField::ConstFloatPos_4_0:   src = "f2u(4.0f)";                                                          break;
         case OperandField::M0:                  src = "m0";                                                                 break;
         case OperandField::ExecLo:              src = "exec";                                                               break;
+        case OperandField::ExecHi:              src = "1u /* TODO: ExecHi */";                                              break;
         case OperandField::VccLo:               src = "vcc";                                                                break;
         case OperandField::VccHi:               src = "vcchi";                                                              break;
         default:    Helpers::panic("Unhandled SRC %d\n", op.code);
@@ -1070,7 +1089,7 @@ uint readLDS(uint idx) {{
 
             // Thanks shadPS4, this is not mentioned anywhere in the docs...?
             return std::format("({} >> 2u)", getSGPR(instr.control.smrd.offset));
-            };
+        };
 
         auto& code = block.code;
         code.reserve(128_KB);
@@ -1081,6 +1100,7 @@ uint readLDS(uint idx) {{
 
         u32 pc = start_pc;
         bool done = false;
+        bool last_is_vector = false;
         while (!code_slice.atEnd() && !done) {
             // If the current PC is the start of another block, stop.
             if (block_entries.contains(pc) && pc != block.pc) {
@@ -1100,9 +1120,14 @@ uint readLDS(uint idx) {{
             //const auto is_vector = false;
 
             // Emit exec check for vector instructions (slow)
-            if (is_vector) {
+            if (is_vector && !last_is_vector) {
                 code += "EXEC { ";
             }
+            else if (!is_vector && last_is_vector) {
+                code += "}";
+            }
+
+            last_is_vector = is_vector;
 
             switch (instr.opcode) {
             case Shader::Opcode::S_ENDPGM: {
@@ -1278,7 +1303,7 @@ uint readLDS(uint idx) {{
 
             case Shader::Opcode::S_CMPK_GT_U32: {
                 const u16 imm16 = instr.control.sopk.simm;
-                code += std::format("scc = uint({} > {});\n", getSRC<Type::Int>(instr.dst[0]), imm16);
+                code += std::format("scc = uint({} > {});\n", getSRC<Type::Uint>(instr.dst[0]), imm16);
                 break;
             }
 
@@ -1364,8 +1389,9 @@ uint readLDS(uint idx) {{
             }
 
             case Shader::Opcode::S_AND_SAVEEXEC_B64: {
+                code += std::format("tmp_u = {};\n", getSRC<Type::Uint>(instr.src[0]));
                 code += setDST<Type::Uint>(instr.dst[0], "exec");
-                code += std::format("exec = {} & exec;\n", getSRC<Type::Uint>(instr.src[0]));
+                code += "exec = tmp_u & exec;\n";
                 code += "scc = uint(exec != 0);\n";
                 break;
             }
@@ -1739,14 +1765,14 @@ uint readLDS(uint idx) {{
             }
 
             case Shader::Opcode::V_MBCNT_LO_U32_B32: {
-                code += "// TODO: V_MBCNT_LO_U32_B32\n";
-                code += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[1]));
+                need_mbcnt_helpers = true;
+                code += setDST<Type::Uint>(instr.dst[0], std::format("mbcntLo({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
                 break;
             }
 
             case Shader::Opcode::V_MBCNT_HI_U32_B32: {
-                code += "// TODO: V_MBCNT_HI_U32_B32\n";
-                code += setDST<Type::Uint>(instr.dst[0], getSRC<Type::Uint>(instr.src[1]));
+                need_mbcnt_helpers = true;
+                code += setDST<Type::Uint>(instr.dst[0], std::format("mbcntHi({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
                 break;
             }
 
@@ -1914,12 +1940,12 @@ uint readLDS(uint idx) {{
             }
 
             case Shader::Opcode::V_RSQ_CLAMP_F32: {
-                code += setDST(instr.dst[0], std::format("clamp(1.0f / sqrt({}), -3.402823466e+38f, +3.402823466e+38f)", getSRC(instr.src[0])));
+                code += setDST(instr.dst[0], std::format("clamp(inversesqrt({}), -3.402823466e+38f, +3.402823466e+38f)", getSRC(instr.src[0])));
                 break;
             }
 
             case Shader::Opcode::V_RSQ_F32: {
-                code += setDST(instr.dst[0], std::format("1.0f / sqrt({})", getSRC(instr.src[0])));
+                code += setDST(instr.dst[0], std::format("inversesqrt({})", getSRC(instr.src[0])));
                 break;
             }
 
@@ -2881,7 +2907,7 @@ uint readLDS(uint idx) {{
                     // It samples at (0, 0) with offset (1, 0) expecting to receive the texel at (1, 0). This would work if we used textureOffset, because the offset is applied in texel-space.
                     // Because we add the offset to the normalized coordinates instead, it doesn't work, because (0, 0) is the top-left corner of the texture 
                     // rather than the center of the texel, so adding (1, 0) to it ends up falling in between the 2 pixels and doesn't reliably sample the correct pixel.
-                    texcoords = std::format("{} + (vec2({}.xy) + 0.5) * (1.0 / vec2(textureSize({}, 0)))", texcoords, offset_str, sampler_name);    // TODO: 1imensions
+                    texcoords = std::format("{} + (vec2({}.xy){}) * (1.0 / vec2(textureSize({}, 0)))", texcoords, offset_str, Configuration::precise_texute_offset ? " + 0.5" : "", sampler_name);    // TODO: 1imensions
 
                 std::string operation = std::format("{}({}, {}", sample_op, sampler_name, texcoords);
                 // TODO: Add other parameters for other sampling options
@@ -3097,10 +3123,10 @@ uint readLDS(uint idx) {{
 
             // Increment pc
             pc += instr.length;
+        }
 
-            if (is_vector) {
-                code += "}";
-            }
+        if (last_is_vector) {
+            code += "}";
         }
 
         if (!unimpl_instructions.empty()) {
@@ -3178,13 +3204,13 @@ template VSharp* DescriptorLocation::asPtr<VSharp>(u32* regs);
 template TSharp* DescriptorLocation::asPtr<TSharp>(u32* regs);
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job, u32* regs) {
-    std::ofstream out;
+    //std::ofstream out;
     //if (stage == ShaderStage::Vertex) {
-    if (out_data.hash == 0x35bcdca1b0bffc8a) {
-      out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
-      out.write((char*)data, 12_KB);
-      out.close();
-    }
+    //if (out_data.hash == 0x35bcdca1b0bffc8a) {
+    //  out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
+    //  out.write((char*)data, 12_KB);
+    //  out.close();
+    //}
 
     Shader::GcnDecodeContext decoder;
     Shader::GcnCodeSlice code_slice = Shader::GcnCodeSlice((u32*)data, data + std::numeric_limits<u32>::max());
@@ -3614,6 +3640,9 @@ bool v_cmp_class_f32(float x, uint mask) {
 
     if (state.need_set_vgpr_helper)
         state.addSetVGPRHelper();
+
+    if (state.need_mbcnt_helpers)
+        state.addMBCNTHelpers();
 
     if (state.need_lds)
         state.addLDS(stage, compute_job);

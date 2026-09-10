@@ -414,6 +414,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
 }
 
 std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
+    //Profiler::Scope profiler("gatherVertices");
     // Create a new vertex binding array and initialize it with the fetch shader bindings
     auto& new_vtx_bindings = vtx_bindings[frame_idx].emplace_back();
     new_vtx_bindings.reserve(32);
@@ -464,6 +465,7 @@ std::vector<Pipeline::VertexBinding>* Pipeline::gatherVertices() {
 }
 
 std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConstants** push_constants_ptr, TrackedTexture* rt, bool* has_feedback_loop) {
+    //Profiler::Scope profiler("uploadBuffersAndTextures");
     // Create and upload buffers required by each shader
     std::vector<vk::WriteDescriptorSet> descriptor_writes;
     descriptor_writes.reserve(64);
@@ -565,7 +567,8 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                 if (buf_info.binding < 48) {
                     push_constants.stride[buf_info.binding] = vsharp->stride;
                     //push_constants.fmt[buf_info.binding]    = vsharp->dfmt | (vsharp->nfmt << 8);
-                } else printf("TODO: buf_info.binding >= 48\n");
+                }
+                //else printf("TODO: buf_info.binding >= 48\n");
                 break;
             }
 

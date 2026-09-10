@@ -15,6 +15,7 @@ struct TrackedTexture {
     u32     width = 0;
     u32     height = 0;
     u32     depth = 1;
+    u32     n_mips = 1;
     u64     page = 0;
     u64     page_end = 0;
     bool    dirty = false;

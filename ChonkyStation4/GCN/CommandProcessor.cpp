@@ -695,6 +695,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             if (reg_offset < 0xd000)
                 std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));
             else printf("Bad config register offset 0x%x\n", reg_offset);
+
+            renderer->pipeline_dirty = true;
             break;
         }
 
@@ -704,6 +706,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             if (reg_offset < 0xd000)
                 std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));
             else printf("Bad context register offset 0x%x\n", reg_offset);
+
+            renderer->pipeline_dirty = true;
 
             // This hack is ported from shadPS4.
             // We can't rely on the hardware pitch/slice registers to figure out the size of the render targets, because
@@ -776,6 +780,18 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             if (reg_offset < 0xd000)
                 std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));
             else printf("Bad shader register offset 0x%x\n", reg_offset);
+
+            if (Configuration::pipeline_dirty_state) {
+                if (!(
+                    (reg_offset >= Reg::mmSPI_SHADER_USER_DATA_VS_2 && reg_offset <= Reg::mmSPI_SHADER_USER_DATA_VS_15)
+                    || (reg_offset >= Reg::mmSPI_SHADER_USER_DATA_PS_0 && reg_offset <= Reg::mmSPI_SHADER_USER_DATA_PS_15)
+                    || (reg_offset >= Reg::mmSPI_SHADER_USER_DATA_ES_0 && reg_offset <= Reg::mmSPI_SHADER_USER_DATA_ES_15)
+                    || (reg_offset >= Reg::mmSPI_SHADER_USER_DATA_HS_0 && reg_offset <= Reg::mmSPI_SHADER_USER_DATA_HS_15)
+                    || (reg_offset >= Reg::mmSPI_SHADER_USER_DATA_LS_0 && reg_offset <= Reg::mmSPI_SHADER_USER_DATA_LS_15)
+                    )) {
+                    renderer->pipeline_dirty = true;
+                }
+            }
             break;
         }
 
@@ -785,12 +801,15 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             if (reg_offset < 0xd000)
                 std::memcpy(&renderer->regs[reg_offset], args, pkt->count * sizeof(u32));
             else printf("Bad shader register offset 0x%x\n", reg_offset);
+
+            renderer->pipeline_dirty = true;
             break;
         }
 
         case PM4ItOpcode::DrawIndexAuto: {
             const u32 cnt = *args++;
             //const u32 draw_initiator = *args++;
+            log("DrawIndexAuto %d\n", cnt);
             renderer->draw(cnt);
             break;
         }
@@ -798,6 +817,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
         case PM4ItOpcode::DrawIndexIndirect: {
             const u32 draw_args_offs = *args++;
             // TODO: BASE_VTX_LOC
+            log("DrawIndexIndirect\n");
             renderer->drawIndirect(1, true, (void*)((uptr)indirect_args_base + draw_args_offs), index_base, n_indices);
             break;
         }
@@ -821,6 +841,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             const u32 cnt = *args++;
             //const u32 draw_initiator = *args++;
             const void* index_buf_ptr = (void*)(index_base_lo | ((u64)index_base_hi << 32));
+            log("DrawIndex2 %d\n", cnt);
             renderer->draw(cnt, index_buf_ptr);
             break;
         }
@@ -835,6 +856,7 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             const u32 idx_offs = *args++;
             const u32 cnt = *args++;
             //const u32 draw_initiator = *args++;
+            log("DrawIndexOffset2 %d\n", cnt);
             renderer->draw(cnt, index_base, idx_offs);
             break;
         }

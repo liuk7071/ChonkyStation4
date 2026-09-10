@@ -247,7 +247,7 @@ SceNetId PS4_FUNC sceNetSocket(const char* name, s32 family, s32 type, s32 proto
         Helpers::panic("sceNetSocket: family is not SCE_NET_AF_INET\n");
     }
 
-    auto* sock = OS::make<SceSocket>();
+    auto* sock = OS::make<SceSocket>(true);
     sock->type = type;
     
     switch (sock->type) {

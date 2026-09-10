@@ -23,6 +23,8 @@
 #include <GCN/Backends/Vulkan/NVIDIA/NsightAftermath.hpp>
 #endif
 
+#include <unordered_set>
+
 //#define ENABLE_DEBUG_PRINTF
 
 
@@ -53,7 +55,7 @@ std::vector<const char*> required_device_exts = {
 };
 
 // Keep track of the pipelines we used this frame to cleanup state after flipping
-std::vector<Pipeline*> curr_frame_pipelines[FRAMES_IN_FLIGHT];
+std::unordered_set<Pipeline*> curr_frame_pipelines[FRAMES_IN_FLIGHT];
 std::vector<ComputePipeline*> curr_frame_compute_pipelines[FRAMES_IN_FLIGHT];
 
 vk::Buffer gds_buf;
@@ -86,11 +88,11 @@ static u32 chooseSwapMinImageCount(const vk::SurfaceCapabilitiesKHR& surface_cap
     return min_image_count;
 }
 
-static vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats) {
+static vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const vk::Format& want, const std::vector<vk::SurfaceFormatKHR>& available_formats) {
     Helpers::debugAssert(!available_formats.empty(), "chooseSwapSurfaceFormat: no available formats");
     const auto format_it = std::ranges::find_if(
         available_formats,
-        [](const auto &format) { return format.format == vk::Format::eR8G8B8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; });
+        [&](const auto &format) { return format.format == want && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; });
     return format_it != available_formats.end() ? *format_it : available_formats[0];
 }
 
@@ -409,7 +411,7 @@ void VulkanRenderer::init() {
     // Create swapchain
     auto surface_capabilities = physical_device.getSurfaceCapabilitiesKHR(*surface);
     swapchain_extent          = chooseSwapExtent(window, surface_capabilities);
-    swapchain_surface_format  = chooseSwapSurfaceFormat(physical_device.getSurfaceFormatsKHR(*surface));
+    swapchain_surface_format  = chooseSwapSurfaceFormat(vk::Format::eR8G8B8A8Unorm, physical_device.getSurfaceFormatsKHR(*surface));
     vk::SwapchainCreateInfoKHR swapchain_create_info = {
         .surface          = *surface,
         .minImageCount    = chooseSwapMinImageCount(surface_capabilities),
@@ -597,6 +599,7 @@ std::vector<vk::RenderingAttachmentInfo> curr_attachments;
 bool has_feedback_loop = false;
 bool needs_new_render_pass = false;
 vk::Extent2D VulkanRenderer::setupRenderingAttachments(Pipeline* pipeline, bool& has_depth, bool& has_stencil) {
+    //Profiler::Scope profiler("setupRenderingAttachments");
     // ---- Setup render targets ----
     // We need to do this BEFORE uploading textures below, because that function relies on
     // getVulkanAttachmentForColorTarget to set a flag to detect feedback loops.
@@ -698,10 +701,6 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     log("Vertex Shader address : %p\n", vs_ptr);
     log("Pixel Shader address  : %p\n", ps_ptr);
 
-    //std::ofstream vs_dump;
-    //vs_dump.open("vs_dump.bin", std::ios::binary);
-    //vs_dump.write((char*)vs_ptr, 16_KB);
-
     // Skip patch primitive
     if (regs[Reg::mmVGT_PRIMITIVE_TYPE__CI__VI] == 9)
         return;
@@ -710,13 +709,19 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
     // I think the proper way is to get the register from the SWAPPC instruction in the vertex shader...?
     const auto* fetch_shader_ptr = (u8*)((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_0] | ((u64)regs[Reg::mmSPI_SHADER_USER_DATA_VS_1] << 32));
     log("Fetch Shader address : %p\n", fetch_shader_ptr);
-
-    //if (!fetch_shader_ptr)
-    //    return;
-
+    
     // Get pipeline
-    auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
-    curr_frame_pipelines[frame_idx].push_back(&pipeline);
+    Pipeline* pipeline_ptr;
+    
+    if (!Configuration::pipeline_dirty_state || pipeline_dirty) {
+        pipeline_ptr = &Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
+        pipeline_dirty = false;
+    }
+    else
+        pipeline_ptr = last_draw_pipeline;
+
+    auto& pipeline = *pipeline_ptr;
+    curr_frame_pipelines[frame_idx].insert(&pipeline);
 
     if (disable_stencil)
         pipeline.cfg.depth_control.stencil_enable = false;
@@ -750,6 +755,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
 
     // Check if we need to start a new renderpass
     if (needs_new_render_pass || !is_recording_render_block) {
+        needs_new_render_pass = false;
         endRendering(); // Has a check for if we were recording a render block or not
 
         if (extent == vk::Extent2D{ 0xffffffff, 0xffffffff }) {
@@ -808,7 +814,7 @@ void VulkanRenderer::draw(const u64 cnt, const void* idx_buf_ptr, u32 idx_offs) 
         std::array write { gds_descriptor_set_write };
         cmd_bufs[frame_idx].pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, *pipeline.getVkPipelineLayout(), 0, write);
     }
-
+    
     // I couldn't figure out how to use the RAII version of this...
     vkCmdPushConstants(*cmd_bufs[frame_idx], *pipeline.getVkPipelineLayout(), static_cast<VkShaderStageFlagBits>(vk::ShaderStageFlagBits::eAllGraphics), 0, sizeof(Pipeline::PushConstants), push_constants);
 
@@ -850,7 +856,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
 
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getPipeline(vs_ptr, ps_ptr, fetch_shader_ptr, regs);
-    curr_frame_pipelines[frame_idx].push_back(&pipeline);
+    curr_frame_pipelines[frame_idx].insert(&pipeline);
 
     if (disable_stencil)
         pipeline.cfg.depth_control.stencil_enable = false;
@@ -887,6 +893,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
 
     // Check if we need to start a new renderpass
     if (needs_new_render_pass || !is_recording_render_block) {
+        needs_new_render_pass = false;
         endRendering(); // Has a check for if we were recording a render block or not
 
         if (extent == vk::Extent2D{ 0xffffffff, 0xffffffff })
@@ -1076,6 +1083,12 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
             cmd_bufs[frame_idx].begin({});
         };
 
+        // Change swapchain surface format if the game is outputting sRGB
+        if ((out_tex->tsharp.num_format == (u32)NumberFormat::SnormNz || out_tex->tsharp.num_format == (u32)NumberFormat::Srgb) && swapchain_surface_format.format != vk::Format::eR8G8B8A8Srgb) {
+            swapchain_surface_format = chooseSwapSurfaceFormat(vk::Format::eR8G8B8A8Srgb, physical_device.getSurfaceFormatsKHR(*surface));
+            force_recreate_swapchain = true;
+        }
+
         if (force_recreate_swapchain) {
             force_recreate_swapchain = false;
             recreate_swapchain();
@@ -1171,17 +1184,20 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
         }
 
         // Cleanup
-        for (auto& pipeline : curr_frame_pipelines[frame_idx])
-            pipeline->clearBuffers();
-        for (auto& pipeline : curr_frame_compute_pipelines[frame_idx])
-            pipeline->clearBuffers();
-    
-        curr_frame_pipelines[frame_idx].clear();
-        curr_frame_compute_pipelines[frame_idx].clear();
-        last_draw_pipeline = nullptr;
-        last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
-        Cache::clear();
-        RenderTarget::reset();
+        {
+            //Profiler::Scope profiler("Pipeline cleanup");
+            for (auto& pipeline : curr_frame_pipelines[frame_idx])
+                pipeline->clearBuffers();
+            for (auto& pipeline : curr_frame_compute_pipelines[frame_idx])
+                pipeline->clearBuffers();
+
+            curr_frame_pipelines[frame_idx].clear();
+            curr_frame_compute_pipelines[frame_idx].clear();
+            last_draw_pipeline = nullptr;
+            last_extent = vk::Extent2D{ 0xffffffff, 0xffffffff };
+            Cache::clear();
+            RenderTarget::reset();
+        }
 
         cmd_bufs[frame_idx].reset();
         advanceSwapchain();

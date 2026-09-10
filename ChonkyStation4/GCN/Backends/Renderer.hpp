@@ -146,6 +146,7 @@ public:
     IndexType index_type = IndexType::Uint16;
     RenderTargetDimensions color_rt_dim[8];
     RenderTargetDimensions depth_rt_dim;
+    bool pipeline_dirty = false;
     
     u8* getVSPtr() {
         return (u8*)(((u64)regs[Reg::mmSPI_SHADER_PGM_LO_VS] << 8) | ((u64)regs[Reg::mmSPI_SHADER_PGM_HI_VS] << 8 << 32));

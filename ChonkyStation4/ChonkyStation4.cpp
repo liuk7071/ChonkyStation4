@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--gpu", PS4::Configuration::gpu_device_id, "Choose GPU device ID");
     run_cmd->add_option("--resolution-scale", PS4::Configuration::resolution_scale, "Choose the resolution scale. This is experimental and won't work for most games");
     run_cmd->add_option("--shader-compiler-threads", PS4::Configuration::shader_compiler_threads, "Choose the number of concurrent shader compiler threads. 1 disables multithreading");
+    run_cmd->add_option("--precise-texture-offset", PS4::Configuration::precise_texute_offset, "Precise emulation of texture sampling with offset");
     run_cmd->add_option("--copy-command-buffers", PS4::Configuration::copy_command_buffers, "Copy GPU command buffers to separate buffers on submit");
     run_cmd->add_option("--skip-async-compute-dispatches", PS4::Configuration::skip_async_compute_dispatches, "Skip compute dispatches in async compute queues");
     run_cmd->add_option("--skip-waitregmem", PS4::Configuration::skip_waitregmem, "Skip the WaitRegMem packet");
@@ -48,6 +49,7 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--disable-sgpr-init-hack", PS4::Configuration::disable_sgpr_init_hack, "Disable SGPR init hack");
     run_cmd->add_option("--clamp-gpu-buffers", PS4::Configuration::clamp_gpu_buffers, "Clamp GPU buffer size to fit in mapped memory");
     run_cmd->add_option("--skip-bindless-buffers", PS4::Configuration::skip_bindless_buffers, "Skip bindless GPU buffers");
+    run_cmd->add_option("--pipeline-dirty-state", PS4::Configuration::pipeline_dirty_state, "Keep track of some pipeline state. Improves performance but may break games");
     run_cmd->add_option("--force-init-sce-compositor", PS4::Configuration::force_init_sce_compositor, "Initializes libSceComposite HLE even when not running VSH");
 
     auto* get_appdata_path_cmd = cli_app.add_subcommand("get_appdata_path", "Print the path to the emulator's app data folder");

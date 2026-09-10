@@ -2441,8 +2441,12 @@ GpaError gpaComputeSurfaceSizeOffset(
 		return GPA_ERR_INVALID_ARGS;
 	}
 
-	const uint32_t numarrayslices = tex->numslices;
-	const uint32_t basewidth = tex->width;
+	uint32_t numarrayslices = tex->numslices;
+    if (tex->pow2pad) {
+        numarrayslices = NextPow2(numarrayslices);
+    }
+	
+    const uint32_t basewidth = tex->width;
 	const uint32_t baseheight = tex->height;
 	const uint32_t basedepth = tex->depth;
 	const uint32_t basepitch = tex->pitch;
@@ -2463,7 +2467,11 @@ GpaError gpaComputeSurfaceSizeOffset(
 
 		tp.linearwidth = umax(basewidth >> m, 1);
 		tp.linearheight = umax(baseheight >> m, 1);
-		tp.lineardepth = basedepth;
+        if (tex->type == GNM_TEXTURE_3D)
+            tp.lineardepth = umax(basedepth >> m, 1);
+        else
+            tp.lineardepth = 1;
+
 		tp.basetiledpitch = basepitch;
 		tp.miplevel = m;
 
