@@ -31,7 +31,7 @@ void gcnThread() {
 #endif
 
     using clock = std::chrono::steady_clock;
-    const double target_fps = 60.0; // Stubbed for now
+    const double target_fps = Configuration::fps_limit;
     const clock::duration frame_duration = std::chrono::duration_cast<clock::duration>(std::chrono::duration<double>(1.0 / target_fps));
     auto frame_time = clock::now();
 
@@ -101,7 +101,7 @@ void gcnThread() {
             frame_time += frame_duration;
             auto now = clock::now();
             if (now < frame_time) {
-                //std::this_thread::sleep_until(frame_time);
+                std::this_thread::sleep_until(frame_time);
             }
             else frame_time = now;
             break;

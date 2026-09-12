@@ -1626,7 +1626,7 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
 }
 
 s32 PS4_FUNC sceKernelDirectMemoryQuery(const u64 addr, s32 flags, SceKernelDirectMemoryQueryInfo* info, size_t info_size) {
-    printf("sceKernelDirectMemoryQuery(addr=%p, flags=%d, info=*%p, info_size=%lld)\n", addr, flags, info, info_size);
+    log("sceKernelDirectMemoryQuery(addr=%p, flags=%d, info=*%p, info_size=%lld)\n", addr, flags, info, info_size);
 
     const bool find_next = flags;
     auto map_addr = addr;
@@ -1638,7 +1638,7 @@ s32 PS4_FUNC sceKernelDirectMemoryQuery(const u64 addr, s32 flags, SceKernelDire
         else {
             auto it = dmem_size_map.upper_bound(addr);
             if (it == dmem_size_map.end()) {
-                printf("sceKernelDirectMemoryQuery: no next\n");
+                log("sceKernelDirectMemoryQuery: no next\n");
                 return SCE_KERNEL_ERROR_EACCES;
             }
 

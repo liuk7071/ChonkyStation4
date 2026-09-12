@@ -17,6 +17,7 @@ inline bool is_vsh = false;
 inline bool lle_ssl = false;
 
 inline u32 gpu_device_id = 0;
+inline int fps_limit = 60;
 inline float resolution_scale = 1.0f;
 inline int shader_compiler_threads = 1;
 inline bool shader_compiler_is_multithreaded = false;

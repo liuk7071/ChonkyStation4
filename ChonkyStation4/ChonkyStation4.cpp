@@ -39,6 +39,7 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--psn", PS4::Configuration::connect_to_psn, "Connect to the PSN Provider defined for the current user, if any");
     run_cmd->add_option("--lle-ssl", PS4::Configuration::lle_ssl, "LLE libSceSsl");
     run_cmd->add_option("--gpu", PS4::Configuration::gpu_device_id, "Choose GPU device ID");
+    run_cmd->add_option("--fps", PS4::Configuration::fps_limit, "Set the FPS limit. Some games have their own limiter so this doesn't always work");
     run_cmd->add_option("--resolution-scale", PS4::Configuration::resolution_scale, "Choose the resolution scale. This is experimental and won't work for most games");
     run_cmd->add_option("--shader-compiler-threads", PS4::Configuration::shader_compiler_threads, "Choose the number of concurrent shader compiler threads. 1 disables multithreading");
     run_cmd->add_option("--precise-texture-offset", PS4::Configuration::precise_texure_offset, "Precise emulation of texture sampling with offset");
