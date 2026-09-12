@@ -24,6 +24,7 @@
 #include <OS/Libraries/SceAjm/SceAjm.hpp>
 #include <OS/Libraries/SceAppContent/SceAppContent.hpp>
 #include <OS/Libraries/SceZlib/SceZlib.hpp>
+#include <OS/Libraries/SceIme/SceIme.hpp>
 #include <OS/Libraries/SceRegMgr/SceRegMgr.hpp>
 #include <OS/Libraries/SceComposite/SceComposite.hpp>
 #include <OS/Libraries/SceMbus/SceMbus.hpp>
@@ -135,6 +136,7 @@ std::shared_ptr<Module> buildHLEModule() {
     PS4::OS::Libs::SceAjm::init(*module);
     PS4::OS::Libs::SceAppContent::init(*module);
     PS4::OS::Libs::SceZlib::init(*module);
+    PS4::OS::Libs::SceIme::init(*module);
     PS4::OS::Libs::SceRegMgr::init(*module);
     PS4::OS::Libs::SceComposite::init(*module);
     PS4::OS::Libs::SceMbus::init(*module);
@@ -399,6 +401,32 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("QBFoAIjJoXQ", "sceVoiceSetVolume", "libSceVoice", "libSceVoice");
     module->addSymbolStub("cJLufzou6bc", "sceVoiceGetBitRate", "libSceVoice", "libSceVoice");
     module->addSymbolStub("cQ6DGsQEjV4", "sceVoiceReadFromOPort", "libSceVoice", "libSceVoice");
+    
+    // libSceVoiceQoS
+    module->addSymbolStub("kLU6hhXsa2A", "sceVoiceQoSConnect", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("lvNClhNHzxI", "sceVoiceQoSCreateLocalEndpoint", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("iqQQW2cBmWU", "sceVoiceQoSCreateRemoteEndpoint", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("D7P8dL0ZKsI", "sceVoiceQoSDebugGetStatus", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("kE0kdvcHTiY", "sceVoiceQoSDeleteLocalEndpoint", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("H4zqFaDhHW4", "sceVoiceQoSDeleteRemoteEndpoint", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("8-voJZab+0E", "sceVoiceQoSDisableChat", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("j9Xt85krooc", "sceVoiceQoSDisconnect", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("2lOJJzw1t5o", "sceVoiceQoSEnableChat", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("ATRGkmbolVM", "sceVoiceQoSEnd", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("XmvdN3atbXY", "sceVoiceQoSGetConnectionAttribute", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("XPC8EyEuvyk", "sceVoiceQoSGetLocalEndpoint", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("eZu2RP0Ma3w", "sceVoiceQoSGetLocalEndpointAttribute", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("9tfy4+aDxrM", "sceVoiceQoSGetRemoteEndpoint", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("3vmrvQ4rvgs", "sceVoiceQoSGetRemoteEndpointAttribute", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("Trpt2QBZHCI", "sceVoiceQoSGetStatus", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("U8IfNl6-Css", "sceVoiceQoSInit", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("RY0c7tYVBiw", "sceVoiceQoSInitHQ", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("PWokFqab5q4", "sceVoiceQoSReadPacket", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("KCGOxg8iX7s", "sceVoiceQoSSetConnectionAttribute", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("F7wS7FbfumQ", "sceVoiceQoSSetLocalEndpointAttribute", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("cpC-zyHoMik", "sceVoiceQoSSetRemoteEndpointAttribute", "libSceVoiceQoS", "libSceVoiceQoS");
+    module->addSymbolStub("SpxLratrO1Q", "sceVoiceQoSWritePacket", "libSceVoiceQoS", "libSceVoiceQoS");
+
 
     // libSceDiscMap
     module->addSymbolStub("lbQKqsERhtE", "sceDiscMapIsRequestOnHDD", "libSceDiscMap", "libSceDiscMap", 0x81100004);
@@ -451,16 +479,6 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("mrNh78tBpmg", "sceRemoteplayProhibit", "libSceRemoteplay", "libSceRemoteplay");
     module->addSymbolStub("g3PNjYKWqnQ", "sceRemoteplayGetConnectionStatus", "libSceRemoteplay", "libSceRemoteplay");
     module->addSymbolStub("7QLrixwVHcU", "sceRemoteplayProhibitStreaming", "libSceRemoteplay", "libSceRemoteplay");
-    
-    // libSceIme
-    module->addSymbolStub("uTW+63goeJs", "InitializeImeModule", "libSceIme", "libSceIme");
-    module->addSymbolStub("eaFXjfJv3xs", "sceImeKeyboardOpen", "libSceIme", "libSceIme");
-    module->addSymbolStub("-4GCfYdNF1s", "sceImeUpdate", "libSceIme", "libSceIme");
-    module->addSymbolStub("VkqLPArfFdc", "sceImeKeyboardGetInfo", "libSceIme", "libSceIme");
-    module->addSymbolStub("dKadqZFgKKQ", "sceImeKeyboardGetResourceId", "libSceIme", "libSceIme");
-    
-    // libSceAvPlayer
-    module->addSymbolStub("aS66RI0gGgo", "sceAvPlayerInit", "libSceAvPlayer", "libSceAvPlayer");
     
     // libSceRudp
     module->addSymbolStub("amuBfI-AQc4", "sceRudpInit", "libSceRudp", "libSceRudp");

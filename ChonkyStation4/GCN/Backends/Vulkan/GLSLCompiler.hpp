@@ -126,7 +126,9 @@ static const TBuiltInResource DefaultTBuiltInResource = {
     }
 };
 
-#define SHADER_DEBUG
+#ifndef CHONKYSTATION4_USER_BUILD
+//#define SHADER_DEBUG
+#endif
 
 #ifndef CHONKYSTATION4_HAS_NVIDIA_AFTERMATH
 //#define DUMP_SHADERS

@@ -79,6 +79,12 @@ struct SceKernelVirtualQueryInfo {
     char name[32];
 };
 
+struct SceKernelDirectMemoryQueryInfo {
+    u64 start;
+    u64 end;
+    s32 memory_type;
+};
+
 struct SceKernelBatchMapEntry {
     void* start;
     size_t offset;  // off_t
@@ -264,6 +270,7 @@ s32 PS4_FUNC sceKernelGetDirectMemoryType(void* start, s32* out_type, void** out
 s32 PS4_FUNC sceKernelAvailableDirectMemorySize(u64 search_start, u64 search_end, size_t alignment, u64* phys_addr_out, size_t* size_out);
 s32 PS4_FUNC sceKernelAvailableFlexibleMemorySize(size_t* size_out);
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size);
+s32 PS4_FUNC sceKernelDirectMemoryQuery(const u64 addr, s32 flags, SceKernelDirectMemoryQueryInfo* info, size_t info_size);
 s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end, s32* prot);
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs);
 s32 PS4_FUNC sceKernelMmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs, void** res);

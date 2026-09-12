@@ -20,6 +20,8 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <unordered_map>
+#include <map>
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -62,6 +64,8 @@ void init(Module& module) {
     module.addSymbolExport("0qOtCR-ZHck", "pthread_attr_getstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getstacksize);
     module.addSymbolExport("0qOtCR-ZHck", "pthread_attr_getstacksize", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_getstacksize);
     module.addSymbolExport("-quPa4SEJUw", "scePthreadAttrGetstack", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getstack);
+    module.addSymbolExport("Ru36fiTtJzA", "scePthreadAttrGetstackaddr", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getstackaddr);
+    module.addSymbolExport("-fA+7ZlGDQs", "scePthreadAttrGetstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_getstacksize);
     module.addSymbolExport("vQm4fDEsWi8", "pthread_attr_getstack", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_getstack);
     module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libkernel", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
     module.addSymbolExport("2Q0z6rnBrTE", "pthread_attr_setstacksize", "libScePosix", "libkernel", (void*)&kernel_pthread_attr_setstacksize);
@@ -365,6 +369,7 @@ void init(Module& module) {
     module.addSymbolExport("C0f7TJcbfac", "sceKernelAvailableDirectMemorySize", "libkernel", "libkernel", (void*)&sceKernelAvailableDirectMemorySize);
     module.addSymbolExport("aNz11fnnzi4", "sceKernelAvailableFlexibleMemorySize", "libkernel", "libkernel", (void*)&sceKernelAvailableFlexibleMemorySize);
     module.addSymbolExport("rVjRvHJ0X6c", "sceKernelVirtualQuery", "libkernel", "libkernel", (void*)&sceKernelVirtualQuery);
+    module.addSymbolExport("BHouLQzh0X0", "sceKernelDirectMemoryQuery", "libkernel", "libkernel", (void*)&sceKernelDirectMemoryQuery);
     module.addSymbolExport("WFcfL2lzido", "sceKernelQueryMemoryProtection", "libkernel", "libkernel", (void*)&sceKernelQueryMemoryProtection);
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libkernel", "libkernel", (void*)&kernel_mmap);
     module.addSymbolExport("BPE9s9vQQXo", "mmap", "libScePosix", "libkernel", (void*)&kernel_mmap);
@@ -446,6 +451,12 @@ void init(Module& module) {
     module.addSymbolStub("fFxGkxF2bVo", "setsockopt", "libScePosix", "libkernel");
     module.addSymbolStub("T8fER+tIGgk", "select", "libkernel", "libkernel");
     module.addSymbolStub("T8fER+tIGgk", "select", "libScePosix", "libkernel");
+    module.addSymbolStub("3e+4Iv7IJ8U", "accept", "libkernel", "libkernel");
+    module.addSymbolStub("3e+4Iv7IJ8U", "accept", "libScePosix", "libkernel");
+    module.addSymbolStub("pxnCmagrtao", "listen", "libkernel", "libkernel");
+    module.addSymbolStub("pxnCmagrtao", "listen", "libScePosix", "libkernel");
+    module.addSymbolStub("TXFFFiNldU8", "getpeername", "libkernel", "libkernel");
+    module.addSymbolStub("TXFFFiNldU8", "getpeername", "libScePosix", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libkernel", "libkernel");
     module.addSymbolStub("TUuiYS2kE8s", "shutdown", "libScePosix", "libkernel");
     module.addSymbolStub("5dgOEPsEGqw", "scePthreadBarrierInit", "libkernel", "libkernel");
@@ -488,6 +499,7 @@ void init(Module& module) {
     module.addSymbolStub("mTBZfEal2Bw", "mlock", "libkernel", "libkernel");
     module.addSymbolStub("OG4RsDwLguo", "munlock", "libkernel", "libkernel");
     module.addSymbolStub("iBQ2omlTuls", "sceKernelIccSetBuzzer", "libkernel", "libkernel");
+    module.addSymbolStub("txHtngJ+eyc", "scePthreadAttrGetguardsize", "libkernel", "libkernel");    // Used by Worms WMD
     
     module.addSymbolExport("KiJEPEWRyUY", "sigaction", "libkernel", "libkernel", (void*)&kernel_sigaction);
     module.addSymbolExport("aPcyptbOiZs", "sigprocmask", "libkernel", "libkernel", (void*)&kernel_sigprocmask);
@@ -1236,7 +1248,7 @@ s32 PS4_FUNC ipmimgr_call(s64 cmd, s64 unk2, u32* res, u8* args, size_t arg_size
 
 std::unordered_map<void*, u64> virt_dmem_map;
 std::unordered_map<u64, void*> dmem_virt_map;
-std::unordered_map<u64, size_t> dmem_size_map;
+std::map<u64, size_t> dmem_size_map;
 
 u64 next_dmem_addr = 0x10000;
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
@@ -1613,6 +1625,35 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceKernelDirectMemoryQuery(const u64 addr, s32 flags, SceKernelDirectMemoryQueryInfo* info, size_t info_size) {
+    printf("sceKernelDirectMemoryQuery(addr=%p, flags=%d, info=*%p, info_size=%lld)\n", addr, flags, info, info_size);
+
+    const bool find_next = flags;
+    auto map_addr = addr;
+
+    if (!dmem_size_map.contains(addr)) {
+        if (!find_next) {
+            Helpers::panic("sceKernelDirectMemoryQuery: addr %p is unmapped and SCE_KERNEL_DMQ_FIND_NEXT was not specified (TODO)\n", addr);
+        }
+        else {
+            auto it = dmem_size_map.upper_bound(addr);
+            if (it == dmem_size_map.end()) {
+                printf("sceKernelDirectMemoryQuery: no next\n");
+                return SCE_KERNEL_ERROR_EACCES;
+            }
+
+            map_addr = it->first;
+        }
+    }
+
+    const auto size = dmem_size_map[map_addr];
+    info->start = map_addr;
+    info->end = map_addr + size;
+    info->memory_type = 0 | 3 | 10;
+
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end, s32* prot) {
     log("sceKernelQueryMemoryProtection(addr=%p, start=*%p, end=*%p, prot=*%p)\n", addr, start, end, prot);
     
@@ -1687,11 +1728,11 @@ s32 PS4_FUNC sceKernelBatchMap2(SceKernelBatchMapEntry* entries, s32 n_entries, 
         s32 ret = SCE_OK;
 
         switch (entries[processed].operation) {
-        case SCE_KERNEL_MAP_OP_MAP_DIRECT:      ret = sceKernelMapDirectMemory(&entries[i].start, entries[i].length, entries[i].prot, flags, (void*)entries[i].offset, 0);   break;
-        case SCE_KERNEL_MAP_OP_UNMAP:           ret = sceKernelMunmap(entries[i].start, entries[i].length);                                                                                 break;
-        case SCE_KERNEL_MAP_OP_PROTECT:         Helpers::panic("sceKernelBatchMap2: SCE_KERNEL_MAP_OP_PROTECT (TODO)\n");                                                                    break;
-        case SCE_KERNEL_MAP_OP_MAP_FLEXIBLE:    ret = sceKernelMapFlexibleMemory(&entries[i].start, entries[i].length, entries[i].prot, flags);                              break;
-        case SCE_KERNEL_MAP_OP_TYPE_PROTECT:    printf("sceKernelBatchMap2: SCE_KERNEL_MAP_OP_TYPE_PROTECT (TODO)\n");                                                               break;
+        case SCE_KERNEL_MAP_OP_MAP_DIRECT:      ret = sceKernelMapDirectMemory(&entries[i].start, entries[i].length, entries[i].prot, flags, (void*)entries[i].offset, 0);  break;
+        case SCE_KERNEL_MAP_OP_UNMAP:           ret = sceKernelMunmap(entries[i].start, entries[i].length);                                                                 break;
+        case SCE_KERNEL_MAP_OP_PROTECT:         Helpers::panic("sceKernelBatchMap2: SCE_KERNEL_MAP_OP_PROTECT (TODO)\n");                                                   break;
+        case SCE_KERNEL_MAP_OP_MAP_FLEXIBLE:    ret = sceKernelMapFlexibleMemory(&entries[i].start, entries[i].length, entries[i].prot, flags);                             break;
+        case SCE_KERNEL_MAP_OP_TYPE_PROTECT:    printf("sceKernelBatchMap2: SCE_KERNEL_MAP_OP_TYPE_PROTECT (TODO)\n");                                                      break;
         }
 
         if (ret != SCE_OK) {

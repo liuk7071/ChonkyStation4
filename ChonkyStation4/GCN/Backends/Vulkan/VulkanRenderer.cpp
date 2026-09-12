@@ -323,6 +323,7 @@ void VulkanRenderer::init() {
                                             && features.template get<vk::PhysicalDeviceFeatures2>().features.geometryShader
                                             && features.template get<vk::PhysicalDeviceFeatures2>().features.tessellationShader
                                             && features.template get<vk::PhysicalDeviceFeatures2>().features.fragmentStoresAndAtomics
+                                            && features.template get<vk::PhysicalDeviceFeatures2>().features.robustBufferAccess
                                             && features.template get<vk::PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT>().dynamicRenderingUnusedAttachments
                                             && features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT>().attachmentFeedbackLoopLayout
                                             //&& features.template get<vk::PhysicalDeviceAttachmentFeedbackLoopDynamicStateFeaturesEXT>().attachmentFeedbackLoopDynamicState;
@@ -372,7 +373,8 @@ void VulkanRenderer::init() {
                 .depthClamp = true,
                 .geometryShader = true,
                 .tessellationShader = true,
-                .fragmentStoresAndAtomics = true
+                .fragmentStoresAndAtomics = true,
+                .robustBufferAccess = true,
             }
         },         
         { .shaderDrawParameters = true                                                              },         // vk::PhysicalDeviceVulkan11Features
@@ -909,7 +911,7 @@ void VulkanRenderer::drawIndirect(const u64 cnt, const bool is_indexed, void* dr
         };
 
         beginRendering(render_info);
-        cmd_bufs[frame_idx].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
+        //cmd_bufs[frame_idx].setAttachmentFeedbackLoopEnableEXT(has_feedback_loop ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone);
     }
 
     // HACK: Skip feedback loops
@@ -981,23 +983,23 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     cmd_bufs[frame_idx].dispatch(job.dim_x, job.dim_y, job.dim_z);
 
     // TODO: Don't add a barrier after every dispatch...
-    VkMemoryBarrier barrier {
-        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-        nullptr,
-        VK_ACCESS_SHADER_WRITE_BIT,
-        VK_ACCESS_MEMORY_READ_BIT |
-        VK_ACCESS_MEMORY_WRITE_BIT
-    };
-
-    vkCmdPipelineBarrier(
-        *cmd_bufs[frame_idx],
-        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-        0,
-        1, &barrier,
-        0, nullptr,
-        0, nullptr
-    );
+    //VkMemoryBarrier barrier {
+    //    VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    //    nullptr,
+    //    VK_ACCESS_SHADER_WRITE_BIT,
+    //    VK_ACCESS_MEMORY_READ_BIT |
+    //    VK_ACCESS_MEMORY_WRITE_BIT
+    //};
+    //
+    //vkCmdPipelineBarrier(
+    //    *cmd_bufs[frame_idx],
+    //    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    //    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    //    0,
+    //    1, &barrier,
+    //    0, nullptr,
+    //    0, nullptr
+    //);
 }
 
 std::chrono::milliseconds cpu_stall = std::chrono::milliseconds(0);

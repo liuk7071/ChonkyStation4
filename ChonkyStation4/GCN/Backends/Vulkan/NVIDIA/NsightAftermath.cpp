@@ -26,6 +26,8 @@ void shaderDebugInfoCallback(const void* shader_debug_info, const u32 shader_deb
     const auto filename = std::format("{}/{:x}{:x}.nvdbg", path.generic_string(), identifier.id[0], identifier.id[1]);
     std::ofstream file(filename.c_str(), std::ios::binary);
     file.write((const char*)shader_debug_info, shader_debug_info_size);
+    file.flush();
+    file.close();
 }
 
 void crashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription add_description, void* user_data) {

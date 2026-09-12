@@ -167,7 +167,6 @@ void processCcb(u32* ccb, size_t ccb_size) {
                 //Profiler::Scope profiler("WaitOnDeCounterDiff");
                 const u32 diff = *args++;
                 while (de_count - ce_count >= diff) {
-                    //std::this_thread::sleep_for(std::chrono::microseconds(10));
                     std::this_thread::yield();
                 }
                 break;
@@ -469,7 +468,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             case Select::WaitSemaphore: {
                 //Profiler::Scope profiler("WaitSemaphore");
                 log("Waiting on semaphore\n");
-                while (*ptr == 0) std::this_thread::sleep_for(std::chrono::microseconds(10));
+                while (*ptr == 0) {
+                    //Profiler::Scope profiler("WaitSemaphore wait");
+                    std::this_thread::yield();
+                }
                 break;
             }
 
@@ -518,7 +520,10 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
 
 
                     // TODO: Use poll_interval
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                    {
+                        //Profiler::Scope profiler("WaitRegMem wait");
+                        std::this_thread::yield();
+                    }
                 }
             }
             break;
@@ -869,7 +874,6 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
         case PM4ItOpcode::WaitOnCeCounter: {
             //Profiler::Scope profiler("WaitOnCeCounter");
             while ((ce_count <= de_count) && ce_thread_running.load()) {
-                //std::this_thread::sleep_for(std::chrono::microseconds(10));
                 std::this_thread::yield();
             }
             break;

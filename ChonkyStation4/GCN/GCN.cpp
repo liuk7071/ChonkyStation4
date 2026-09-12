@@ -101,7 +101,7 @@ void gcnThread() {
             frame_time += frame_duration;
             auto now = clock::now();
             if (now < frame_time) {
-                std::this_thread::sleep_until(frame_time);
+                //std::this_thread::sleep_until(frame_time);
             }
             else frame_time = now;
             break;

@@ -16,8 +16,8 @@ void init(Module& module) {
     module.addSymbolExport("gjP9-KQzoUk", "scePadGetControllerInformation", "libScePad", "libScePad", (void*)&scePadGetControllerInformation);
     module.addSymbolExport("RR4novUEENY", "scePadSetLightBar", "libScePad", "libScePad", (void*)&scePadSetLightBar);
     module.addSymbolExport("yFVnOdGxvZY", "scePadSetVibration", "libScePad", "libScePad", (void*)&scePadSetVibration);
+    module.addSymbolExport("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad", (void*)&scePadClose);
     
-    module.addSymbolStub("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad");
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
     module.addSymbolStub("clVvL4ZDntw", "scePadSetMotionSensorState", "libScePad", "libScePad");
@@ -209,6 +209,18 @@ s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param) {
 
     if (controller)
         SDL_GameControllerRumble(controller, (param->large_motor << 8) | param->large_motor, (param->small_motor << 8) | param->small_motor, -1);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePadClose(s32 handle) {
+    log("scePadClose(handle=%d)\n", handle);
+
+    if (!opened) {
+        log("already closed\n");
+        return SCE_PAD_ERROR_INVALID_HANDLE;
+    }
+
+    opened = false;
     return SCE_OK;
 }
 

@@ -77,6 +77,7 @@ void init(Module& module) {
     module.addSymbolStub("Inp1lfL+Jdw", "sceNetEpollDestroy", "libSceNet", "libSceNet");
     module.addSymbolStub("P4zZXE7bpsA", "sceNetBandwidthControlSetDefaultParam", "libSceNet", "libSceNet");
     module.addSymbolStub("7Z1hhsEmkQU", "sceNetBandwidthControlSetPolicy", "libSceNet", "libSceNet");
+    module.addSymbolStub("v6M4txecCuo", "sceNetEtherNtostr", "libSceNet", "libSceNet");
     module.addSymbolStub("cTGkc6-TBlI", "sceNetTerm", "libSceNet", "libSceNet");
 
     // libSceNetCtl
@@ -340,6 +341,8 @@ s32 PS4_FUNC sceNetSendto(SceNetId s, const void* buf, size_t len, s32 flags, co
         Helpers::panic("sceNetSendto: socket does not exist\n");
     }
 
+    if (!Configuration::connect_to_network) return 0;
+
     switch (sock->type) {
     case SCE_NET_SOCK_STREAM: {
         Helpers::panic("TODO: sceNetSendto on TCP socket\n");
@@ -373,6 +376,8 @@ s32 PS4_FUNC sceNetRecvfrom(SceNetId s, void* buf, size_t len, s32 flags, SceNet
         Helpers::panic("sceNetRecvfrom: socket does not exist\n");
     }
 
+    if (!Configuration::connect_to_network) return 0;
+
     switch (sock->type) {
     case SCE_NET_SOCK_STREAM: {
         Helpers::panic("TODO: sceNetRecvfrom on TCP socket\n");
@@ -405,6 +410,8 @@ s32 PS4_FUNC sceNetSend(SceNetId s, const void* buf, size_t len, int flags) {
         Helpers::panic("sceNetSend: socket does not exist\n");
     }
 
+    if (!Configuration::connect_to_network) return 0;
+
     switch (sock->type) {
     case SCE_NET_SOCK_STREAM: {
         return sock->tcp_sock->send(asio::buffer(buf, len));
@@ -425,6 +432,8 @@ s32 PS4_FUNC sceNetRecv(SceNetId s, void* buf, size_t len, int flags) {
     if (!sock) {
         Helpers::panic("sceNetRecv: socket does not exist\n");
     }
+
+    if (!Configuration::connect_to_network) return 0;
 
     switch (sock->type) {
     case SCE_NET_SOCK_STREAM: {

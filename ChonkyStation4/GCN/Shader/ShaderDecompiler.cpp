@@ -1939,6 +1939,11 @@ uint mbcntHi(uint src, uint addend) {
                 break;
             }
 
+            case Shader::Opcode::V_RCP_IFLAG_F32: {
+                code += setDST(instr.dst[0], std::format("1.0f / {}  /* V_RCP_IFLAG_F32 */", getSRC(instr.src[0])));
+                break;
+            }
+
             case Shader::Opcode::V_RSQ_CLAMP_F32: {
                 code += setDST(instr.dst[0], std::format("clamp(inversesqrt({}), -3.402823466e+38f, +3.402823466e+38f)", getSRC(instr.src[0])));
                 break;
@@ -2134,6 +2139,11 @@ uint mbcntHi(uint src, uint addend) {
                 break;
             }
 
+            case Shader::Opcode::V_MAD_U64_U32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("{} * {} + {}  /* TODO: U64 */", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
+                break;
+            }
+
             case Shader::Opcode::V_INTERP_P1_F32: {
                 const auto attr_idx = instr.control.vintrp.attr;
                 const auto location = regs[Reg::mmSPI_PS_INPUT_CNTL_0 + attr_idx] & 0x1f;
@@ -2186,7 +2196,8 @@ uint mbcntHi(uint src, uint addend) {
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code), ssbo_name, offset);
+                code += std::format("tmp_u = {};\n", offset);
+                code += std::format("{} = {}.data[tmp_u];\n", getSGPR(instr.dst[0].code), ssbo_name);
                 break;
             }
 
@@ -2197,8 +2208,9 @@ uint mbcntHi(uint src, uint addend) {
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
+                code += std::format("tmp_u = {};\n", offset);
+                code += std::format("{} = {}.data[tmp_u + 0];\n", getSGPR(instr.dst[0].code + 0), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 1];\n", getSGPR(instr.dst[0].code + 1), ssbo_name);
                 break;
             }
 
@@ -2209,10 +2221,11 @@ uint mbcntHi(uint src, uint addend) {
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " + 2");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 3), ssbo_name, offset + " + 3");
+                code += std::format("tmp_u = {};\n", offset);
+                code += std::format("{} = {}.data[tmp_u + 0];\n", getSGPR(instr.dst[0].code + 0), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 1];\n", getSGPR(instr.dst[0].code + 1), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 2];\n", getSGPR(instr.dst[0].code + 2), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 3];\n", getSGPR(instr.dst[0].code + 3), ssbo_name);
                 break;
             }
 
@@ -2223,14 +2236,15 @@ uint mbcntHi(uint src, uint addend) {
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " + 0");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " + 1");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " + 2");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 3), ssbo_name, offset + " + 3");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 4), ssbo_name, offset + " + 4");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 5), ssbo_name, offset + " + 5");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 6), ssbo_name, offset + " + 6");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 7), ssbo_name, offset + " + 7");
+                code += std::format("tmp_u = {};\n", offset);
+                code += std::format("{} = {}.data[tmp_u + 0];\n", getSGPR(instr.dst[0].code + 0), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 1];\n", getSGPR(instr.dst[0].code + 1), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 2];\n", getSGPR(instr.dst[0].code + 2), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 3];\n", getSGPR(instr.dst[0].code + 3), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 4];\n", getSGPR(instr.dst[0].code + 4), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 5];\n", getSGPR(instr.dst[0].code + 5), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 6];\n", getSGPR(instr.dst[0].code + 6), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 7];\n", getSGPR(instr.dst[0].code + 7), ssbo_name);
                 break;
             }
 
@@ -2907,7 +2921,7 @@ uint mbcntHi(uint src, uint addend) {
                     // It samples at (0, 0) with offset (1, 0) expecting to receive the texel at (1, 0). This would work if we used textureOffset, because the offset is applied in texel-space.
                     // Because we add the offset to the normalized coordinates instead, it doesn't work, because (0, 0) is the top-left corner of the texture 
                     // rather than the center of the texel, so adding (1, 0) to it ends up falling in between the 2 pixels and doesn't reliably sample the correct pixel.
-                    texcoords = std::format("{} + (vec2({}.xy){}) * (1.0 / vec2(textureSize({}, 0)))", texcoords, offset_str, Configuration::precise_texute_offset ? " + 0.5" : "", sampler_name);    // TODO: 1imensions
+                    texcoords = std::format("{} + (vec2({}.xy){}) * (1.0 / vec2(textureSize({}, 0)))", texcoords, offset_str, Configuration::precise_texure_offset ? " + 0.5" : "", sampler_name);    // TODO: 1imensions
 
                 std::string operation = std::format("{}({}, {}", sample_op, sampler_name, texcoords);
                 // TODO: Add other parameters for other sampling options
@@ -3059,8 +3073,10 @@ uint mbcntHi(uint src, uint addend) {
             }
 
             case Shader::Opcode::IMAGE_GET_LOD: {
-                std::format("{} = 0; // TODO: IMAGE_GET_LOD\n", getVGPR(instr.dst[0].code + 0));
-                std::format("{} = 0; // TODO: IMAGE_GET_LOD\n", getVGPR(instr.dst[0].code + 1));
+                if (instr.control.mimg.dmask & 1)
+                    code += std::format("{} = 0; // TODO: IMAGE_GET_LOD\n", getVGPR(instr.dst[0].code + 0));
+                if (instr.control.mimg.dmask & 2)
+                    code += std::format("{} = 0; // TODO: IMAGE_GET_LOD\n", getVGPR(instr.dst[0].code + 1));
                 printf("TODO: IMAGE_GET_LOD\n");
                 break;
             }
@@ -3322,6 +3338,7 @@ bool v_cmp_class_f32(float x, uint mask) {
         main += "v4 = f2u(gl_FragCoord.z);\n";
     }
     else if (stage == ShaderStage::Compute) {
+        state.getSGPR(8);
         state.getSGPR(12);
         state.getSGPR(14);
         state.getSGPR(16);    // TODO: Register numbers hardcoded from Minecraft
@@ -3330,6 +3347,7 @@ bool v_cmp_class_f32(float x, uint mask) {
         state.getVGPR(0);
         state.getVGPR(1);
         state.getVGPR(2);
+        main += "s8 = gl_WorkGroupID.x;\n";
         main += "s12 = gl_WorkGroupID.x;\n";
         main += "s14 = gl_WorkGroupID.x;\n";
         main += "s16 = gl_WorkGroupID.x;\n";
@@ -3631,7 +3649,19 @@ bool v_cmp_class_f32(float x, uint mask) {
 
     if (state.need_get_vgpr_helper || state.need_set_vgpr_helper) {
         // If either of these helpers is needed, we need to fallback and allocate all VGPRs because we can't know which ones will be used beforehand...
-        for (int i = 0; i < 256; i++)
+        // Or as a hack only allocate up to the highest VGPR accessed by the shader. Works sometimes
+
+        u32 highest = 0;
+
+        if (!Configuration::precise_shader_movrel) {
+            for (auto [vgpr, unused] : state.vgpr_map) {
+                if (vgpr > highest)
+                    highest = vgpr;
+            }
+        }
+        else highest = 256;
+        
+        for (int i = 0; i < highest; i++)
             state.getVGPR(i);
     }
 

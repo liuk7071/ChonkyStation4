@@ -33,6 +33,8 @@ void init(Module& module) {
     module.addSymbolStub("zk6c65xoyO0", "sceNpWebApiCreateContextA", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("gVNNyxf-1Sg", "sceNpWebApiCheckTimeout", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("qWcbJkBj1Lg", "sceNpWebApiSetRequestTimeout", "libSceNpWebApi", "libSceNpWebApi");
+    module.addSymbolStub("VwJ5L0Higg0", "sceNpWebApiGetHttpResponseHeaderValue", "libSceNpWebApi", "libSceNpWebApi");
+    module.addSymbolStub("743ZzEBzlV8", "sceNpWebApiGetHttpResponseHeaderValueLength", "libSceNpWebApi", "libSceNpWebApi");
     module.addSymbolStub("kJQJE0uKm5w", "sceNpWebApiRegisterServicePushEventCallback", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("M2BUB+DNEGE", "sceNpWebApiCreateExtdPushEventFilter", "libSceNpWebApi", "libSceNpWebApi", 1);
     module.addSymbolStub("jhXKGQJ4egI", "sceNpWebApiRegisterExtdPushEventCallbackA", "libSceNpWebApi", "libSceNpWebApi", 1);

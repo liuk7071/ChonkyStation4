@@ -3,6 +3,7 @@
 #include <ErrorCodes.hpp>
 #include <OS/Libraries/Kernel/Kernel.hpp>
 #include <OS/Filesystem.hpp>
+
 #ifdef _MSC_VER
 #include <intrin.h>
 #define RETURN_ADDRESS() _ReturnAddress()

@@ -93,6 +93,7 @@ static Logger lib_sceVideodec       = Logger<true> ("[Lib    ][SceVideodec      
 static Logger lib_sceAjm            = Logger<true> ("[Lib    ][SceAjm           ] ");
 static Logger lib_sceAppContent     = Logger<true> ("[Lib    ][SceAppContent    ] ");
 static Logger lib_sceZlib           = Logger<true> ("[Lib    ][SceZlib          ] ");
+static Logger lib_sceIme            = Logger<true> ("[Lib    ][SceIme           ] ");
 static Logger lib_sceRegMgr         = Logger<true> ("[Lib    ][SceRegMgr        ] ");
 static Logger lib_sceComposite      = Logger<true> ("[Lib    ][SceComposite     ] ");
 static Logger lib_sceMbus           = Logger<true> ("[Lib    ][SceMbus          ] ");

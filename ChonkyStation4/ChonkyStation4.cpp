@@ -41,7 +41,8 @@ int main(int argc, char** argv) {
     run_cmd->add_option("--gpu", PS4::Configuration::gpu_device_id, "Choose GPU device ID");
     run_cmd->add_option("--resolution-scale", PS4::Configuration::resolution_scale, "Choose the resolution scale. This is experimental and won't work for most games");
     run_cmd->add_option("--shader-compiler-threads", PS4::Configuration::shader_compiler_threads, "Choose the number of concurrent shader compiler threads. 1 disables multithreading");
-    run_cmd->add_option("--precise-texture-offset", PS4::Configuration::precise_texute_offset, "Precise emulation of texture sampling with offset");
+    run_cmd->add_option("--precise-texture-offset", PS4::Configuration::precise_texure_offset, "Precise emulation of texture sampling with offset");
+    run_cmd->add_option("--precise-shader-movrel", PS4::Configuration::precise_shader_movrel, "Precise emulation shader MOVREL instructions");
     run_cmd->add_option("--copy-command-buffers", PS4::Configuration::copy_command_buffers, "Copy GPU command buffers to separate buffers on submit");
     run_cmd->add_option("--skip-async-compute-dispatches", PS4::Configuration::skip_async_compute_dispatches, "Skip compute dispatches in async compute queues");
     run_cmd->add_option("--skip-waitregmem", PS4::Configuration::skip_waitregmem, "Skip the WaitRegMem packet");

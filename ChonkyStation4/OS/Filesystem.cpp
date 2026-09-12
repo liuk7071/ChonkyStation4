@@ -175,7 +175,11 @@ u64 read(u64 file_id, u8* buf, u64 size) {
         Helpers::panic("FS::read: file is dir\n");
     }
 
-    return std::fread(buf, sizeof(u8), size, file.file);
+    u8* tmp = new u8[size];
+    const u64 size_read = std::fread(tmp, sizeof(u8), size, file.file);
+    std::memcpy(buf, tmp, size);
+    delete tmp;
+    return size_read;
 }
 
 u64 write(u64 file_id, u8* buf, u64 size) {

@@ -600,7 +600,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
                     }
                 }
 
-                if (tsharp->data_format == 0 || tsharp->data_format == 45) {
+                if (tsharp->data_format == 0 || tsharp->data_format == 15 || tsharp->data_format == 45) {
                     null_descriptor();
                     continue;
                 }

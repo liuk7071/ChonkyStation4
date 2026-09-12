@@ -142,7 +142,7 @@ s32 PS4_FUNC sceKernelDeleteSema(SceKernelSema sem) {
         return -1;
     }
 
-    delete sem;
+    //delete sem;
     sem = nullptr;
     return SCE_OK;
 }

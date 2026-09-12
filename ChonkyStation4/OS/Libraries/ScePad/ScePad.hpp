@@ -161,5 +161,6 @@ s32 PS4_FUNC scePadRead(s32 handle, ScePadData* data, s32 num);
 s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info);
 s32 PS4_FUNC scePadSetLightBar(s32 handle, const ScePadLightBarParam* param);
 s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param);
+s32 PS4_FUNC scePadClose(s32 handle);
 
 }   // End namespace PS4::OS::Libs::ScePad
