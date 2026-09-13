@@ -500,6 +500,7 @@ void init(Module& module) {
     module.addSymbolStub("OG4RsDwLguo", "munlock", "libkernel", "libkernel");
     module.addSymbolStub("iBQ2omlTuls", "sceKernelIccSetBuzzer", "libkernel", "libkernel");
     module.addSymbolStub("txHtngJ+eyc", "scePthreadAttrGetguardsize", "libkernel", "libkernel");    // Used by Worms WMD
+    module.addSymbolStub("usHTMoFoBTM", "sceKernelEnableDmemAliasing", "libkernel_dmem_aliasing2", "libkernel");
     
     module.addSymbolExport("KiJEPEWRyUY", "sigaction", "libkernel", "libkernel", (void*)&kernel_sigaction);
     module.addSymbolExport("aPcyptbOiZs", "sigprocmask", "libkernel", "libkernel", (void*)&kernel_sigprocmask);

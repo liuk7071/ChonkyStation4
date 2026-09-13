@@ -178,7 +178,7 @@ struct PipelineConfig {
     bool has_ps = false;
     u64 vertex_hash = 0;
     u64 pixel_hash = 0;
-
+    
     // Draw primitive
     u32 prim_type = 0;
 

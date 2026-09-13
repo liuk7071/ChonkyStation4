@@ -77,12 +77,11 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
     size_t offs = 0;
     while (true) {
         if (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, (void*)(code_ptr + offs), size - offs, &instruction, operands))) {
-            // Patch "mov dest, fs:[0]" with a jmp to a custom func that directly passes the guest TLS pointer to dst.
-            if (    instruction.mnemonic == ZYDIS_MNEMONIC_MOV
+            // Patch "mov dest, fs:[x]" with a jmp to a custom func that directly passes the guest TLS pointer + x to dst.
+            if (    (instruction.mnemonic == ZYDIS_MNEMONIC_MOV || instruction.mnemonic == ZYDIS_MNEMONIC_XOR)
                 &&  operands[1].type == ZYDIS_OPERAND_TYPE_MEMORY
                 &&  operands[1].mem.segment == ZYDIS_REGISTER_FS
                 &&  operands[1].mem.base == ZYDIS_REGISTER_NONE
-                &&  operands[1].mem.disp.value == 0
                 &&  operands[0].reg.value >= ZYDIS_REGISTER_RAX // There seem to be some instructions that move from FS to other segment registers. I don't know if those need to be patched and if so with what
                 &&  operands[0].reg.value <= ZYDIS_REGISTER_R15
                ) {
@@ -99,12 +98,34 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 auto code = std::make_unique<Xbyak::CodeGenerator>(128, patch_code_ptr);
                 //log("Allocated patch at %p\n", patch_code_ptr);
 
-                // This code puts [[gs:[0x58] + _tls_index * 8] + guest_tls_ptr_offs] in the dest register
-                // without altering any state other than the dest register.
-                code->putSeg(gs);
-                code->mov(dest, ptr[0x58]);
-                code->mov(dest, ptr[dest + (_tls_index << 3)]);                     // [gs:[0x58] + _tls_index * 8]
-                code->mov(dest, ptr[dest + PS4::OS::Thread::guest_tls_ptr_offs]);
+                if (instruction.mnemonic == ZYDIS_MNEMONIC_XOR && operands[1].mem.disp.value == 0x28) {
+                    // This loads the stack check value. We can just use 0.
+                    code->xor_(dest, 0);
+                }
+                else {
+                    // This code puts [[gs:[0x58] + _tls_index * 8] + guest_tls_ptr_offs] in the dest register
+                    // without altering any state other than the dest register.
+                    code->putSeg(gs);
+                    code->mov(dest, ptr[0x58]);
+                    code->mov(dest, ptr[dest + (_tls_index << 3)]);                     // [gs:[0x58] + _tls_index * 8]
+                    code->mov(dest, ptr[dest + PS4::OS::Thread::guest_tls_ptr_offs]);
+
+                    switch (instruction.mnemonic) {
+                    case ZYDIS_MNEMONIC_MOV: {
+                        code->mov(dest, ptr[dest + operands[1].mem.disp.value]);
+                        break;
+                    }
+
+                    case ZYDIS_MNEMONIC_XOR: {
+                        Helpers::panic("TODO: xor dest, fs:[x] with x != 0x28\n");
+                        //code->xor_(dest, ptr[dest + operands[1].mem.disp.value]);
+                        break;
+                    }
+
+                    default: Helpers::panic("patchCode: unreachable\n");
+                    }
+                }
+                
                 code->jmp(instr_addr + instruction.length);                         // Jump back to the next instruction
 
                 // Patch instruction to jmp to our code

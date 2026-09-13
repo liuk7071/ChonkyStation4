@@ -59,6 +59,7 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     if (has_ps) {
         pixel_shader = ShaderCache::getShader(pixel_shader_code, Shader::ShaderStage::Fragment, &fetch_shader);
         cfg.pixel_hash  = pixel_shader->data.hash;
+        //cfg.spi_ps_input_ena = regs[Reg::mmSPI_PS_INPUT_ENA];
     }
 
     // Hash fetch shader V#s
@@ -136,7 +137,10 @@ Pipeline& getPipeline(const u8* vert_shader_code, const u8* pixel_shader_code, c
     XXH3_64bits_update(state, &cfg.has_vs, sizeof(cfg.has_vs));
     XXH3_64bits_update(state, &cfg.has_ps, sizeof(cfg.has_ps));
     if (cfg.has_vs) XXH3_64bits_update(state, &cfg.vertex_hash, sizeof(cfg.vertex_hash));
-    if (cfg.has_ps) XXH3_64bits_update(state, &cfg.pixel_hash, sizeof(cfg.pixel_hash));
+    if (cfg.has_ps) {
+        XXH3_64bits_update(state, &cfg.pixel_hash, sizeof(cfg.pixel_hash));
+        //XXH3_64bits_update(state, &cfg.spi_ps_input_ena, sizeof(cfg.spi_ps_input_ena));
+    }
     XXH3_64bits_update(state, &blend_hash, sizeof(blend_hash));
     XXH3_64bits_update(state, &cfg.prim_type, sizeof(cfg.prim_type));
     XXH3_64bits_update(state, &cfg.degamma_enable, sizeof(cfg.degamma_enable));

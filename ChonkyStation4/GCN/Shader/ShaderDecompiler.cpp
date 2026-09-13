@@ -77,6 +77,8 @@ struct DecompilerState {
     std::unordered_map<int, bool> sgpr_map;
     std::unordered_map<u32, bool> lane_map;
 
+    bool was_exec_set = false;
+
     bool need_get_vgpr_helper = false;
     bool need_set_vgpr_helper = false;
     bool need_mbcnt_helpers = false;
@@ -399,8 +401,12 @@ uint mbcntHi(uint src, uint addend) {
         case OperandField::ScalarGPR:           src = getSGPR(op.code);                                                     break;
         case OperandField::VectorGPR:           src = getVGPR(op.code);                                                     break;
         case OperandField::LiteralConst: {
-            if constexpr (is_float)
+            if constexpr (is_float) {
                 src = std::format("f2u({:#g}f)", reinterpret_cast<const float&>(op.code));
+                auto it = src.find("inff");
+                if (it != std::string::npos)
+                    src.replace(it, 4, "(1.0 / 0.0)");
+            }
             else {
                 src = std::format("{}", op.code);
                 if (type == Type::Uint)
@@ -460,13 +466,13 @@ uint mbcntHi(uint src, uint addend) {
             src = "uint(" + src + ")";
 
         switch (op.field) {
-        case OperandField::ScalarGPR:           code = std::format("{} = {};\n", getSGPR(op.code), src);    break;
-        case OperandField::VectorGPR:           code = std::format("{} = {};\n", getVGPR(op.code), src);    break;
-        case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                     break;
-        case OperandField::VccHi:               code = std::format("vcchi = {};\n", src);                   break;
-        case OperandField::M0:                  code = std::format("m0 = {};\n", src);                      break;
-        case OperandField::ExecLo:              code = std::format("exec = {};\n", src);                    break;
-        case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                             break;
+        case OperandField::ScalarGPR:           code = std::format("{} = {};\n", getSGPR(op.code), src);        break;
+        case OperandField::VectorGPR:           code = std::format("{} = {};\n", getVGPR(op.code), src);        break;
+        case OperandField::VccLo:               code = std::format("vcc = {};\n", src);                         break;
+        case OperandField::VccHi:               code = std::format("vcchi = {};\n", src);                       break;
+        case OperandField::M0:                  code = std::format("m0 = {};\n", src);                          break;
+        case OperandField::ExecLo:              code = std::format("exec = {};\n", src); was_exec_set = true;   break;
+        case OperandField::ExecHi:              code = "// TODO: Set ExecHi\n";                                 break;
         default:    Helpers::panic("Unhandled DST %d\n", op.code);
         }
 
@@ -1073,6 +1079,7 @@ uint mbcntHi(uint src, uint addend) {
         auto decompiled = std::format("{} = uint({} {} {});\n", dst, getSRC<type>(instr.src[0]), op, getSRC<type>(instr.src[1]));
         if (instr.IsCmpx()) {
             decompiled += std::format("exec = {};\n", dst);
+            was_exec_set = true;
         }
         return decompiled;
     };
@@ -1124,7 +1131,7 @@ uint mbcntHi(uint src, uint addend) {
                 code += "EXEC { ";
             }
             else if (!is_vector && last_is_vector) {
-                code += "}";
+                code += "}\n";
             }
 
             last_is_vector = is_vector;
@@ -1393,6 +1400,7 @@ uint mbcntHi(uint src, uint addend) {
                 code += setDST<Type::Uint>(instr.dst[0], "exec");
                 code += "exec = tmp_u & exec;\n";
                 code += "scc = uint(exec != 0);\n";
+                was_exec_set = true;
                 break;
             }
 
@@ -1848,7 +1856,7 @@ uint mbcntHi(uint src, uint addend) {
             }
 
             case Shader::Opcode::V_CVT_F16_F32: {
-                code += setDST<Type::Float>(instr.dst[0], std::format("(packHalf2x16(vec2({}, 0.0f)) & 0xffffu)", getSRC<Type::Float>(instr.src[0])));
+                code += setDST<Type::Uint>(instr.dst[0], std::format("(packHalf2x16(vec2({}, 0.0f)) & 0xffffu)", getSRC<Type::Float>(instr.src[0])));
                 break;
             }
 
@@ -3137,6 +3145,12 @@ uint mbcntHi(uint src, uint addend) {
             }
             }
 
+            if (was_exec_set && is_vector) {
+                code += "}\n";
+                was_exec_set = false;
+                last_is_vector = false;
+            }
+
             // Increment pc
             pc += instr.length;
         }
@@ -3330,31 +3344,60 @@ bool v_cmp_class_f32(float x, uint mask) {
         main += "v0 = gl_VertexIndex;\n";
         main += "v3 = gl_InstanceIndex;\n";
     } else if (stage == ShaderStage::Fragment) {
-        state.getVGPR(2);
-        state.getVGPR(3);
-        state.getVGPR(4);
-        main += "v2 = f2u(gl_FragCoord.x);\n";
-        main += "v3 = f2u(gl_FragCoord.y);\n";
-        main += "v4 = f2u(gl_FragCoord.z);\n";
+        const auto input_ena = renderer->regs[Reg::mmSPI_PS_INPUT_ENA];
+        //const bool pos_x_ena = (input_ena >> 8)  & 1;
+        //const bool pos_y_ena = (input_ena >> 9)  & 1;
+        const bool pos_x_ena = true;
+        const bool pos_y_ena = true;
+
+        const bool pos_z_ena = (input_ena >> 10) & 1;
+        const bool pos_w_ena = (input_ena >> 11) & 1;
+        
+        auto sgpr = 2;  // TODO: This is not always right
+
+        if (pos_x_ena) {
+            state.getVGPR(sgpr);
+            main += std::format("v{} = f2u(gl_FragCoord.x);\n", sgpr++);
+        }
+
+        if (pos_y_ena) {
+            state.getVGPR(sgpr);
+            main += std::format("v{} = f2u(gl_FragCoord.y);\n", sgpr++);
+        }
+
+        if (pos_z_ena) {
+            state.getVGPR(sgpr);
+            main += std::format("v{} = f2u(gl_FragCoord.z);\n", sgpr++);
+        }
+
+        if (pos_w_ena) {
+            state.getVGPR(sgpr);
+            main += std::format("v{} = f2u(1.0 / gl_FragCoord.w);\n", sgpr++);
+        }
     }
     else if (stage == ShaderStage::Compute) {
-        state.getSGPR(8);
-        state.getSGPR(12);
-        state.getSGPR(14);
-        state.getSGPR(16);    // TODO: Register numbers hardcoded from Minecraft
-        state.getSGPR(17);
-        state.getSGPR(18);
+        auto sgpr = compute_job->n_user_sgprs;
+
+        if (compute_job->tgid_x_en) {
+            state.getSGPR(sgpr);
+            main += std::format("s{} = gl_WorkGroupID.x;\n", sgpr++);
+        }
+
+        if (compute_job->tgid_y_en) {
+            state.getSGPR(sgpr);
+            main += std::format("s{} = gl_WorkGroupID.y;\n", sgpr++);
+        }
+
+        if (compute_job->tgid_z_en) {
+            state.getSGPR(sgpr);
+            main += std::format("s{} = gl_WorkGroupID.z;\n", sgpr++);
+        }
+        
         state.getVGPR(0);
         state.getVGPR(1);
         state.getVGPR(2);
-        main += "s8 = gl_WorkGroupID.x;\n";
-        main += "s12 = gl_WorkGroupID.x;\n";
-        main += "s14 = gl_WorkGroupID.x;\n";
-        main += "s16 = gl_WorkGroupID.x;\n";
         main += "v0 = gl_LocalInvocationID.x;\n";
-        main += "s17 = gl_WorkGroupID.y;\n";
         main += "v1 = gl_LocalInvocationID.y;\n";
-        main += "s18 = gl_WorkGroupID.z;\n";
         main += "v2 = gl_LocalInvocationID.z;\n";
     }
 

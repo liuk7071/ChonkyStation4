@@ -39,6 +39,7 @@ u64 getShaderHash(const u8* code, Shader::ShaderStage stage, ComputeJob* compute
         XXH3_64bits_update(state, &compute_job->n_threads_y, sizeof(compute_job->n_threads_y));
         XXH3_64bits_update(state, &compute_job->n_threads_z, sizeof(compute_job->n_threads_z));
         XXH3_64bits_update(state, &compute_job->lds_size_dwords, sizeof(compute_job->lds_size_dwords));
+        XXH3_64bits_update(state, &compute_job->pgm_rsrc2, sizeof(compute_job->pgm_rsrc2));
 
         hash = XXH3_64bits_digest(state);
         XXH3_freeState(state);

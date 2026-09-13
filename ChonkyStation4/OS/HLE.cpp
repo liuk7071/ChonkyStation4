@@ -91,6 +91,13 @@ s32 PS4_FUNC sceVoiceGetPortInfo(u32 port_id, SceVoiceBasePortInfo* port_info) {
     return SCE_OK;
 }
 
+s32 PS4_FUNC sceVoiceGetBitRate(u32 port_id, u32* bitrate) {
+    //printf("sceVoiceGetBitRate(port_id=%d, bitrate=*%p)\n", port_id, bitrate);
+    
+    *bitrate = 48000;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC sceKeyboardPadEmulateOpen() {
     //while (true) std::this_thread::sleep_for(std::chrono::seconds(1));
     return 0;
@@ -393,14 +400,15 @@ std::shared_ptr<Module> buildHLEModule() {
     
     // libSceVoice
     module->addSymbolExport("CrLqDwWLoXM", "sceVoiceGetPortInfo", "libSceVoice", "libSceVoice", (void*)&sceVoiceGetPortInfo);
+    module->addSymbolExport("cJLufzou6bc", "sceVoiceGetBitRate", "libSceVoice", "libSceVoice", (void*)&sceVoiceGetBitRate);
     module->addSymbolStub("9TrhuGzberQ", "sceVoiceInit", "libSceVoice", "libSceVoice");
     module->addSymbolStub("nXpje5yNpaE", "sceVoiceCreatePort", "libSceVoice", "libSceVoice");
     module->addSymbolStub("54phPH2LZls", "sceVoiceStart", "libSceVoice", "libSceVoice");
     module->addSymbolStub("oV9GAdJ23Gw", "sceVoiceConnectIPortToOPort", "libSceVoice", "libSceVoice");
     module->addSymbolStub("elcxZTEfHZM", "sceVoiceGetPortAttr", "libSceVoice", "libSceVoice");
     module->addSymbolStub("QBFoAIjJoXQ", "sceVoiceSetVolume", "libSceVoice", "libSceVoice");
-    module->addSymbolStub("cJLufzou6bc", "sceVoiceGetBitRate", "libSceVoice", "libSceVoice");
     module->addSymbolStub("cQ6DGsQEjV4", "sceVoiceReadFromOPort", "libSceVoice", "libSceVoice");
+    module->addSymbolStub("clyKUyi3RYU", "sceVoiceSetThreadsParams", "libSceVoice", "libSceVoice");
     
     // libSceVoiceQoS
     module->addSymbolStub("kLU6hhXsa2A", "sceVoiceQoSConnect", "libSceVoiceQoS", "libSceVoiceQoS");
@@ -912,7 +920,12 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("TEW3IKxYfXc", "sceContentSearchSearchContent", "libSceContentSearch", "libSceContentSearch");
     module->addSymbolStub("1xSZodB2geA", "sceContentSearchTerm", "libSceContentSearch", "libSceContentSearch");
 
-    
+    // libSceContentDelete
+    module->addSymbolStub("pXJh3aVk8Ks", "sceContentDeleteById", "libSceContentDelete", "libSceContentDelete");
+    module->addSymbolStub("qC3QW+AltHs", "sceContentDeleteByPath", "libSceContentDelete", "libSceContentDelete");
+    module->addSymbolStub("zoxb0wEChEM", "sceContentDeleteInitialize", "libSceContentDelete", "libSceContentDelete");
+    module->addSymbolStub("5XLSih32qHA", "sceContentDeleteTerminate", "libSceContentDelete", "libSceContentDelete");
+
     // libSceCompanionHttpd
     module->addSymbolStub("8pWltDG7h6A", "sceCompanionHttpdAddHeader", "libSceCompanionHttpd", "libSceCompanionHttpd");
     module->addSymbolStub("B-QBMeFdNgY", "sceCompanionHttpdGet2ndScreenStatus", "libSceCompanionHttpd", "libSceCompanionHttpd");

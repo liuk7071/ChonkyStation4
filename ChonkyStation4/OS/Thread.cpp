@@ -107,9 +107,14 @@ void* threadStart(Thread* thread) {
     const auto tls_size = tls_mem_size + tcb_size;
     thread->tls_size = tls_size;
     
+    Helpers::debugAssert(tls_image_size <= tls_mem_size, "threadStart: image_size is > tls_mem_size\n");
+
     guest_tls_ptr = (u8*)std::malloc(tls_size) + tls_mem_size;
     std::memset((u8*)guest_tls_ptr - tls_mem_size, 0, tls_size);
     std::memcpy((u8*)guest_tls_ptr - tls_mem_size, tls_image_ptr, tls_image_size);
+
+    // tcb_self
+    *(uptr*)guest_tls_ptr = (uptr)guest_tls_ptr;
     
     // Call entry function
     void* ret = thread->entry(thread->args);

@@ -122,7 +122,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)&tex->tsharp);
         GpaTextureInfo out_tex_info = tex_info;
         bool detiled = false;
-        if (tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL && tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_ALIGNED) {
+        if ((tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL && tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_ALIGNED) || is_3d) {
             //Profiler::add("Number of detiled textures", 1);
             //Profiler::Scope profiler("Detiler time");
             out_tex_info.tm = GNM_TM_DISPLAY_LINEAR_GENERAL;

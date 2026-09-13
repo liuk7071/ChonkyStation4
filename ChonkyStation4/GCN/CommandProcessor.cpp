@@ -415,6 +415,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
         case PM4ItOpcode::DispatchDirect: {
             if (compute_queue && Configuration::skip_async_compute_dispatches) break;
 
+            const auto pgm_rsrc2 = renderer->regs[Reg::mmCOMPUTE_PGM_RSRC2];
+
             ComputeJob job;
             job.dim_x           = *args++;
             job.dim_y           = *args++;
@@ -425,7 +427,12 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             job.n_threads_x     = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_X];
             job.n_threads_y     = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Y];
             job.n_threads_z     = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Z];
-            job.lds_size_dwords = ((renderer->regs[Reg::mmCOMPUTE_PGM_RSRC2] >> 15) & 0x1ff) * 128; // Size is in 128 dword units
+            job.lds_size_dwords = ((pgm_rsrc2 >> 15) & 0x1ff) * 128; // Size is in 128 dword units
+            job.pgm_rsrc2       = pgm_rsrc2;
+            job.n_user_sgprs    = ((pgm_rsrc2 >> 1) & 0x1f);
+            job.tgid_x_en       = ((pgm_rsrc2 >> 7) & 1);
+            job.tgid_y_en       = ((pgm_rsrc2 >> 8) & 1);
+            job.tgid_z_en       = ((pgm_rsrc2 >> 9) & 1);
             job.addr            = renderer->getCSPtr();
             renderer->dispatch(job);
             break;
