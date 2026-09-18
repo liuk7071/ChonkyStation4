@@ -194,6 +194,7 @@ Pipeline::Pipeline(ShaderCache::CachedShader* vert_shader, ShaderCache::CachedSh
         case CompareFunc::NotEqual:     return vk::CompareOp::eNotEqual;
         case CompareFunc::GreaterEqual: return vk::CompareOp::eGreaterOrEqual;
         case CompareFunc::Always:       return vk::CompareOp::eAlways;
+        default: Helpers::panic("compare_op: invalid value %d\n", func);
         }
     };
 

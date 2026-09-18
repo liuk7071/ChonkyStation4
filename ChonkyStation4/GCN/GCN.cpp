@@ -3,6 +3,7 @@
 #include <GCN/CommandProcessor.hpp>
 #include <OS/Libraries/SceVideoOut/SceVideoOut.hpp>
 #include <OS/Libraries/SceGnmDriver/SceGnmDriver.hpp>
+#include <GCN/PM4.hpp>
 #include <mutex>
 #include <semaphore>
 #include <deque>
@@ -11,19 +12,15 @@
 #define NOMINMAX
 #include <windows.h>
 #endif
-#include <co.hpp>
 
 
 namespace PS4::GCN {
 
 std::deque<RendererCommand> commands;
-std::deque<RendererCommand> asc_commands;
 std::counting_semaphore<256> sem { 0 };
 std::mutex mtx;
-std::mutex asc_mtx;
 int prev_flip_idx = -1;
-co::thread* asc_co;
-bool asc_co_done = true;
+int curr_asc = 0;
 
 void gcnThread() {
 #ifdef _WIN32
@@ -64,8 +61,8 @@ void gcnThread() {
 
             GCN::processCommands(cmd.dcb, cmd.dcb_size, cmd.ccb, cmd.ccb_size, nullptr);
             if (Configuration::copy_command_buffers) {
-                delete cmd.dcb_buf;
-                delete cmd.ccb_buf;
+                delete[] cmd.dcb_buf;
+                delete[] cmd.ccb_buf;
             }
             break;
         }
@@ -76,10 +73,11 @@ void gcnThread() {
                 Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
             }
             
-            //if (cmd.buf_idx == -1) {
-            //    port->signalFlip(cmd.flip_arg);
-            //    break;
-            //}
+            if (cmd.buf_idx == -1) {
+                Helpers::panic("Flip: buf_idx is -1\n");
+                port->signalFlip(cmd.flip_arg);
+                break;
+            }
 
             // Set buffer label
             u64* buf_label;
@@ -112,35 +110,57 @@ void gcnThread() {
 
 // Returns false if there are no compute queues to execute
 bool processAsyncCompute() {
-    if (asc_co_done) {
-        RendererCommand cmd;
+    int i = 0;
+    while (true) {
+        auto& queue = compute_queues[curr_asc++];
+        curr_asc %= MAX_COMPUTE_QUEUES;
+
+        // Give up if we went a full round without active queues
+        if (i++ == MAX_COMPUTE_QUEUES) return false;
+
         {
-            // Acquire command queue lock
-            std::scoped_lock lk(asc_mtx);
+            auto lk = queue.getLock();
 
-            if (asc_commands.empty())
-                return false;
+            if (!queue.is_mapped) continue;
 
-            // Fetch command from the queue
-            cmd = asc_commands.front();
-            asc_commands.pop_front();
+            // If this queue is done executing and there are no pending commands (idle)
+            if (queue.co_done && queue.commands.empty()) continue;
+
+            if (queue.co_done) {
+                RendererCommand cmd;
+                {
+                    if (queue.commands.empty())
+                        Helpers::panic("processAsyncCompute: unreachable\n");   // We check earlier that it's not empty
+
+                    // Fetch command from the queue
+                    cmd = queue.commands.front();
+                    queue.commands.pop_front();
+                }
+
+                queue.co_done = false;
+
+                if (!queue.co)
+                    queue.co = new co::thread();
+
+                queue.co->reset([=]() {
+                    GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0, cmd.queue);
+                    cmd.queue->co_done = true;
+                    if (Configuration::copy_command_buffers) {
+                        delete[] cmd.dcb_buf;
+                        for (auto& buf : cmd.indirect_bufs)
+                            delete[] buf;
+                    }
+                    co::active().get_parent().switch_to();
+                });
+            }
         }
 
-        asc_co_done = false;
-
-        if (!asc_co)
-            asc_co = new co::thread();
-
-        asc_co->reset([=]() {
-            GCN::processCommands(cmd.dcb, cmd.dcb_size, nullptr, 0, cmd.queue);
-            asc_co_done = true;
-            if (Configuration::copy_command_buffers) delete cmd.dcb_buf;
-            co::active().get_parent().switch_to();
-        });
+        //printf("switching to asc %d\n", queue.qid);
+        queue.co->switch_to();
+        return true;
     }
-    
-    asc_co->switch_to();
-    return true;
+
+    Helpers::panic("processAsyncCompute: unreachable\n");
 }
 
 void submitRendererCommand(RendererCommand cmd) {
@@ -169,21 +189,76 @@ void submitGraphics(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size) {
     submitRendererCommand(cmd);
 }
 
-void submitCompute(u32* cb, size_t cb_size, OS::Libs::SceGnmDriver::ComputeQueue* queue) {
+void submitCompute(u32* cb, size_t cb_size, ComputeQueue* queue) {
     RendererCommand cmd = { CommandType::SubmitCompute, cb, cb_size, .queue = queue };
 
     if (Configuration::copy_command_buffers) {
         cmd.dcb_buf = new u8[cb_size];
         std::memcpy(cmd.dcb_buf, cb, cb_size);
         cmd.dcb = (u32*)cmd.dcb_buf;
+
+        // Copy and patch indirect buffers
+        /*for (u32* ptr = cmd.dcb; (u8*)ptr < (u8*)cmd.dcb + cmd.dcb_size; ) {
+            PM4Header* pkt = (PM4Header*)ptr;
+            u32* args = ptr;
+            args++;
+
+            if (pkt->type == 0) {
+                ptr++;
+                continue;
+                Helpers::panic("PM4 type 0 packet\n");
+            }
+            else if (pkt->type == 1) {
+                Helpers::panic("PM4 type 1 packet\n");
+            }
+            else if (pkt->type == 2) {
+                printf("Encountered type 2 packet\n");
+                ptr++;
+                continue;
+            }
+
+            switch ((PM4ItOpcode)(u32)pkt->opcode) {
+            case PM4ItOpcode::IndirectBuffer: {
+                union IndirectBuffer1 {
+                    u32 raw;
+                    BitField<0, 16, u32> addr_hi;
+                };
+
+                union IndirectBuffer2 {
+                    u32 raw;
+                    BitField<0, 20, u32> size;
+                    BitField<20, 1, u32> chain;
+                    BitField<24, 8, u32> vmid;
+                };
+
+                u32* addr_lo_ptr = args;
+                const u32 addr_lo = *args++;
+
+                IndirectBuffer1* d1_ptr = (IndirectBuffer1*)args;
+                const IndirectBuffer1 d1 = { .raw = *args++ };
+
+                const IndirectBuffer2 d2 = { .raw = *args++ };
+                const u32* ptr = (u32*)(addr_lo | ((u64)d1.addr_hi << 32));
+
+                auto& buf = cmd.indirect_bufs.emplace_back();
+                buf = new u8[d2.size * sizeof(u32)];
+                std::memcpy(buf, ptr, d2.size * sizeof(u32));
+
+                d1_ptr->addr_hi = (uptr)ptr >> 32;
+                *addr_lo_ptr = (uptr)ptr & 0xffffffff;
+                break;
+            }
+
+            }
+
+            ptr += pkt->count + 2;
+        }*/
     }
 
-    {
-        // Acquire command queue lock
-        std::scoped_lock lk(asc_mtx);
-        // Push command
-        asc_commands.push_back(cmd);
-    }
+    //printf("submitted asc for queue %d\n", queue->qid);
+
+    // queue lock should be held by the caller
+    queue->commands.push_back(cmd);
 }
 
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {

@@ -204,6 +204,7 @@ typedef struct {
 	uint32_t linearwidth;
 	uint32_t linearheight;
 	uint32_t lineardepth;
+    uint32_t arrayslice;
 	uint32_t paddedwidth;
 	uint32_t paddedheight;
 	uint32_t paddeddepth;

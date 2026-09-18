@@ -85,7 +85,7 @@ s32 PS4_FUNC scePthreadCondTimedwait(pthread_cond_t* cond, pthread_mutex_t* mute
     if (*cond == 0) *cond = PTHREAD_COND_INITIALIZER;
 
     auto now = std::chrono::system_clock::now();
-    auto timeout = now + std::chrono::microseconds(us);
+    auto timeout = now + std::chrono::microseconds(us * 100 /* hack */);
     auto secs = std::chrono::time_point_cast<std::chrono::seconds>(timeout);
     auto nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(timeout - secs);
 

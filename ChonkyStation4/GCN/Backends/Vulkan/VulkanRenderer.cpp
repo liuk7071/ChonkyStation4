@@ -968,6 +968,7 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     // Get pipeline
     auto& pipeline = Vulkan::PipelineCache::getComputePipeline(job);
     curr_frame_compute_pipelines[frame_idx].push_back(&pipeline);
+    
     cmd_bufs[frame_idx].bindPipeline(vk::PipelineBindPoint::eCompute, *pipeline.getVkPipeline());
 
     // Upload buffers and get descriptor writes, as well as the push constants
@@ -983,23 +984,23 @@ void VulkanRenderer::dispatch(ComputeJob job) {
     cmd_bufs[frame_idx].dispatch(job.dim_x, job.dim_y, job.dim_z);
 
     // TODO: Don't add a barrier after every dispatch...
-    //VkMemoryBarrier barrier {
-    //    VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-    //    nullptr,
-    //    VK_ACCESS_SHADER_WRITE_BIT,
-    //    VK_ACCESS_MEMORY_READ_BIT |
-    //    VK_ACCESS_MEMORY_WRITE_BIT
-    //};
-    //
-    //vkCmdPipelineBarrier(
-    //    *cmd_bufs[frame_idx],
-    //    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-    //    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-    //    0,
-    //    1, &barrier,
-    //    0, nullptr,
-    //    0, nullptr
-    //);
+    VkMemoryBarrier barrier {
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_SHADER_WRITE_BIT,
+        VK_ACCESS_MEMORY_READ_BIT |
+        VK_ACCESS_MEMORY_WRITE_BIT
+    };
+    
+    vkCmdPipelineBarrier(
+        *cmd_bufs[frame_idx],
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0,
+        1, &barrier,
+        0, nullptr,
+        0, nullptr
+    );
 }
 
 std::chrono::milliseconds cpu_stall = std::chrono::milliseconds(0);

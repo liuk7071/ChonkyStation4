@@ -129,7 +129,7 @@ enum class IndexType : u32 {
 class Renderer {
 public:
     Renderer() {
-        std::memset(regs, 0, 0xd000);
+        std::memset(regs, 0, 0xd000 * sizeof(u32));
     }
 
     SDL_Window* window;

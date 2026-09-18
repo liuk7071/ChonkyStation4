@@ -65,7 +65,14 @@ s32 PS4_FUNC sceSaveDataMount2(const SceSaveDataMount2* mount, SceSaveDataMountR
     const bool error_if_exists      = mount->mount_mode & SCE_SAVE_DATA_MOUNT_MODE_CREATE;
 
     // Get the user's savedata directory
-    const auto user_save_dir = User::getUser(mount->user_id)->getHomeDir() / "savedata";
+    auto* user = User::getUser(mount->user_id);
+    if (!user) {
+        // TODO
+        printf("sceSaveDataMount2: user does not exist\n");
+        user = User::current;
+    }
+
+    const auto user_save_dir = user->getHomeDir() / "savedata";
     // Get the specified savedata directory
     const auto mountpoint = user_save_dir / g_app.title_id / std::string(mount->dir_name->data);
     
@@ -197,7 +204,14 @@ s32 PS4_FUNC sceSaveDataDirNameSearch(const SceSaveDataDirNameSearchCond* cond, 
     // TODO: Wildcards
     if (!dir_name.empty()) {
         // Get the user's savedata directory
-        const auto user_save_dir = User::getUser(cond->user_id)->getHomeDir() / "savedata";
+        auto* user = User::getUser(cond->user_id);
+        if (!user) {
+            // TODO
+            printf("sceSaveDataDirNameSearch: user does not exist\n");
+            user = User::current;
+        }
+
+        const auto user_save_dir = user->getHomeDir() / "savedata";
         // Get the game's savedata directory
         const auto game_dir = user_save_dir / g_app.title_id;
 

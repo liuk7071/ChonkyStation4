@@ -42,4 +42,7 @@ struct TSharp {
     u64 color_transform : 1;
     u64 alt_tile_mode : 1;
     u64 : 39;
+
+    bool is3D()     { return type == 0xa; }
+    bool isArray()  { return type == 0xd; }
 };

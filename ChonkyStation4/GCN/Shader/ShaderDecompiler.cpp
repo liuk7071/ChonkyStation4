@@ -145,14 +145,14 @@ struct DecompilerState {
         shader += std::format("layout(binding = {}) uniform {} {};\n", binding, type, name);
     }
 
-    void addOutImage2D(std::string name, int binding) {
+    void addOutImage(std::string type, std::string name, int binding) {
         if (out_imgs.contains(binding)) {
             // Extra check to be safe, this shouldn't ever happen
             Helpers::debugAssert(out_imgs[binding] == name, "ShaderDecompiler: tried to add an output Image2D to an already used binding with a different name\n");
             return;
         }
         out_imgs[binding] = name;
-        shader += std::format("layout(binding = {}) uniform writeonly image2D {};\n", binding, name);
+        shader += std::format("layout(binding = {}) uniform writeonly {} {};\n", binding, type, name);
     }
 
     void addFloatConstTable(std::string name, float* table, size_t size) {
@@ -414,22 +414,22 @@ uint mbcntHi(uint src, uint addend) {
             }
             break;
         }
-        case OperandField::SignedConstIntPos:   src = std::format("{}", (s32)op.code - SignedConstIntPosMin + 1);           break;
-        case OperandField::SignedConstIntNeg:   src = std::format("{}", -(s32)(op.code - SignedConstIntNegMin + 1));        break;
-        case OperandField::ConstFloatNeg_4_0:   src = "f2u(-4.0f)";                                                         break;
-        case OperandField::ConstFloatNeg_2_0:   src = "f2u(-2.0f)";                                                         break;
-        case OperandField::ConstFloatNeg_1_0:   src = "f2u(-1.0f)";                                                         break;
-        case OperandField::ConstFloatNeg_0_5:   src = "f2u(-0.5f)";                                                         break;
-        case OperandField::ConstZero:           src = "0u";                                                                 break;
-        case OperandField::ConstFloatPos_0_5:   src = "f2u(0.5f)";                                                          break;
-        case OperandField::ConstFloatPos_1_0:   src = "f2u(1.0f)";                                                          break;
-        case OperandField::ConstFloatPos_2_0:   src = "f2u(2.0f)";                                                          break;
-        case OperandField::ConstFloatPos_4_0:   src = "f2u(4.0f)";                                                          break;
-        case OperandField::M0:                  src = "m0";                                                                 break;
-        case OperandField::ExecLo:              src = "exec";                                                               break;
-        case OperandField::ExecHi:              src = "1u /* TODO: ExecHi */";                                              break;
-        case OperandField::VccLo:               src = "vcc";                                                                break;
-        case OperandField::VccHi:               src = "vcchi";                                                              break;
+        case OperandField::SignedConstIntPos:   src = std::format("{}{}",  (s32) op.code - SignedConstIntPosMin + 1,  type == Type::Uint ? "u" : "");               break;
+        case OperandField::SignedConstIntNeg:   src = std::format("{}{}", -(s32)(op.code - SignedConstIntNegMin + 1), type == Type::Uint ? "u" : "");               break;
+        case OperandField::ConstFloatNeg_4_0:   src = "f2u(-4.0f)";                                                                                                 break;
+        case OperandField::ConstFloatNeg_2_0:   src = "f2u(-2.0f)";                                                                                                 break;
+        case OperandField::ConstFloatNeg_1_0:   src = "f2u(-1.0f)";                                                                                                 break;
+        case OperandField::ConstFloatNeg_0_5:   src = "f2u(-0.5f)";                                                                                                 break;
+        case OperandField::ConstZero:           src = "0u";                                                                                                         break;
+        case OperandField::ConstFloatPos_0_5:   src = "f2u(0.5f)";                                                                                                  break;
+        case OperandField::ConstFloatPos_1_0:   src = "f2u(1.0f)";                                                                                                  break;
+        case OperandField::ConstFloatPos_2_0:   src = "f2u(2.0f)";                                                                                                  break;
+        case OperandField::ConstFloatPos_4_0:   src = "f2u(4.0f)";                                                                                                  break;
+        case OperandField::M0:                  src = "m0";                                                                                                         break;
+        case OperandField::ExecLo:              src = "exec";                                                                                                       break;
+        case OperandField::ExecHi:              src = "1u /* TODO: ExecHi */";                                                                                      break;
+        case OperandField::VccLo:               src = "vcc";                                                                                                        break;
+        case OperandField::VccHi:               src = "vcchi";                                                                                                      break;
         default:    Helpers::panic("Unhandled SRC %d\n", op.code);
         }
 
@@ -592,7 +592,10 @@ uint mbcntHi(uint src, uint addend) {
             case Shader::Opcode::V_WRITELANE_B32: {
                 const u32 dest_vgpr = instr.dst[0].code;
                 const u32 src_sgpr = instr.src[0].code; // TODO: Verify this is an sgpr?
-                const u32 lane = std::stoi(getSRC<Type::Uint>(instr.src[1]));
+                auto lane_str = getSRC<Type::Uint>(instr.src[1]);
+                lane_str.pop_back();    // Remove "u" for unsigned
+                const u32 lane = std::stoi(lane_str);
+
                 if (descs.contains(src_sgpr)) {
                     backup_descs[(dest_vgpr << 16) | lane] = descs[src_sgpr];
                 }
@@ -605,7 +608,10 @@ uint mbcntHi(uint src, uint addend) {
             case Shader::Opcode::V_READLANE_B32: {
                 const u32 dest_sgpr = instr.dst[0].code;
                 const u32 src_vgpr = instr.src[0].code; // TODO: Verify this is a vgpr?
-                const u32 lane = std::stoi(getSRC<Type::Uint>(instr.src[1]));
+                auto lane_str = getSRC<Type::Uint>(instr.src[1]);
+                lane_str.pop_back();    // Remove "u" for unsigned
+                const u32 lane = std::stoi(lane_str);
+
                 const u32 backup_idx = (src_vgpr << 16) | lane;
                 if (backup_descs.contains(backup_idx)) {
                     descs[dest_sgpr] = backup_descs[backup_idx];
@@ -623,19 +629,6 @@ uint mbcntHi(uint src, uint addend) {
                 ///*000000000500*/ s_mov_b32       s3, 0x2000c004
                 ///*000000000508*/ tbuffer_load_format_xy v[128:129], v128, s[0:3], 0 offen format : [32_32, float]
 
-                auto code_slice_copy = code_slice;
-
-                // The instructions aren't necessarily next to each other. Scan forward, but with a limit to avoid false positives.
-                auto search_forward = [&](Shader::Opcode opcode, GcnInst& instr) -> bool {
-                    int limit = 3;
-                    do {
-                        instr = decoder.decodeInstruction(code_slice_copy);
-                        if (limit-- == 0) break;
-                    } while (instr.opcode != opcode);
-
-                    return instr.opcode == opcode;
-                };
-
                 // S_GETPC_B64
                 const u64 getpc_addr = (u64)((u8*)data + pc + 4);
                 const auto getpc_dest = instr.dst[0].code;
@@ -644,46 +637,111 @@ uint mbcntHi(uint src, uint addend) {
                 desc_info.inline_buffer = new VSharp();     // TODO: I assume the type is V#. For this specific pattern, it should be fine (T# are twice as big).
                 auto* vsharp = desc_info.inline_buffer;
 
-                // S_ADD_U32
-                GcnInst next_instr;
-                if (!search_forward(Shader::Opcode::S_ADD_U32, next_instr)) break;
-                if (next_instr.dst[0].code != getpc_dest || next_instr.src[1].code != getpc_dest) break;
-                if (next_instr.src[0].field != Shader::OperandField::LiteralConst) break;
-                *(u64*)vsharp = getpc_addr + next_instr.src[0].code;
-
-                // S_ADDC_U32
-                if (!search_forward(Shader::Opcode::S_ADDC_U32, next_instr)) break;
-                if (next_instr.dst[0].code != (getpc_dest + 1) || next_instr.src[1].code != (getpc_dest + 1)) break;
-                if (next_instr.src[0].field != Shader::OperandField::ConstZero && !(next_instr.src[0].field == Shader::OperandField::LiteralConst && next_instr.src[0].code == 0)) break;
-
-                // S_MOV_B32
-                auto match_s_mov_b32 = [](const GcnInst& instr) -> std::pair<bool, u32> {
-                    auto field = instr.src[0].field;
-                    if (field != Shader::OperandField::LiteralConst && field != Shader::OperandField::SignedConstIntPos) return { false, 0 };
-
-                    if (field == Shader::OperandField::LiteralConst)
-                        return { true, instr.src[0].code };
-                    else if (field == Shader::OperandField::SignedConstIntPos)
-                        return { true, (s32)instr.src[0].code - SignedConstIntPosMin + 1 };
-                    else Helpers::panic("Unreachable\n");
+                // S_ENDPGM isn't actually part of the code. I use it as a placeholder to mark the pattern is done.
+                std::vector<std::vector<std::pair<Shader::Opcode, u32>>> patterns = {
+                    {
+                        { Shader::Opcode::S_ADD_U32,  0 },
+                        { Shader::Opcode::S_ADDC_U32, 1 },
+                        { Shader::Opcode::S_MOV_B32,  2 },
+                        { Shader::Opcode::S_MOV_B32,  3 },
+                    },
+                    {
+                        { Shader::Opcode::S_ADD_U32,  0 },
+                        { Shader::Opcode::S_ADDC_U32, 1 },
+                        { Shader::Opcode::S_MOV_B32,  3 },
+                        { Shader::Opcode::S_MOVK_I32, 2 },
+                    }
                 };
 
-                if (!search_forward(Shader::Opcode::S_MOV_B32, next_instr)) break;
-                auto [ok, val] = match_s_mov_b32(next_instr);
-                if (!ok) break;
-                *((u32*)vsharp + 2) = val;
+                bool matched = false;
+                for (auto& pattern : patterns) {
+                    auto code_slice_copy = code_slice;
 
-                // S_MOV_B32
-                if (!search_forward(Shader::Opcode::S_MOV_B32, next_instr)) break;
-                auto [ok2, val2] = match_s_mov_b32(next_instr);
-                if (!ok2) break;
-                *((u32*)vsharp + 3) = val2;
+                    // The instructions aren't necessarily next to each other. Scan forward, but with a limit to avoid false positives.
+                    auto search_forward = [&](Shader::Opcode opcode, GcnInst& instr) -> bool {
+                        int limit = 16;
+                        do {
+                            instr = decoder.decodeInstruction(code_slice_copy);
+                            if (limit-- == 0) break;
+                        } while (instr.opcode != opcode);
 
-                descs[getpc_dest] = desc_info;
+                        return instr.opcode == opcode;
+                    };
+
+
+                    GcnInst next_instr;
+                    for (auto& opcode : pattern) {
+                        matched = false;
+
+                        switch (opcode.first) {
+                        case Shader::Opcode::S_ADD_U32: {
+                            if (!search_forward(Shader::Opcode::S_ADD_U32, next_instr))                         break;
+                            if (next_instr.dst[0].code != getpc_dest || next_instr.src[1].code != getpc_dest)   break;
+                            if (next_instr.src[0].field != Shader::OperandField::LiteralConst)                  break;
+                            *(u64*)vsharp = getpc_addr + next_instr.src[0].code;
+
+                            matched = true;
+                            break;
+                        }
+
+                        case Shader::Opcode::S_ADDC_U32: {
+                            if (!search_forward(Shader::Opcode::S_ADDC_U32, next_instr))                                                                                                        break;
+                            if (next_instr.dst[0].code != (getpc_dest + 1) || next_instr.src[1].code != (getpc_dest + 1))                                                                       break;
+                            if (next_instr.src[0].field != Shader::OperandField::ConstZero && !(next_instr.src[0].field == Shader::OperandField::LiteralConst && next_instr.src[0].code == 0))  break;
+
+                            matched = true;
+                            break;
+                        }
+
+                        case Shader::Opcode::S_MOV_B32: {
+                            auto match_s_mov_b32 = [](const GcnInst& instr) -> std::pair<bool, u32> {
+                                auto field = instr.src[0].field;
+                                if (field != Shader::OperandField::LiteralConst && field != Shader::OperandField::SignedConstIntPos) return { false, 0 };
+
+                                if (field == Shader::OperandField::LiteralConst)
+                                    return { true, instr.src[0].code };
+                                else if (field == Shader::OperandField::SignedConstIntPos)
+                                    return { true, (s32)instr.src[0].code - SignedConstIntPosMin + 1 };
+                                else Helpers::panic("Unreachable\n");
+                            };
+
+                            if (!search_forward(Shader::Opcode::S_MOV_B32, next_instr)) break;
+                            if (next_instr.dst[0].code != (getpc_dest + opcode.second))  break;
+                            auto [ok, val] = match_s_mov_b32(next_instr);
+                            if (!ok) break;
+                            *((u32*)vsharp + opcode.second) = val;
+
+                            matched = true;
+                            break;
+                        }
+
+                        case Shader::Opcode::S_MOVK_I32: {
+                            if (!search_forward(Shader::Opcode::S_MOVK_I32, next_instr)) break;
+                            if (next_instr.dst[0].code != (getpc_dest + opcode.second))  break;
+                            
+                            const s16 imm16 = next_instr.control.sopk.simm;
+                            const s32 imm32 = (s32)imm16;
+                            *((u32*)vsharp + opcode.second) = imm32;
+
+                            matched = true;
+                            break;
+                        }
+                        }
+
+                        if (!matched) break;
+                    }
+
+                    if (matched) break;
+                }
+
+                if (!matched) printf("ShaderDecompiler: unrecognized S_GETPC pattern in shader %llx at 0x%x\n", out_data.hash, pc);
+                else
+                    descs[getpc_dest] = desc_info;
                 break;
             }
 
             case Shader::Opcode::IMAGE_STORE:
+            case Shader::Opcode::IMAGE_STORE_MIP:
             case Shader::Opcode::IMAGE_ATOMIC_ADD:
             case Shader::Opcode::IMAGE_ATOMIC_CMPSWAP:
             case Shader::Opcode::IMAGE_ATOMIC_UMIN:
@@ -740,12 +798,18 @@ uint mbcntHi(uint src, uint addend) {
                 auto get_buffer = [&](const DescriptorLocation& desc, bool is_image_store = false) -> Buffer& {
                     // Check if the buffer already exists
                     for (auto& buf : out_data.buffers) {
+                        bool has_inline_buf1 = buf.desc_info.inline_buffer;
+                        bool has_inline_buf2 = desc.inline_buffer;
+                        bool inline_buf_is_same = has_inline_buf1 == has_inline_buf2;
+                        if (has_inline_buf1 && has_inline_buf2)
+                            inline_buf_is_same = std::memcmp(buf.desc_info.inline_buffer, desc.inline_buffer, sizeof(VSharp)) == 0;
+
                         if (buf.desc_info.sgpr == desc.sgpr
                             && buf.desc_info.is_ptr == desc.is_ptr
                             && buf.desc_info.ptr_is_from_buf == desc.ptr_is_from_buf
                             && buf.desc_info.buf_offs == desc.buf_offs
                             && buf.desc_info.ptr_is_inline == desc.ptr_is_inline
-                            && buf.desc_info.inline_buffer == desc.inline_buffer
+                            && inline_buf_is_same
                             && buf.desc_info.offs == desc.offs
                             && buf.desc_info.type == desc.type
                             && buf.is_image_store == is_image_store
@@ -796,27 +860,43 @@ uint mbcntHi(uint src, uint addend) {
                         buf.desc_info.type = DescriptorType::Tsharp;
                         auto name = std::format("tex{}", buf.binding);
 
+                        auto* tsharp = buf.desc_info.asPtr<TSharp>(regs);
+                        bool is_3d    = false;
+                        bool is_array = false;
+#ifdef _WIN32
+                        if (!IsBadReadPtr(tsharp, sizeof(TSharp))) {
+#endif
+                            if (tsharp && tsharp->is3D()) {
+                                is_3d = true;
+                            }
+
+                            if (tsharp && tsharp->isArray()) {
+                                is_array = true;
+                            }
+#ifdef _WIN32
+                        }
+#endif
+
                         switch (instr.opcode) {
                         case Shader::Opcode::IMAGE_ATOMIC_ADD:
                         case Shader::Opcode::IMAGE_ATOMIC_UMIN:
+                        case Shader::Opcode::IMAGE_STORE_MIP:
                         case Shader::Opcode::IMAGE_STORE: {
                             buf.is_image_store = true;
-                            addOutImage2D(name, buf.binding);
+                            
+                            if (!is_3d && !is_array)
+                                addOutImage("image2D", name, buf.binding);
+                            else if (is_3d)
+                                addOutImage("image3D", name, buf.binding);
+                            else if (is_array)
+                                addOutImage("image2DArray", name, buf.binding);
+                            else Helpers::panic("Unreachable\n");
                             break;
                         }
                         default:
                             buf.is_image_store = false;
 
-                            std::string type = "sampler2D";
-                            auto* tsharp = buf.desc_info.asPtr<TSharp>(regs);
-
-#ifdef _WIN32
-                            if (!IsBadReadPtr(tsharp, sizeof(TSharp)))
-#endif
-                                if (tsharp && tsharp->type == 10 /* COLOR 3D */) {
-                                    type = "sampler3D";
-                                }
-
+                            std::string type = !is_3d ? (!is_array ? "sampler2D" : "sampler2DArray") : "sampler3D";
                             addInSampler(type, name, buf.binding);
                             break;
                         }
@@ -1064,7 +1144,7 @@ uint mbcntHi(uint src, uint addend) {
     }
 
     template<Type type>
-    std::string V_CMP(const PS4::GCN::Shader::GcnInst& instr, std::string op) {
+    std::string V_CMP(const PS4::GCN::Shader::GcnInst& instr, std::string op, bool is_unordered_cmp = false) {
         std::string dst;
         if (instr.dst[1].field == OperandField::ScalarGPR) {
             dst = getSGPR(instr.dst[1].code);
@@ -1076,7 +1156,11 @@ uint mbcntHi(uint src, uint addend) {
             Helpers::panic("v_cmp_f32: unimplemented operand field");
         }
 
-        auto decompiled = std::format("{} = uint({} {} {});\n", dst, getSRC<type>(instr.src[0]), op, getSRC<type>(instr.src[1]));
+        if (type != Type::Float && is_unordered_cmp)
+            Helpers::panic("V_CMP: unordered compare with type != float\n");  // Unreachable unless I'm dumb
+
+        auto decompiled = !is_unordered_cmp ? std::format("{} = uint({} {} {});\n", dst, getSRC<type>(instr.src[0]), op, getSRC<type>(instr.src[1]))
+                                            : std::format("{} = uint(isnan({}) || isnan({}));\n", dst, getSRC<type>(instr.src[0]), getSRC<type>(instr.src[1]));
         if (instr.IsCmpx()) {
             decompiled += std::format("exec = {};\n", dst);
             was_exec_set = true;
@@ -1184,6 +1268,12 @@ uint mbcntHi(uint src, uint addend) {
                 break;
             }
 
+            case Shader::Opcode::S_MAX_U32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("max({}, {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+                code += std::format("scc = uint({} == {});\n", getSRC<Type::Uint>(instr.dst[0]), getSRC<Type::Uint>(instr.src[0]));
+                break;
+            }
+
             case Shader::Opcode::S_CSELECT_B32: {
                 code += setDST<Type::Uint>(instr.dst[0], std::format("(scc == 1) ? {} : {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
                 break;
@@ -1218,6 +1308,12 @@ uint mbcntHi(uint src, uint addend) {
             case Shader::Opcode::S_OR_B64: {
                 code += "// B64\n";
                 code += setDST<Type::Uint>(instr.dst[0], std::format("{} | {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+                code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+                break;
+            }
+
+            case Shader::Opcode::S_XOR_B32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("{} ^ {}", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
                 code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
                 break;
             }
@@ -1265,6 +1361,13 @@ uint mbcntHi(uint src, uint addend) {
             }
 
             case Shader::Opcode::S_LSHL_B32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
+                code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+                break;
+            }
+
+            case Shader::Opcode::S_LSHL_B64: {
+                code += "// B64\n";
                 code += setDST<Type::Uint>(instr.dst[0], std::format("{} << ({} & 0x1f)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
                 code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
                 break;
@@ -1358,6 +1461,17 @@ uint mbcntHi(uint src, uint addend) {
                 break;
             }
 
+            case Shader::Opcode::S_BCNT1_I32_B64: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("bitCount({})", getSRC<Type::Uint>(instr.src[0])));
+                code += std::format("scc = uint({} != 0);\n", getSRC<Type::Uint>(instr.dst[0]));
+                break;
+            }
+
+            case Shader::Opcode::S_FF1_I32_B32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("findLSB({})", getSRC<Type::Uint>(instr.src[0])));
+                break;
+            }
+
             case Shader::Opcode::S_GETPC_B64: {
                 code += "// TODO: S_GETPC_B64\n";
                 break;
@@ -1399,6 +1513,15 @@ uint mbcntHi(uint src, uint addend) {
                 code += std::format("tmp_u = {};\n", getSRC<Type::Uint>(instr.src[0]));
                 code += setDST<Type::Uint>(instr.dst[0], "exec");
                 code += "exec = tmp_u & exec;\n";
+                code += "scc = uint(exec != 0);\n";
+                was_exec_set = true;
+                break;
+            }
+
+            case Shader::Opcode::S_ORN2_SAVEEXEC_B64: {
+                code += std::format("tmp_u = {};\n", getSRC<Type::Uint>(instr.src[0]));
+                code += setDST<Type::Uint>(instr.dst[0], "exec");
+                code += "exec = tmp_u | ~exec;\n";
                 code += "scc = uint(exec != 0);\n";
                 was_exec_set = true;
                 break;
@@ -1504,17 +1627,18 @@ uint mbcntHi(uint src, uint addend) {
             }
 
             case Shader::Opcode::V_CMP_NGE_F32:
-            case Shader::Opcode::V_CMP_LT_F32:      code += V_CMP<Type::Float>(instr, "<");     break;
+            case Shader::Opcode::V_CMP_LT_F32:      code += V_CMP<Type::Float>(instr, "<");         break;
             case Shader::Opcode::V_CMP_NLG_F32:
-            case Shader::Opcode::V_CMP_EQ_F32:      code += V_CMP<Type::Float>(instr, "==");    break;
+            case Shader::Opcode::V_CMP_EQ_F32:      code += V_CMP<Type::Float>(instr, "==");        break;
             case Shader::Opcode::V_CMP_NGT_F32:
-            case Shader::Opcode::V_CMP_LE_F32:      code += V_CMP<Type::Float>(instr, "<=");    break;
+            case Shader::Opcode::V_CMP_LE_F32:      code += V_CMP<Type::Float>(instr, "<=");        break;
             case Shader::Opcode::V_CMP_NLE_F32:
-            case Shader::Opcode::V_CMP_GT_F32:      code += V_CMP<Type::Float>(instr, ">");     break;
+            case Shader::Opcode::V_CMP_GT_F32:      code += V_CMP<Type::Float>(instr, ">");         break;
             case Shader::Opcode::V_CMP_NLT_F32:
-            case Shader::Opcode::V_CMP_GE_F32:      code += V_CMP<Type::Float>(instr, ">=");    break;
+            case Shader::Opcode::V_CMP_GE_F32:      code += V_CMP<Type::Float>(instr, ">=");        break;
             case Shader::Opcode::V_CMP_LG_F32:
-            case Shader::Opcode::V_CMP_NEQ_F32:     code += V_CMP<Type::Float>(instr, "!=");    break;
+            case Shader::Opcode::V_CMP_NEQ_F32:     code += V_CMP<Type::Float>(instr, "!=");        break;
+            case Shader::Opcode::V_CMP_U_F32:       code += V_CMP<Type::Float>(instr, "", true);    break;
 
             case Shader::Opcode::S_CBRANCH_SCC0: {
                 const auto branch_target = instr.BranchTarget(pc);
@@ -1814,12 +1938,17 @@ uint mbcntHi(uint src, uint addend) {
             }
 
             case Shader::Opcode::V_CVT_PKNORM_U16_F32: {
-                code += setDST<Type::Uint>(instr.dst[0], std::format("packUnorm2x16(vec2({}, {}))", getSRC(instr.src[0]), getSRC(instr.src[1])));
+                code += setDST<Type::Uint>(instr.dst[0], std::format("packUnorm2x16(vec2({}, {}))", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Float>(instr.src[1])));
                 break;
             }
 
             case Shader::Opcode::V_CVT_PKRTZ_F16_F32: {
-                code += setDST<Type::Uint>(instr.dst[0], std::format("packHalf2x16(vec2({}, {}))", getSRC(instr.src[0]), getSRC(instr.src[1])));
+                code += setDST<Type::Uint>(instr.dst[0], std::format("packHalf2x16(vec2({}, {}))", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Float>(instr.src[1])));
+                break;
+            }
+
+            case Shader::Opcode::V_CVT_PK_U16_U32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("({} & 0xffff) | (({} & 0xffff) << 16u)", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1])));
                 break;
             }
 
@@ -1987,6 +2116,11 @@ uint mbcntHi(uint src, uint addend) {
                 break;
             }
 
+            case Shader::Opcode::V_FFBL_B32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("findLSB({})", getSRC<Type::Uint>(instr.src[0])));
+                break;
+            }
+
             case Shader::Opcode::V_MOVRELD_B32: {
                 need_set_vgpr_helper = true;
                 code += std::format("setVGPR({} + m0, {});\n", instr.dst[0].code, getVGPR(instr.src[0].code));
@@ -2065,17 +2199,27 @@ uint mbcntHi(uint src, uint addend) {
 
             case Shader::Opcode::V_MADAK_F32:
             case Shader::Opcode::V_FMA_F32: {
-                code += setDST(instr.dst[0], std::format("fma({}, {}, {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+                code += setDST<Type::Float>(instr.dst[0], std::format("fma({}, {}, {})", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Float>(instr.src[1]), getSRC<Type::Float>(instr.src[2])));
                 break;
             }
 
             case Shader::Opcode::V_MIN3_F32: {
-                code += setDST(instr.dst[0], std::format("min(min({}, {}), {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+                code += setDST<Type::Float>(instr.dst[0], std::format("min(min({}, {}), {})", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Float>(instr.src[1]), getSRC<Type::Float>(instr.src[2])));
+                break;
+            }
+
+            case Shader::Opcode::V_MIN3_U32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("min(min({}, {}), {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
+                break;
+            }
+
+            case Shader::Opcode::V_MAX3_U32: {
+                code += setDST<Type::Uint>(instr.dst[0], std::format("max(max({}, {}), {})", getSRC<Type::Uint>(instr.src[0]), getSRC<Type::Uint>(instr.src[1]), getSRC<Type::Uint>(instr.src[2])));
                 break;
             }
 
             case Shader::Opcode::V_MAX3_F32: {
-                code += setDST(instr.dst[0], std::format("max(max({}, {}), {})", getSRC(instr.src[0]), getSRC(instr.src[1]), getSRC(instr.src[2])));
+                code += setDST<Type::Float>(instr.dst[0], std::format("max(max({}, {}), {})", getSRC<Type::Float>(instr.src[0]), getSRC<Type::Float>(instr.src[1]), getSRC<Type::Float>(instr.src[2])));
                 break;
             }
 
@@ -2263,22 +2407,23 @@ uint mbcntHi(uint src, uint addend) {
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 0), ssbo_name, offset + " +  0");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 1), ssbo_name, offset + " +  1");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 2), ssbo_name, offset + " +  2");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 3), ssbo_name, offset + " +  3");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 4), ssbo_name, offset + " +  4");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 5), ssbo_name, offset + " +  5");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 6), ssbo_name, offset + " +  6");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 7), ssbo_name, offset + " +  7");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 8), ssbo_name, offset + " +  8");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 9), ssbo_name, offset + " +  9");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 10), ssbo_name, offset + " + 10");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 11), ssbo_name, offset + " + 11");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 12), ssbo_name, offset + " + 12");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 13), ssbo_name, offset + " + 13");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 14), ssbo_name, offset + " + 14");
-                code += std::format("{} = {}.data[{}];\n", getSGPR(instr.dst[0].code + 15), ssbo_name, offset + " + 15");
+                code += std::format("tmp_u = {};\n", offset);
+                code += std::format("{} = {}.data[tmp_u + 0];\n", getSGPR(instr.dst[0].code + 0), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 1];\n", getSGPR(instr.dst[0].code + 1), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 2];\n", getSGPR(instr.dst[0].code + 2), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 3];\n", getSGPR(instr.dst[0].code + 3), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 4];\n", getSGPR(instr.dst[0].code + 4), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 5];\n", getSGPR(instr.dst[0].code + 5), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 6];\n", getSGPR(instr.dst[0].code + 6), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 7];\n", getSGPR(instr.dst[0].code + 7), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 8];\n", getSGPR(instr.dst[0].code + 8), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 9];\n", getSGPR(instr.dst[0].code + 9), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 10];\n", getSGPR(instr.dst[0].code + 10), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 11];\n", getSGPR(instr.dst[0].code + 11), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 12];\n", getSGPR(instr.dst[0].code + 12), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 13];\n", getSGPR(instr.dst[0].code + 13), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 14];\n", getSGPR(instr.dst[0].code + 14), ssbo_name);
+                code += std::format("{} = {}.data[tmp_u + 15];\n", getSGPR(instr.dst[0].code + 15), ssbo_name);
                 break;
             }
 
@@ -2455,10 +2600,16 @@ uint mbcntHi(uint src, uint addend) {
             }
 
             case Shader::Opcode::DS_SWIZZLE_B32: {
-                if (instr.control.ds.offset1 & 0x80)
+                const u16 offset = instr.control.ds.offset0 | ((u16)instr.control.ds.offset1 << 8);
+                
+                if (offset & 0x8000)
                     code += setDST<Type::Uint>(instr.dst[0], std::format("subgroupQuadBroadcast({}, bitfieldExtract({}, int((gl_SubgroupInvocationID & 3) << 1), 2))", getSRC<Type::Uint>(instr.src[0]), instr.control.ds.offset0));
-                else
-                    code += setDST<Type::Uint>(instr.dst[0], std::format("{} /* TODO: DS_SWIZZLE_B32 non-quad shuffle */", getSRC<Type::Uint>(instr.src[0])));
+                else {
+                    const auto and_mask = (offset >>  0) & 0x1f;
+                    const auto or_mask  = (offset >>  5) & 0x1f;
+                    const auto xor_mask = (offset >> 10) & 0x1f;
+                    code += setDST<Type::Uint>(instr.dst[0], std::format("subgroupBroadcast({}, ((gl_SubgroupInvocationID & {}) | {}) ^ {})", getSRC<Type::Uint>(instr.src[0]), and_mask, or_mask, xor_mask));
+                }
                 break;
             }
 
@@ -2808,12 +2959,20 @@ uint mbcntHi(uint src, uint addend) {
                 break;
             }
 
+            case Shader::Opcode::IMAGE_STORE_MIP:
             case Shader::Opcode::IMAGE_STORE: {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "IMAGE_STORE: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
 
                 const auto image_name = std::format("tex{}", buf->binding);
+
+                auto* tsharp = buf->desc_info.asPtr<TSharp>(regs);
+#ifdef _WIN32
+                if (IsBadReadPtr(tsharp, sizeof(TSharp))) tsharp = nullptr;
+#endif
+                const bool is_3d = tsharp ? tsharp->is3D() : false;
+                const bool is_array = tsharp ? tsharp->isArray() : false;
 
                 // TODO: Don't duplicate this stuff from IMAGE_SAMPLE (is it even the same???)
                 int coord_reg_idx = instr.src[0].code;
@@ -2824,7 +2983,14 @@ uint mbcntHi(uint src, uint addend) {
                 code += std::format("tmp.z = u2f({});\n", getVGPR(instr.dst[0].code + 2));
                 code += std::format("tmp.w = u2f({});\n", getVGPR(instr.dst[0].code + 3));
 
-                const std::string texcoords = std::format("ivec2({}, {})", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+                std::string texcoords;
+                if (!is_3d && !is_array) {
+                    texcoords = std::format("ivec2({}, {})", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+                }
+                else {
+                    texcoords = std::format("ivec3({}, {}, {})", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1), getVGPR(coord_reg_idx + 2));
+                }
+
                 code += std::format("// T# is in s{}\n", instr.src[2].code * 4);
                 code += std::format("imageStore({}, {}, tmp);\n", image_name, texcoords);
                 break;
@@ -2885,7 +3051,8 @@ uint mbcntHi(uint src, uint addend) {
 #ifdef _WIN32
                 if (IsBadReadPtr(tsharp, sizeof(TSharp))) tsharp = nullptr;
 #endif
-                const bool is_3d = tsharp ? tsharp->type == 10 : false;
+                const bool is_3d = tsharp ? tsharp->is3D() : false;
+                const bool is_array = tsharp ? tsharp->isArray() : false;
 
                 const auto flags = MimgModifierFlags(instr.control.mimg.mod);
                 const bool offset = flags.test(MimgModifier::Offset);
@@ -2916,7 +3083,7 @@ uint mbcntHi(uint src, uint addend) {
                 // TODO: LoadBias, PCF, derivative
                 // TODO: Other dimensions
                 std::string texcoords;
-                if (!is_3d)
+                if (!is_3d && !is_array)
                     texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
                 else
                     texcoords = std::format("vec3(u2f({}), u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1), getVGPR(coord_reg_idx + 2));
@@ -2956,13 +3123,17 @@ uint mbcntHi(uint src, uint addend) {
                 auto* buf = buffer_map[buffer_mapping];
 
                 auto* tsharp = buf->desc_info.asPtr<TSharp>(regs);
-                const bool is_3d = tsharp ? tsharp->type == 10 : false;
+#ifdef _WIN32
+                if (IsBadReadPtr(tsharp, sizeof(TSharp))) tsharp = nullptr;
+#endif
+                const bool is_3d = tsharp ? tsharp->is3D() : false;
+                const bool is_array = tsharp ? tsharp->isArray() : false;
 
                 const auto sampler_name = std::format("tex{}", buf->binding);
 
                 const int coord_reg_idx = instr.src[0].code;
                 std::string texcoords;
-                if (!is_3d)
+                if (!is_3d && !is_array)
                     texcoords = std::format("ivec2({}, {})", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
                 else
                     texcoords = std::format("ivec3({}, {}, {})", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1), getVGPR(coord_reg_idx + 2));
@@ -3029,7 +3200,8 @@ uint mbcntHi(uint src, uint addend) {
                 const auto sampler_name = std::format("tex{}", buf->binding);
 
                 auto* tsharp = buf->desc_info.asPtr<TSharp>(regs);
-                const bool is_3d = tsharp ? tsharp->type == 10 : false;
+                const bool is_3d = tsharp ? tsharp->is3D() : false;
+                const bool is_array = tsharp ? tsharp->isArray() : false;
 
                 const auto flags = MimgModifierFlags(instr.control.mimg.mod);
                 const bool offset = flags.test(MimgModifier::Offset);
@@ -3053,9 +3225,13 @@ uint mbcntHi(uint src, uint addend) {
                     coord_reg_idx++;
 
                 if (derivative)
-                    coord_reg_idx += !is_3d ? 2 : 3; // TODO: This should be 1 per dimension (i.e. 3 for 3D textures)
+                    coord_reg_idx += (!is_3d /* && !is_array */) ? 2 : 3; // TODO: This should be 1 per dimension (i.e. 3 for 3D textures)
 
-                const std::string texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+                std::string texcoords;
+                if (!is_3d && !is_array)
+                    texcoords = std::format("vec2(u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1));
+                else
+                    texcoords = std::format("vec3(u2f({}), u2f({}), u2f({}))", getVGPR(coord_reg_idx), getVGPR(coord_reg_idx + 1), getVGPR(coord_reg_idx + 2));
 
                 // For gather instructions dmask selects the component
                 int comp = 0;
@@ -3141,7 +3317,7 @@ uint mbcntHi(uint src, uint addend) {
                 //printf("BasicBlock so far:\n%s\n", code.c_str());
                 //Helpers::panic("Unimplemented shader instruction %d\n", instr.opcode);
                 unimpl_instructions.push_back(instr);
-                code += "// TODO\n";
+                code += std::format("// TODO {}\n", (u32)instr.opcode);
             }
             }
 
@@ -3234,12 +3410,13 @@ template VSharp* DescriptorLocation::asPtr<VSharp>(u32* regs);
 template TSharp* DescriptorLocation::asPtr<TSharp>(u32* regs);
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job, u32* regs) {
-    //std::ofstream out;
+    std::ofstream out;
     //if (stage == ShaderStage::Vertex) {
-    //if (out_data.hash == 0x35bcdca1b0bffc8a) {
-    //  out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
-    //  out.write((char*)data, 12_KB);
-    //  out.close();
+    //if (out_data.hash == 0xa99e0e76b6930e37) {
+      out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
+      out.write((char*)data, 16_KB);
+      out.close();
+    //std::_Exit(0);
     //}
 
     Shader::GcnDecodeContext decoder;
@@ -3354,6 +3531,9 @@ bool v_cmp_class_f32(float x, uint mask) {
         const bool pos_w_ena = (input_ena >> 11) & 1;
         
         auto sgpr = 2;  // TODO: This is not always right
+
+        state.getVGPR(5);
+        main += "v5 = uint(gl_FrontFacing);\n";
 
         if (pos_x_ena) {
             state.getVGPR(sgpr);

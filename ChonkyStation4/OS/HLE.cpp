@@ -161,6 +161,31 @@ std::shared_ptr<Module> buildHLEModule() {
     module->addSymbolStub("OOrLKB0bSDs", "sceSharePlayGetCurrentConnectionInfo", "libSceSharePlay", "libSceSharePlay");
     module->addSymbolStub("+MCXJlWdi+s", "sceSharePlayGetCurrentConnectionInfoA", "libSceSharePlay", "libSceSharePlay");
     
+    // libSceShareUtility
+    module->addSymbolStub("6hlAoEaRNmI", "sceShareUtilityAdvanceFromFileWithContentIdList", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("4Yu-wQ-xrNs", "sceShareUtilityAdvanceFromFileWithTitleIdList", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("BgnrThNspOQ", "sceShareUtilityAdvanceGetServiceInfo", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("u4bCGkqhOB4", "sceShareUtilityAdvanceInitialize", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("wVsAb+Zyr1Y", "sceShareUtilityAdvanceQueryServiceInfo", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("r8dfx9oS3us", "sceShareUtilityAdvanceQueryServiceInfoA", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("sr095NLKaAc", "sceShareUtilityAdvanceResetPlayingContent", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("7J9IYIejSDs", "sceShareUtilityAdvanceSetPlayingContent", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("karnJhakdKg", "sceShareUtilityAdvanceSetUploadContentData", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("xfB04bSjrZY", "sceShareUtilityAdvanceTerminate", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("xuLuaJ4Ywlg", "sceShareUtilityAdvanceValidateContents", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("1TFyHtLzdvg", "sceShareUtilityAdvanceWakeUpShareMenu", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("tyYRZwL4rog", "sceShareUtilityAdvanceWakeUpShareMenuBroadcast", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("wcxz4F94s6k", "sceShareUtilityAdvanceWakeUpShareMenuDefault", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("PtFg1zs3XQA", "sceShareUtilityAdvanceWakeUpShareMenuForShareContent", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("Jlv-lYxEnvM", "sceShareUtilityInitialize", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("j7DlalBzHh8", "sceShareUtilityInitializeEx2", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("Lqp4EDIRXSo", "sceShareUtilityOpenShareMenu", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("-4kr-v21vjc", "sceShareUtilityOpenShareMenuBroadcast", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("8hZ2EEl2Tto", "sceShareUtilityOpenShareMenuDefault", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("qG-Qrqsc5Uk", "sceShareUtilityOpenShareMenuForShareContent", "libSceShareUtility", "libSceShareUtility");
+    module->addSymbolStub("DUWhxkyVPj4", "sceShareUtilityTerminate", "libSceShareUtility", "libSceShareUtility");
+
+
     // libSceMsgDialog
     module->addSymbolStub("lDqxaY1UbEo", "sceMsgDialogInitialize", "libSceMsgDialog", "libSceMsgDialog");
     module->addSymbolStub("b06Hh0DPEaE", "sceMsgDialogOpen", "libSceMsgDialog", "libSceMsgDialog");

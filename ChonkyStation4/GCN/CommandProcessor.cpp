@@ -317,7 +317,7 @@ bool  composite_requested_patch_color_target = false;
 bool  composite_requested_patch_depth_target = false;
 bool  composite_has_xf_render = false;
 
-void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::Libs::SceGnmDriver::ComputeQueue* compute_queue, bool is_indirect) {
+void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, ComputeQueue* compute_queue, bool is_indirect) {
     if (ccb) {
         processCcb(ccb, ccb_size);
     }
@@ -333,6 +333,8 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
         PM4Header* pkt = (PM4Header*)ptr;
         u32* args = ptr;
         args++;
+
+        //printf("%p: 0x%x\n", ptr, pkt->opcode.Value());
         
         if (pkt->type == 0) {
             ptr++;
@@ -438,6 +440,32 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             break;
         }
 
+        //case PM4ItOpcode::DispatchIndirect: {
+        //    if (compute_queue && Configuration::skip_async_compute_dispatches) break;
+        //
+        //    const auto pgm_rsrc2 = renderer->regs[Reg::mmCOMPUTE_PGM_RSRC2];
+        //
+        //    ComputeJob job;
+        //    job.dim_x = *args++;
+        //    job.dim_y = *args++;
+        //    job.dim_z = *args++;
+        //    job.start_x = renderer->regs[Reg::mmCOMPUTE_START_X];
+        //    job.start_y = renderer->regs[Reg::mmCOMPUTE_START_Y];
+        //    job.start_z = renderer->regs[Reg::mmCOMPUTE_START_Z];
+        //    job.n_threads_x = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_X];
+        //    job.n_threads_y = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Y];
+        //    job.n_threads_z = renderer->regs[Reg::mmCOMPUTE_NUM_THREAD_Z];
+        //    job.lds_size_dwords = ((pgm_rsrc2 >> 15) & 0x1ff) * 128; // Size is in 128 dword units
+        //    job.pgm_rsrc2 = pgm_rsrc2;
+        //    job.n_user_sgprs = ((pgm_rsrc2 >> 1) & 0x1f);
+        //    job.tgid_x_en = ((pgm_rsrc2 >> 7) & 1);
+        //    job.tgid_y_en = ((pgm_rsrc2 >> 8) & 1);
+        //    job.tgid_z_en = ((pgm_rsrc2 >> 9) & 1);
+        //    job.addr = renderer->getCSPtr();
+        //    renderer->dispatch(job);
+        //    break;
+        //}
+
         case PM4ItOpcode::WriteData: {
             //Profiler::Scope profiler("WriteData");
             const WriteData1 d1 = { .raw = *args++ };
@@ -495,15 +523,16 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
             const u32 reference = *args++;
             const u32 mask = *args++;
             const u32 poll_interval = *args++;
-            u32* ptr = (u32*)((d2.poll_addr_lo << 2) | ((u64)poll_addr_hi << 32));
+            u32* val_ptr = (u32*)((d2.poll_addr_lo << 2) | ((u64)poll_addr_hi << 32));
             log("lo 0x%llx hi 0x%llx\n", d2.poll_addr_lo.Value(), poll_addr_hi);
+            log("WaitRegMem: engine=%d\n", d1.engine.Value());
             log("WaitRegMem: mem_space=%d\n", d1.mem_space.Value());
-            log("WaitRegMem: ptr=%p\n", ptr);
+            log("WaitRegMem: ptr=%p\n", val_ptr);
             log("WaitRegMem: func=%d\n", d1.function.Value());
             log("WaitRegMem: ref=%d\n", reference);
 
             auto check = [&]() -> bool {
-                u32 val = (d1.mem_space == MemSpace::Memory) ? *ptr : renderer->regs[d2.reg];
+                u32 val = (d1.mem_space == MemSpace::Memory) ? *val_ptr : renderer->regs[d2.reg];
                 val &= mask;
 
                 switch (d1.function) {
@@ -518,13 +547,22 @@ void processCommands(u32* dcb, size_t dcb_size, u32* ccb, size_t ccb_size, OS::L
                 }
             };
 
+            //if (!Configuration::skip_waitregmem && is_compute) {
             if (!Configuration::skip_waitregmem) {
+                //auto now = std::chrono::steady_clock::now();
+
                 while (!check()) {
+                    //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - now);
+                    //if (elapsed.count() > 5000) {
+                    //    break;
+                    //}
+
                     if (!is_compute)
                         GCN::processAsyncCompute();
-                    else
+                    else {
+                        //printf("asc %d is returning to scheduler\n", compute_queue->qid);
                         co::active().get_parent().switch_to();
-
+                    }
 
                     // TODO: Use poll_interval
                     {

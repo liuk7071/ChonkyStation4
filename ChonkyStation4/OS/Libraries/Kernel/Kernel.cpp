@@ -552,9 +552,7 @@ static thread_local s32 posix_errno = 0;
 std::mutex allocator_mtx;
 
 static constexpr uptr SYSTEM_MAPPING_AREA = 0x0010'0000'0000;
-void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
-    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
-    
+void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) { 
     if (reservation_start >= reservation_end) return nullptr;
     if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
     if (size == 0) return nullptr;
@@ -565,20 +563,20 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
     alignment = alignment < page_size ? page_size : alignment;
     size = (size + page_size - 1) & ~(page_size - 1);
 
-    uptr cur_addr = reservation_start;
+    uptr curr_addr = reservation_start;
     // Align up
-    cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+    curr_addr = (curr_addr + alignment - 1) & ~(alignment - 1);
 
     while (true) {
         MEMORY_BASIC_INFORMATION mbi;
-        if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
+        if (!VirtualQuery((void*)curr_addr, &mbi, sizeof(mbi)))
             Helpers::panic("allocate: VirtualQuery failed\n");
 
         if (mbi.State == MEM_RESERVE) {
             uptr region_end = (uptr)mbi.BaseAddress + mbi.RegionSize;
-            if (cur_addr + size <= region_end) {
+            if (curr_addr + size <= region_end) {
                 // Try to commit memory
-                void* ret = VirtualAlloc((void*)cur_addr, size, MEM_COMMIT, PAGE_READWRITE);
+                void* ret = VirtualAlloc((void*)curr_addr, size, MEM_COMMIT, PAGE_READWRITE);
                 if (ret) {
                     if ((u64)ret & (alignment - 1)) Helpers::panic("allocate: alignment error\n");
 
@@ -589,11 +587,11 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
 
             // Free area wasn't big enough to allocate or VirtualAlloc failed
         }
-        cur_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+        curr_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
         // Align up
-        cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+        curr_addr = (curr_addr + alignment - 1) & ~(alignment - 1);
         
-        if (cur_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
+        if (curr_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
     }
 
     
@@ -602,8 +600,6 @@ void* allocate(uptr reservation_start, uptr reservation_end, size_t size, size_t
 
 // Same as allocate, without committing physical memory.
 void* findNextFree(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
-    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
-
     if (reservation_start >= reservation_end) return nullptr;
     if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
     if (size == 0) return nullptr;
@@ -614,28 +610,28 @@ void* findNextFree(uptr reservation_start, uptr reservation_end, size_t size, si
     alignment = alignment < page_size ? page_size : alignment;
     size = (size + page_size - 1) & ~(page_size - 1);
 
-    uptr cur_addr = reservation_start;
+    uptr curr_addr = reservation_start;
     // Align up
-    cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+    curr_addr = (curr_addr + alignment - 1) & ~(alignment - 1);
 
     while (true) {
         MEMORY_BASIC_INFORMATION mbi;
-        if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
+        if (!VirtualQuery((void*)curr_addr, &mbi, sizeof(mbi)))
             Helpers::panic("allocate: VirtualQuery failed\n");
 
         if (mbi.State == MEM_RESERVE) {
             uptr region_end = (uptr)mbi.BaseAddress + mbi.RegionSize;
-            if (cur_addr + size <= region_end) {
-                return (void*)cur_addr;
+            if (curr_addr + size <= region_end) {
+                return (void*)curr_addr;
             }
 
             // Free area wasn't big enough
         }
-        cur_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+        curr_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
         // Align up
-        cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+        curr_addr = (curr_addr + alignment - 1) & ~(alignment - 1);
 
-        if (cur_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
+        if (curr_addr > reservation_end) Helpers::panic("allocate: out of memory\n");
     }
 
 
@@ -644,8 +640,6 @@ void* findNextFree(uptr reservation_start, uptr reservation_end, size_t size, si
 
 // Same as findNextFree, except it looks for mapped memory
 void* findNextMapped(uptr reservation_start, uptr reservation_end, size_t size, size_t alignment) {
-    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
-
     if (reservation_start >= reservation_end) return nullptr;
     if (!alignment || (alignment & (alignment - 1)) != 0) return nullptr;
     if (size == 0) return nullptr;
@@ -656,28 +650,28 @@ void* findNextMapped(uptr reservation_start, uptr reservation_end, size_t size, 
     alignment = alignment < page_size ? page_size : alignment;
     size = (size + page_size - 1) & ~(page_size - 1);
 
-    uptr cur_addr = reservation_start;
+    uptr curr_addr = reservation_start;
     // Align up
-    cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+    curr_addr = (curr_addr + alignment - 1) & ~(alignment - 1);
 
     while (true) {
         MEMORY_BASIC_INFORMATION mbi;
-        if (!VirtualQuery((void*)cur_addr, &mbi, sizeof(mbi)))
+        if (!VirtualQuery((void*)curr_addr, &mbi, sizeof(mbi)))
             Helpers::panic("allocate: VirtualQuery failed\n");
 
         if (mbi.State == MEM_COMMIT) {
             uptr region_end = (uptr)mbi.BaseAddress + mbi.RegionSize;
-            if (cur_addr + size <= region_end) {
-                return (void*)cur_addr;
+            if (curr_addr + size <= region_end) {
+                return (void*)curr_addr;
             }
 
             // Free area wasn't big enough
         }
-        cur_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
+        curr_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
         // Align up
-        cur_addr = (cur_addr + alignment - 1) & ~(alignment - 1);
+        curr_addr = (curr_addr + alignment - 1) & ~(alignment - 1);
 
-        if (cur_addr > reservation_end) return nullptr;
+        if (curr_addr > reservation_end) return nullptr;
     }
 
 
@@ -1247,14 +1241,16 @@ s32 PS4_FUNC ipmimgr_call(s64 cmd, s64 unk2, u32* res, u8* args, size_t arg_size
 
 // TODO: Properly implement the virtual memory map
 
-std::unordered_map<void*, u64> virt_dmem_map;
-std::unordered_map<u64, void*> dmem_virt_map;
+std::map<void*, u64> virt_dmem_map;
+std::map<u64, void*> dmem_virt_map;
 std::map<u64, size_t> dmem_size_map;
 
 u64 next_dmem_addr = 0x10000;
 s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateMainDirectMemory(size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", size, align, mem_type, out_addr);
     
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
     *out_addr = (void*)next_dmem_addr;
@@ -1265,6 +1261,8 @@ s32 PS4_FUNC sceKernelAllocateMainDirectMemory(size_t size, size_t align, s32 me
 s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end, size_t size, size_t align, s32 mem_type, void** out_addr) {
     log("sceKernelAllocateDirectMemory(search_start=%p, search_end=%p, size=0x%016llx, align=0x%016llx, mem_type=%d, out_addr=*%p)\n", search_start, search_end, size, align, mem_type, out_addr);
 
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
     // TODO: For now we allocate memory directly in the map function
     //       Eventually I will need to handle the physical memory map properly...
     *out_addr = (void*)next_dmem_addr;
@@ -1272,13 +1270,40 @@ s32 PS4_FUNC sceKernelAllocateDirectMemory(void* search_start, void* search_end,
     return SCE_OK;
 }
 
+void clearTrackingRange(void* virt_start_addr, size_t len) {
+    u64 virt_start = (u64)virt_start_addr;
+    u64 virt_end   = virt_start + len;
+
+    auto it = virt_dmem_map.lower_bound(virt_start_addr);
+    if (it != virt_dmem_map.begin()) {
+        auto prev = std::prev(it);
+        u64 prev_dmem = prev->second;
+        u64 prev_size = dmem_size_map[prev_dmem];
+        if ((u64)prev->first + prev_size > virt_start) {
+            it = prev;
+        }
+    }
+
+    while (it != virt_dmem_map.end() && (u64)it->first < virt_end) {
+        u64 dmem = it->second;
+        dmem_virt_map.erase(dmem);
+        dmem_size_map.erase(dmem);
+        it = virt_dmem_map.erase(it);
+    }
+}
+
 s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 flags, void* dmem_start, size_t align) {
     log("sceKernelMapDirectMemory(addr=*%p, len=0x%llx, prot=%d, flags=%d, dmem_start=0x%016llx, align=0x%016llx)\n", addr, len, prot, flags, dmem_start, align);
+
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
     void* in_addr = *addr;
     log("in_addr=%p\n", in_addr);
 
     align = align ? align : 16_KB;
+
+    const bool is_fixed         = flags & SCE_KERNEL_MAP_FIXED;
+    const bool is_no_overwrite  = flags & 0x80;
 
     // Address is out of bounds. FIFA 14 does this, and expects it to work?
     // This game doesn't request a fixed mapping so we can just treat it as in_addr == 0
@@ -1287,20 +1312,36 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
         //return SCE_KERNEL_ERROR_ENOMEM;
         in_addr = nullptr;
     }
-
+    
     // TODO: prot, flags, verify align is a valid value (multiple of 16kb)
+
+    // Map here directly
+    if (in_addr && is_fixed && !is_no_overwrite) {
 #ifdef _WIN32
-    if (!in_addr) {
-        *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
-    }
-    else if ((u64)in_addr >= 0x8000'0000)
-        *addr = allocate((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
-    else
-        // TODO
-        *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
+        void* ret = VirtualAlloc((void*)in_addr, len, MEM_COMMIT, PAGE_READWRITE);
+        if (ret != in_addr)
+            Helpers::panic("sceKernelMapDirectMemory: ret != in_addr (in is_fixed && !is_no_overwrite)\n");
+        *addr = in_addr;
 #else
-    Helpers::panic("Unsupported platform\n");
+        Helpers::panic("Unsupported platform\n");
 #endif
+
+        clearTrackingRange(*addr, len);
+    }
+    else {
+#ifdef _WIN32
+        if (!in_addr) {
+            *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
+        }
+        else if ((u64)in_addr >= 0x8000'0000)
+            *addr = allocate((u64)in_addr, 0x8000'0000 + 2000_GB, len, align);
+        else
+            // TODO
+            *addr = allocate(0x8000'0000, 0x8000'0000 + 2000_GB, len, align);
+#else
+        Helpers::panic("Unsupported platform\n");
+#endif
+    }
 
     if (!*addr) {
         Helpers::panic("sceKernelMapDirectMemory: failed to allocate\n");
@@ -1320,8 +1361,12 @@ s32 PS4_FUNC sceKernelMapDirectMemory(void** addr, size_t len, s32 prot, s32 fla
             curr_addr = (uptr)mbi.BaseAddress + mbi.RegionSize;
         }
 #endif
+        for (auto [virt, dmem] : virt_dmem_map) {
+            printf("%p: %p size 0x%llx\n", virt, dmem, dmem_size_map[dmem]);
+        }
         Helpers::panic("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
-        //printf("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
+        printf("sceKernelMapDirectMemory: could not allocate at in_addr with fixed flag (got addr %p, requested %p)\n", *addr, in_addr);
+        lk.unlock();
         sceKernelMunmap(*addr, len);
         *addr = nullptr;
         return SCE_KERNEL_ERROR_ENOMEM;
@@ -1350,6 +1395,8 @@ s32 PS4_FUNC sceKernelMapFlexibleMemory(void** addr, size_t len, s32 prot, s32 f
 
 s32 PS4_FUNC sceKernelMapNamedFlexibleMemory(void** addr, size_t len, s32 prot, s32 flags, const char* name) {
     log("sceKernelMapNamedFlexibleMemory(addr=*%p, len=0x%llx, prot=%d, flags=%d, name=\"%s\")\n", addr, len, prot, flags, name);
+
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
     void* in_addr = *addr;
     if (in_addr) {
@@ -1385,13 +1432,15 @@ s32 PS4_FUNC sceKernelReserveVirtualRange(void** addr, size_t len, s32 flags, si
     log("sceKernelReserveVirtualRange(addr=*%p, len=0x%llx, flags=%d, align=0x%016llx)\n", addr, len, flags, align);
     log("in_addr=%p\n", *addr);
 
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
     // Quick hack: if MAP_FIXED is specified and MAP_NO_OVERWRITE isn't, just reserve the input address directly
     if ((flags & SCE_KERNEL_MAP_FIXED) && !(flags & 0x80)) {
         if (!*addr) {
             Helpers::panic("sceKernelReserveVirtualRange: MAP_FIXED was specified but *addr is null\n");
         }
 
-        // Leave *addr unchanged
+        // Leave *addr unchangedauto lk = std::unique_lock<std::mutex>(allocator_mtx);
         
         reserved_areas.push_back({ .start = (uptr)*addr, .size = len });
         log("out_addr=%p [skipped]\n", *addr);
@@ -1455,44 +1504,84 @@ s32 PS4_FUNC sceKernelReserveVirtualRange(void** addr, size_t len, s32 flags, si
 s32 PS4_FUNC sceKernelReleaseDirectMemory(void* addr, size_t len) {
     log("sceKernelReleaseDirectMemory(addr=%p, len=0x%llx)\n", addr, len);
 
-    // TODO: Implement properly
-    //auto to_free = len;
-    //while (to_free) {
-    //    if (dmem_virt_map.contains((u64)addr)) {
-    //        log("releasing memory\n");
-    //        void* virt_addr = dmem_virt_map[(u64)addr];
-    //        const auto size = std::min(dmem_size_map[(u64)addr], to_free);
-    //        sceKernelMunmap(virt_addr, size);
-    //        virt_dmem_map.erase(virt_addr);
-    //        dmem_virt_map.erase((u64)addr);
-    //        dmem_size_map.erase((u64)addr);
-    //        addr = (void*)((u64)addr + 1);
-    //        to_free -= size;
-    //    }
-    //    else break;
-    //}
-    if (dmem_virt_map.contains((u64)addr)) {
-        log("releasing memory\n");
-        void* virt_addr = dmem_virt_map[(u64)addr];
-        sceKernelMunmap(virt_addr, len);
-        virt_dmem_map.erase(virt_addr);
-        dmem_virt_map.erase((u64)addr);
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
-        auto size = dmem_size_map[(u64)addr];
-        dmem_size_map.erase((u64)addr);
-        
-        if (len < size) {
-            const u64 new_virt_addr = (u64)virt_addr + len;
-            const u64 new_dmem_addr = (u64)addr + len;
-            const u64 new_size = size - len;
-            virt_dmem_map[(void*)new_virt_addr] = new_dmem_addr;
-            dmem_virt_map[new_dmem_addr] = (void*)new_virt_addr;
-            dmem_size_map[new_dmem_addr] = new_size;
+    u64 curr_addr = (u64)addr;
+    u64 remaining = len;
+
+    while (remaining > 0) {
+        u64   region_dmem_start = 0;
+        void* region_virt_start = nullptr;
+        u64   region_size       = 0;
+
+        if (dmem_virt_map.contains(curr_addr)) {
+            region_dmem_start = curr_addr;
+            region_virt_start = dmem_virt_map[curr_addr];
+            region_size = dmem_size_map[curr_addr];
         }
-            
+        else {
+            auto it = dmem_virt_map.upper_bound(curr_addr);
+            bool found = false;
+            if (it != dmem_virt_map.begin()) {
+                auto prev = std::prev(it);  // --it modifies the original iterator but we need it later
+                u64 size = dmem_size_map[prev->first];
+                if (Helpers::inRangeSized<u64>(curr_addr, prev->first, size)) {
+                    region_dmem_start = prev->first;
+                    region_virt_start = prev->second;
+                    region_size = size;
+                    found = true;
+                }
+            }
+
+            if (!found) {
+                // Jump to the next tracked mapping if it's still part of the range requested
+                if (it != dmem_virt_map.end() && it->first < curr_addr + remaining) {
+                    const u64 to_skip = it->first - curr_addr;
+                    curr_addr  += to_skip;
+                    remaining  -= to_skip;
+                    continue;
+                }
+                break;  // Nothing left to unmap
+            }
+        }
+
+        const u64 offset_in_region  = curr_addr - region_dmem_start;
+        const u64 size_available    = region_size - offset_in_region;
+        const u64 size_to_release   = std::min(remaining, size_available);
+
+        void* addr_to_release = (void*)((u64)region_virt_start + offset_in_region);
+        log("releasing memory: virt=%p dmem=%p size=0x%llx\n", addr_to_release, curr_addr, size_to_release);
+        lk.unlock();
+        sceKernelMunmap(addr_to_release, size_to_release);
+        lk.lock();
+
+        // Remove the old entry
+        virt_dmem_map.erase(region_virt_start);
+        dmem_virt_map.erase(region_dmem_start);
+        dmem_size_map.erase(region_dmem_start);
+
+        if (offset_in_region > 0) {
+            // First half
+            dmem_virt_map[region_dmem_start] = region_virt_start;
+            virt_dmem_map[region_virt_start] = region_dmem_start;
+            dmem_size_map[region_dmem_start] = offset_in_region;
+        }
+
+        const u64 tail_offset = offset_in_region + size_to_release;
+        if (tail_offset < region_size) {
+            // Second half (tail)
+            const u64 new_dmem  = region_dmem_start + tail_offset;
+            void* new_virt      = (void*)((u64)region_virt_start + tail_offset);
+            const u64 new_size  = region_size - tail_offset;
+            dmem_virt_map[new_dmem] = new_virt;
+            virt_dmem_map[new_virt] = new_dmem;
+            dmem_size_map[new_dmem] = new_size;
+        }
+
+        curr_addr += size_to_release;
+        remaining -= size_to_release;
     }
-    else
-        printf("sceKernelReleaseDirectMemory: no match for %p\n", addr);
+
     return SCE_OK;
 }
 
@@ -1543,6 +1632,8 @@ s32 PS4_FUNC sceKernelConfiguredFlexibleMemorySize(size_t* out_size) {
 s32 PS4_FUNC sceKernelGetDirectMemoryType(void* start, s32* out_type, void** out_region_start, void** out_region_end) {
     log("sceKernelGetDirectMemoryType(start=%p, out_type=*%p, out_region_start=*%p, out_region_end=*%p)\n", start, out_type, out_region_start, out_region_end);
 
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
     // TODO: Stub until I implement proper direct memory mapping (soon)
     *out_type = 0;
     *out_region_start = start;
@@ -1557,6 +1648,8 @@ s32 PS4_FUNC sceKernelGetDirectMemoryType(void* start, s32* out_type, void** out
 
 s32 PS4_FUNC sceKernelAvailableDirectMemorySize(u64 search_start, u64 search_end, size_t alignment, u64* phys_addr_out, size_t* size_out) {
     log("sceKernelAvailableDirectMemorySize(search_start=0x%llx, search_end=0x%llx, alignment=0x%llx, phys_addr_out=*%p, size_out=*%p)\n", search_start, search_end, alignment, phys_addr_out, size_out);
+
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
     // TODO
     *phys_addr_out = search_start;
@@ -1574,6 +1667,8 @@ s32 PS4_FUNC sceKernelAvailableFlexibleMemorySize(size_t* size_out) {
 
 s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtualQueryInfo* info, size_t info_size) {
     log("sceKernelVirtualQuery(addr=%p, flags=0x%x, info=*%p, info_size=%d)\n", addr, flags, info, info_size);
+
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
     // TODO: This is a very bad stub. I need to properly implement the memory map.
 #ifdef _WIN32
@@ -1596,8 +1691,24 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
 #endif
 
     bool is_dmem = false;
-    if (virt_dmem_map.contains(info->start)) {
+    u64 dmem_offset = 0;
+    if (virt_dmem_map.contains((void*)addr)) {
         is_dmem = true;
+        dmem_offset = virt_dmem_map[(void*)addr];
+    }
+
+    if (!is_dmem) {
+        // Check if it's part of an earlier range
+        // TODO: I really need to make a memory rewrite
+        auto it = virt_dmem_map.upper_bound((void*)addr);
+        if (it != virt_dmem_map.begin()) {
+            it--;
+            printf("found range: %p: %p size 0x%llx\n", it->first, it->second, dmem_size_map[it->second]);
+            if (Helpers::inRangeSized<u64>((u64)addr, (u64)it->first, dmem_size_map[it->second])) {
+                is_dmem = true;
+                dmem_offset = it->second + (uptr)addr - (uptr)it->first;
+            }
+        }
     }
 
     info->protection = 0;
@@ -1606,12 +1717,7 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
     info->is_stack = 0;
     info->is_pooled_mem = 0;
     info->is_committed = 1;
-    if (is_dmem) {
-        info->offset = virt_dmem_map[info->start];
-    }
-    else {
-        info->offset = 0;
-    }
+    info->offset = dmem_offset;
     info->name[0] = '\0';
 
     log("info->start                 :    %p\n", info->start);
@@ -1628,6 +1734,8 @@ s32 PS4_FUNC sceKernelVirtualQuery(const void* addr, s32 flags, SceKernelVirtual
 
 s32 PS4_FUNC sceKernelDirectMemoryQuery(const u64 addr, s32 flags, SceKernelDirectMemoryQueryInfo* info, size_t info_size) {
     log("sceKernelDirectMemoryQuery(addr=%p, flags=%d, info=*%p, info_size=%lld)\n", addr, flags, info, info_size);
+
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
     const bool find_next = flags;
     auto map_addr = addr;
@@ -1658,6 +1766,8 @@ s32 PS4_FUNC sceKernelDirectMemoryQuery(const u64 addr, s32 flags, SceKernelDire
 s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end, s32* prot) {
     log("sceKernelQueryMemoryProtection(addr=%p, start=*%p, end=*%p, prot=*%p)\n", addr, start, end, prot);
     
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
+
     if (start || end) {
         Helpers::panic("TODO: sceKernelQueryMemoryProtection with start/end");
     }
@@ -1669,6 +1779,8 @@ s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end
 
 void* PS4_FUNC kernel_mmap(void* addr, size_t len, s32 prot, s32 flags, s32 fd, s64 offs) {
     log("mmap(addr=%p, len=0x%llx, prot=0x%x, flags=0x%x, fd=%d, offs=0x%llx)\n", addr, len, prot, flags, fd, offs);
+
+    auto lk = std::unique_lock<std::mutex>(allocator_mtx);
 
     void* out_addr = nullptr;
 

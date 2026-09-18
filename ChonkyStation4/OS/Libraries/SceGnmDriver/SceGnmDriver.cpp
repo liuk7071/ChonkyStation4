@@ -91,8 +91,6 @@ void init(Module& module) {
     module.addSymbolStub("qpGITzPE+Zc", "sceGnmDebugHardwareStatus", "libSceGnmDriver", "libSceGnmDriver");
 }
 
-ComputeQueue compute_queues[MAX_COMPUTE_QUEUES];
-
 s32 PS4_FUNC sceGnmSubmitAndFlipCommandBuffers(u32 cnt, u32** dcb_gpu_addrs, u32* dcb_sizes, u32** ccb_gpu_addrs, u32* ccb_sizes, u32 video_out_handle, u32 buf_idx, u32 flip_mode, u64 flip_arg) {
     log("sceGnmSubmitAndFlipCommandBuffers(cnt=%d, dcb_gpu_addrs=*%p, dcb_sizes=%p, ccb_gpu_addrs=*%p, ccb_sizes=%p, video_out_handle=%d, buf_idx=%d, flip_mode=%d, flip_arg=0x%llx)\n", cnt, dcb_gpu_addrs, dcb_sizes, ccb_gpu_addrs, ccb_sizes, video_out_handle, buf_idx, flip_mode, flip_arg);
     
@@ -139,13 +137,19 @@ s32 PS4_FUNC sceGnmAddEqEvent(Libs::Kernel::SceKernelEqueue eq, u64 id, void* ud
 s32 PS4_FUNC sceGnmMapComputeQueue(u32 pipe_id, u32 queue_id, void* ring_base_addr, u32 ring_size_dw, u32* read_ptr_addr) {
     log("sceGnmMapComputeQueue(pipe_id=%d, queue_id=%d, ring_base_addr=%p, ring_size_dw=0x%x, read_ptr_addr=%p)\n", pipe_id, queue_id, ring_base_addr, ring_size_dw, read_ptr_addr);
     
-    const auto qid = pipe_id * MAX_COMPUTE_QUEUES_PER_PIPE + queue_id;
-    ComputeQueue& queue = compute_queues[qid];
+    const auto qid = pipe_id * GCN::MAX_COMPUTE_QUEUES_PER_PIPE + queue_id;
+    auto& queue = GCN::compute_queues[qid];
+    auto lk = queue.getLock();
     if (queue.is_mapped) {
         Helpers::panic("Tried to map an already mapped compute queue\n");
     }
 
-    queue = { true, ring_base_addr, ring_size_dw, read_ptr_addr };
+    queue.is_mapped = true;
+    queue.qid = qid;
+    queue.ring_base_addr = ring_base_addr;
+    queue.ring_size_dw = ring_size_dw;
+    queue.read_ptr_addr = read_ptr_addr;
+    
     *read_ptr_addr = 0;
     log("Mapped compute queue %d\n", qid + 1);
     return qid + 1;    // Queue id is non-zero
@@ -161,7 +165,9 @@ s32 PS4_FUNC sceGnmMapComputeQueueWithPriority(u32 pipe_id, u32 queue_id, void* 
 s32 PS4_FUNC sceGnmDingDong(u32 queue_id, u32 next_offs_dw) {
     log("sceGnmDingDong(queue_id=%d, next_offs_dw=0x%x)\n", queue_id, next_offs_dw);
 
-    ComputeQueue& queue = compute_queues[queue_id - 1];
+    auto& queue = GCN::compute_queues[queue_id - 1];
+    auto lk = queue.getLock();
+
     if (!queue.is_mapped) {
         Helpers::panic("sceGnmDingDong on an unmapped queue\n");
     }

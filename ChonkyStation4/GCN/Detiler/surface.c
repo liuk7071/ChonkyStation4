@@ -1489,6 +1489,7 @@ GpaError gpaInitSurfaceContext(
 	    .linearwidth = tp->linearwidth,
 	    .linearheight = tp->linearheight,
 	    .lineardepth = tp->lineardepth,
+        .arrayslice = tp->arrayslice,
 	    .paddedwidth = surfinfo.pitch,
 	    .paddedheight = surfinfo.height,
 	    .paddeddepth = surfinfo.depth,
@@ -2078,6 +2079,7 @@ static GpaError ComputeSurfaceAddrFromCoordMacroTiled(
     bool isDepthSampleOrder,  ///< [in] TRUE if it depth sample ordering is used
     uint32_t pipeSwizzle,     ///< [in] pipe swizzle
     uint32_t bankSwizzle,     ///< [in] bank swizzle
+    uint32_t rotationSlice,
     const GpaTileInfo* pTileInfo,  ///< [in] bank structure  **All fields to be
 				   ///< valid on entry**
     uint64_t* pBytePosition,	   ///< [out] byte position
@@ -2293,14 +2295,14 @@ static GpaError ComputeSurfaceAddrFromCoordMacroTiled(
 	}
 
 	err = ComputePipeFromCoord(
-	    x, y, slice, arrayMode, pipeSwizzle, pTileInfo, &pipe
+	    x, y, rotationSlice, arrayMode, pipeSwizzle, pTileInfo, &pipe
 	);
 	if (err != GPA_ERR_OK) {
 		return err;
 	}
 
 	err = ComputeBankFromCoord(
-	    x, y, slice, arrayMode, bankSwizzle, tileSplitSlice, pTileInfo,
+	    x, y, rotationSlice, arrayMode, bankSwizzle, tileSplitSlice, pTileInfo,
 	    &bank
 	);
 	if (err != GPA_ERR_OK) {
@@ -2416,7 +2418,7 @@ GpaError gpaComputeSurfaceCoord(
 		    x, y, z, fragindex, ctx->bitsperelement, ctx->paddedwidth,
 		    ctx->paddedheight, ctx->numfragsperpixel, arraymode,
 		    microTileType, isDepthSampleOrder, ctx->pipeswizzlemask,
-		    ctx->bankswizzlemask, &ctx->tileinfo, &addr, &bitPosition
+		    ctx->bankswizzlemask, z + ctx->arrayslice, &ctx->tileinfo, &addr, &bitPosition
 		);
 		break;
 	default:

@@ -88,6 +88,11 @@ void patchCode(Module& module, u8* code_ptr, size_t size) {
                 u8* instr_addr = code_ptr + offs;
                 log("- Found TLS access with size %d @ %p\n", instruction.length, instr_addr);
 
+                if (operands[1].mem.disp.value != 0) {
+                    offs += instruction.length;
+                    continue;
+                }
+
                 // Ensure the threading system is initialized
                 Helpers::debugAssert(PS4::OS::Thread::initialized, "CodePatcher: threading system is not initialized\n");   // Unreachable in theory
 

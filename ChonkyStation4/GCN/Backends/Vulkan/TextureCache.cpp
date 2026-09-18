@@ -38,15 +38,17 @@ void TrackedTexture::transition(vk::ImageLayout new_layout) {
 
 void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool dont_match_num_format, bool is_depth_buffer, vk::Format depth_vk_fmt, bool dont_track_cpu_writes, bool do_upscale) {
     //Profiler::Scope profiler("getVulkanImageInfoForTSharp");
-    const bool is_3d = tsharp->type == 10;  // COLOR 3D
+    const bool is_3d    = tsharp->is3D();
+    const bool is_array = tsharp->isArray();
     u32 width = tsharp->width + 1;
     u32 height = tsharp->height + 1;
     const u32 depth = is_3d ? std::max(tsharp->depth + 1, 1) : 1;
+    const u32 array_layers = is_array ? std::max(tsharp->depth + 1, 1) : 1;
     u32 pitch = tsharp->pitch + 1;
     const u32 n_mips = tsharp->last_level - tsharp->base_level + 1;
     //if (tsharp->pow2pad)
     //    pitch = std::bit_ceil(pitch);
-    
+
     void* ptr = (void*)(tsharp->base_address << 8);
     auto [vk_fmt, pixel_size] = getBufFormatAndSize(tsharp->data_format, tsharp->num_format);
     vk_fmt = is_depth_buffer ? depth_vk_fmt : vk_fmt;
@@ -92,8 +94,6 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     }
     }
 
-    // TODO: Tiled 3D textures
-
     const uptr   aligned_base = Helpers::alignDown<uptr>((uptr)ptr, Cache::page_size);
     const uptr   aligned_end = Helpers::alignUp<uptr>((uptr)ptr + img_size, Cache::page_size);
     const size_t aligned_size = aligned_end - aligned_base;
@@ -122,7 +122,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         const GpaTextureInfo tex_info = gnmTexBuildInfo((GnmTexture*)&tex->tsharp);
         GpaTextureInfo out_tex_info = tex_info;
         bool detiled = false;
-        if ((tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL && tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_ALIGNED) || is_3d) {
+        if ((tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_GENERAL && tex->tsharp.tiling_index != GNM_TM_DISPLAY_LINEAR_ALIGNED) || is_3d || is_array) {
             //Profiler::add("Number of detiled textures", 1);
             //Profiler::Scope profiler("Detiler time");
             out_tex_info.tm = GNM_TM_DISPLAY_LINEAR_GENERAL;
@@ -162,7 +162,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
             detiled_buf = std::make_unique<u8[]>(out_size);
             GpaError err = gpaTileTextureAll(ptr, in_size, detiled_buf.get(), out_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
-            //if (err != 0) Helpers::panic("gpaTileTextureAll failed with error %d\n", err);
+            if (err != 0) Helpers::panic("gpaTileTextureAll failed with error %d\n", err);
             img_ptr = detiled_buf.get();
             pitch = width;
             img_size = out_size;
@@ -178,22 +178,24 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
             printf("pitch < width\n");
 
         for (int mip = 0; mip < n_mips; mip++) {
-            u64 len;
-            u64 offs;
-            gpaComputeSurfaceSizeOffset(&len, &offs, &out_tex_info, mip, 0 /* array slice */);
-            
-            vk::BufferImageCopy region = {
-                .bufferOffset = offs,
-                .bufferRowLength = !detiled ? buffer_row_length : 0,    // I think the detiler tightly packs the output
-                .bufferImageHeight = height >> mip,
-                .imageSubresource = {
-                    !tex->is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth,
-                    (u32)mip, 0, 1
-                },
-                .imageOffset = { 0, 0, 0 },
-                .imageExtent = { width >> mip, height >> mip, depth >> mip }
-            };
-            cmd_bufs[frame_idx].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
+            for (int layer = 0; layer < array_layers; layer++) {
+                u64 len;
+                u64 offs;
+                gpaComputeSurfaceSizeOffset(&len, &offs, &out_tex_info, mip, layer);
+
+                vk::BufferImageCopy region = {
+                    .bufferOffset = offs,
+                    .bufferRowLength = !detiled ? buffer_row_length : 0,    // I think the detiler tightly packs the output
+                    .bufferImageHeight = height >> mip,
+                    .imageSubresource = {
+                        !tex->is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth,
+                        (u32)mip, (u32)layer, 1
+                    },
+                    .imageOffset = { 0, 0, 0 },
+                    .imageExtent = { width >> mip, height >> mip, is_3d ? (depth >> mip) : 1 }
+                };
+                cmd_bufs[frame_idx].copyBufferToImage(buf, *img, vk::ImageLayout::eTransferDstOptimal, { region });
+            }
         }
     };
 
@@ -228,12 +230,13 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     if (tracked_textures.contains(ptr)) {
         // Find one that matches the size and format
         for (auto& tracked_tex : tracked_textures[ptr]) {
-            if (   tracked_tex->width  == width
-                && tracked_tex->height == height
-                && (tracked_tex->depth == depth || !is_3d)
-                && tracked_tex->n_mips == n_mips
-                && tracked_tex->tsharp.data_format == tsharp->data_format
-                && (tracked_tex->tsharp.num_format == tsharp->num_format || dont_match_num_format)
+            if (   tracked_tex->width               == width
+                && tracked_tex->height              == height
+                && (tracked_tex->depth              == depth || !is_3d)
+                && tracked_tex->n_mips              == n_mips
+                && tracked_tex->array_layers        == array_layers
+                && tracked_tex->tsharp.data_format  == tsharp->data_format
+                && (tracked_tex->tsharp.num_format  == tsharp->num_format || dont_match_num_format)
                 //&& tracked_tex->tsharp.dst_sel_x == tsharp->dst_sel_x
                 //&& tracked_tex->tsharp.dst_sel_y == tsharp->dst_sel_y
                 //&& tracked_tex->tsharp.dst_sel_z == tsharp->dst_sel_z
@@ -292,6 +295,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     tex->width = width;
     tex->height = height;
     tex->depth = depth;
+    tex->array_layers = array_layers;
     tex->n_mips = n_mips;
     tex->page = page;
     tex->page_end = page_end;
@@ -333,7 +337,7 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .format = vk_fmt,
         .extent = { width, height, depth },
         .mipLevels = n_mips,
-        .arrayLayers = 1,
+        .arrayLayers = array_layers,
         .samples = vk::SampleCountFlagBits::e1,
         .tiling = vk::ImageTiling::eOptimal,
         .usage = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | attachment_bits,
@@ -378,12 +382,12 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
     auto& img_view = tex->view;
     vk::ImageViewCreateInfo view_info = {
         .image = *img,
-        .viewType = !is_3d ? vk::ImageViewType::e2D : vk::ImageViewType::e3D,
+        .viewType = !is_3d ? (!is_array ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D,
         .format = vk_fmt,
         .subresourceRange = {
             !is_depth_buffer ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eDepth,
             0, n_mips,
-            0, 1
+            0, array_layers
         },
 
         .components = {
@@ -403,9 +407,9 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .mipmapMode = vk::SamplerMipmapMode::eLinear,
 
         // Hack for Tomb Raider, fix when I implement samplers
-        .addressModeU = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
-        .addressModeV = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
-        .addressModeW = width == 256 ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeU = (width == 256) || (width == 33 && height == 33 && depth == 33) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeV = (width == 256) || (width == 33 && height == 33 && depth == 33) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeW = (width == 256) || (width == 33 && height == 33 && depth == 33) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
 
         .minLod = 0.0f,
         .maxLod = (float)(n_mips - 1),

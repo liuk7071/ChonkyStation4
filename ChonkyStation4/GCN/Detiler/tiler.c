@@ -135,7 +135,7 @@ GpaError gpaTileSurface(
 static inline bool regionhastexels(const GpaSurfaceRegion* region) {
 	const uint32_t width = region->right - region->left;
 	const uint32_t height = region->bottom - region->top;
-	const uint32_t depth = region->back - region->top;
+	const uint32_t depth = region->back - region->front;
 	return width > 0 && height > 0 && depth > 0;
 }
 
