@@ -16,7 +16,7 @@ s32 PS4_FUNC scePthreadRwlockInit(pthread_rwlock_t* lock, const pthread_rwlockat
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_rdlock(pthread_rwlock_t* lock) {
-    log("pthread_rwlock_rdlock(lock=*%p)\n", lock);
+    //log("pthread_rwlock_rdlock(lock=*%p)\n", lock);
 
     if (*lock == 0)
         *lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -27,7 +27,7 @@ s32 PS4_FUNC kernel_pthread_rwlock_rdlock(pthread_rwlock_t* lock) {
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_wrlock(pthread_rwlock_t* lock) {
-    log("pthread_rwlock_wrlock(lock=*%p)\n", lock);
+    //log("pthread_rwlock_wrlock(lock=*%p)\n", lock);
 
     if (*lock == 0)
         *lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -38,7 +38,7 @@ s32 PS4_FUNC kernel_pthread_rwlock_wrlock(pthread_rwlock_t* lock) {
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_tryrdlock(pthread_rwlock_t* lock) {
-    log("pthread_rwlock_tryrdlock(lock=*%p)\n", lock);
+    //log("pthread_rwlock_tryrdlock(lock=*%p)\n", lock);
 
     if (*lock == 0)
         *lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -50,7 +50,7 @@ s32 PS4_FUNC kernel_pthread_rwlock_tryrdlock(pthread_rwlock_t* lock) {
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_trywrlock(pthread_rwlock_t* lock) {
-    log("pthread_rwlock_trywrlock(lock=*%p)\n", lock);
+    //log("pthread_rwlock_trywrlock(lock=*%p)\n", lock);
 
     if (*lock == 0)
         *lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -62,7 +62,7 @@ s32 PS4_FUNC kernel_pthread_rwlock_trywrlock(pthread_rwlock_t* lock) {
 }
 
 s32 PS4_FUNC kernel_pthread_rwlock_unlock(pthread_rwlock_t* lock) {
-    log("pthread_rwlock_unlock(lock=*%p)\n", lock);
+    //log("pthread_rwlock_unlock(lock=*%p)\n", lock);
     return pthread_rwlock_unlock(lock);
 }
 

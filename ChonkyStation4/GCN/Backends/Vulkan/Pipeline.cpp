@@ -611,7 +611,7 @@ std::vector<vk::WriteDescriptorSet> Pipeline::uploadBuffersAndTextures(PushConst
 
                 TrackedTexture* tex;
                 Vulkan::getVulkanImageInfoForTSharp(tsharp, &tex, true);
-                tex->was_bound = true;
+                //tex->was_bound = true;
 
                 if (tex == rt) {
                     *has_feedback_loop = true;

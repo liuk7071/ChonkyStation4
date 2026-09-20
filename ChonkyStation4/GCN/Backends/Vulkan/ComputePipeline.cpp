@@ -122,7 +122,9 @@ std::vector<vk::WriteDescriptorSet> ComputePipeline::uploadBuffersAndTextures(Pu
                     }
                 }
 
-                auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size);
+                const bool write_only = buf_info.is_buffer_store && !buf_info.is_buffer_read;
+                //const bool write_only = false;
+                auto [cached_buf, offs, was_dirty] = Cache::getBuffer(guest_buf_data, buf_size, write_only /* ignore_dirty */);
 
                 buffer_info[frame_idx].push_back({
                     .buffer = cached_buf,
@@ -170,7 +172,7 @@ std::vector<vk::WriteDescriptorSet> ComputePipeline::uploadBuffersAndTextures(Pu
 
                 TrackedTexture* tex;
                 Vulkan::getVulkanImageInfoForTSharp(tsharp, &tex, true);
-                tex->was_bound = true;
+                //tex->was_bound = true;
 
                 if (tex == rt) {
                     *has_feedback_loop = true;

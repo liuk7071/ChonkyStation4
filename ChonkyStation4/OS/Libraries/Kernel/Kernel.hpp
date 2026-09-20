@@ -284,6 +284,7 @@ s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** a
 
 // libc.prx HLE
 void* PS4_FUNC malloc(size_t size);
+void* PS4_FUNC memalign(size_t alignment, size_t size);
 void PS4_FUNC free(void* ptr);
 
 }   // End namespace PS4::OS::Libs::Kernel

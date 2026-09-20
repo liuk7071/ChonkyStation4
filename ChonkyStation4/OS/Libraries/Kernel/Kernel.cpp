@@ -192,6 +192,7 @@ void init(Module& module) {
     module.addSymbolExport("1-LFLmRFxxM", "sceKernelMkdir", "libkernel", "libkernel", (void*)&sceKernelMkdir);
     module.addSymbolStub("c7ZnT7V1B98", "rmdir", "libkernel", "libkernel");
     module.addSymbolStub("c7ZnT7V1B98", "rmdir", "libScePosix", "libkernel");
+    module.addSymbolStub("52NcYU9+lEo", "sceKernelRename", "libkernel", "libkernel");   // Used by Bloodborne
     module.addSymbolExport("AqBioC2vF3I", "read", "libkernel", "libkernel", (void*)&kernel_read);
     module.addSymbolExport("AqBioC2vF3I", "read", "libScePosix", "libkernel", (void*)&kernel_read);
     module.addSymbolExport("DRuBt2pvICk", "_read", "libkernel", "libkernel", (void*)&kernel_read);
@@ -499,6 +500,7 @@ void init(Module& module) {
     module.addSymbolStub("mTBZfEal2Bw", "mlock", "libkernel", "libkernel");
     module.addSymbolStub("OG4RsDwLguo", "munlock", "libkernel", "libkernel");
     module.addSymbolStub("iBQ2omlTuls", "sceKernelIccSetBuzzer", "libkernel", "libkernel");
+    module.addSymbolStub("OjWstbIRPUo", "__Ux86_64_setcontext", "libkernel", "libkernel");  // Used by GT Sport
     module.addSymbolStub("txHtngJ+eyc", "scePthreadAttrGetguardsize", "libkernel", "libkernel");    // Used by Worms WMD
     module.addSymbolStub("usHTMoFoBTM", "sceKernelEnableDmemAliasing", "libkernel_dmem_aliasing2", "libkernel");
     
@@ -520,6 +522,8 @@ void init(Module& module) {
     
     module.addSymbolStub("mpxAdqW7dKY", "sceKernelIsProspero", "libkernel_cpumode_platform", "libkernel", false);
     
+    module.addSymbolStub("DLORcroUqbc", "sceKernelGetOpenPsId", "libSceOpenPsId", "libkernel");
+    
     module.addSymbolStub("3k6kx-zOOSQ", "sceKernelMlock", "libkernel", "libkernel");
     module.addSymbolStub("EfqmKkirJF0", "sceKernelMlockall", "libkernel", "libkernel");
     
@@ -533,7 +537,9 @@ void init(Module& module) {
     // libSceLibcInternal HLE. Move these to their own file later
     //module.addSymbolExport("gQX+4GDQjpM", "malloc", "libSceLibcInternal", "libSceLibcInternal", (void*)&Kernel::malloc);
     //module.addSymbolExport("tIhsqj0qsFE", "free", "libSceLibcInternal", "libSceLibcInternal", (void*)&Kernel::free);
-
+    
+    //module.addSymbolExport("Ujf3KzMvRmI", "memalign", "libc", "libc", (void*)&Kernel::memalign);
+    
     proc_counter_start = SDL_GetPerformanceCounter();
 
     std::memset(environment, 0, sizeof(environment));
@@ -1617,7 +1623,7 @@ s32 PS4_FUNC kernel_munmap(void* addr, size_t len) {
 
 size_t PS4_FUNC sceKernelGetDirectMemorySize() {
     log("sceKernelGetDirectMemorySize()\n");
-    //return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
+    return 5_GB;    // Stub for now, we need to get the flexible memory size from the SELF
     return 5_GB - 512_MB;   // total size - flexible mem size
 }
 
@@ -1773,7 +1779,7 @@ s32 PS4_FUNC sceKernelQueryMemoryProtection(void* addr, void** start, void** end
     }
 
     // TODO: Stubbed
-    *prot = 0x2 | 0x4 | 0x30;   // CPU RWX + GPU RW
+    *prot = 0x1 | 0x2 | 0x4 | 0x30;   // CPU RWX + GPU RW
     return SCE_OK;
 }
 
@@ -1955,12 +1961,17 @@ s32 PS4_FUNC sceKernelDlsym(SceKernelModule handle, const char* symbol, void** a
 // libc.prx HLE
 
 void* PS4_FUNC malloc(size_t size) {
-    printf("malloc\n");
-    return std::malloc(size);
+    //printf("malloc\n");
+    return allocate(SYSTEM_MAPPING_AREA, SYSTEM_MAPPING_AREA + 2000_GB, size, 1);
+}
+
+void* PS4_FUNC memalign(size_t alignment, size_t size) {
+    //printf("memalign\n");
+    return allocate(SYSTEM_MAPPING_AREA, SYSTEM_MAPPING_AREA + 2000_GB, size, alignment);
 }
 
 void PS4_FUNC free(void* ptr) {
-    printf("free\n");
+    //printf("free\n");
     std::free(ptr);
 }
 

@@ -235,8 +235,8 @@ float tcoord(float x, float y, float z) {
     if (abs_z >= abs_x && abs_z >= abs_y)
         return -y;
     else if (abs_y >= abs_x) {
-        if (y < 0.0f)  return -z;
-        else        return z;
+        if (y < 0.0f)   return -z;
+        else            return z;
     }
     else return -y;
 }
@@ -2345,6 +2345,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORD: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
@@ -2357,6 +2358,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX2: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
@@ -2370,6 +2372,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX4: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
@@ -2385,6 +2388,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX8: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
@@ -2404,6 +2408,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "S_BUFFER_LOAD_DWORDX16: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const auto offset = s_buffer_load_dword_offset(instr);
@@ -2676,7 +2681,7 @@ uint mbcntHi(uint src, uint addend) {
                 addGDS();
 
                 const auto instr_offs = ((u32)(instr.control.ds.offset1) << 8) + instr.control.ds.offset0;
-                code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(gds.data[m0 + {}], -1)", instr_offs));
+                code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(gds.data[/* m0 + */ {}], -1)", instr_offs));
                 break;
             }
 
@@ -2687,7 +2692,7 @@ uint mbcntHi(uint src, uint addend) {
                 addGDS();
 
                 const auto instr_offs = ((u32)(instr.control.ds.offset1) << 8) + instr.control.ds.offset0;
-                code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(gds.data[m0 + {}], 1)", instr_offs));
+                code += setDST<Type::Uint>(instr.dst[0], std::format("atomicAdd(gds.data[/* m0 + */ {}], 1)", instr_offs));
                 break;
             }
 
@@ -2796,6 +2801,8 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "TBUFFER_LOAD_FORMAT_XYZW: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
+
                 addFetchBufferByteFunc(buf->binding);
                 code += std::format("// DFMT: {} NFMT: {}\n", instr.control.mtbuf.dfmt, instr.control.mtbuf.nfmt);
 
@@ -2860,6 +2867,8 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_STORE_FORMAT_XYZW: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_store = true;
+
                 addStoreBufferByteFunc(buf->binding);
                 code += std::format("// DFMT: {} NFMT: {}\n", instr.control.mtbuf.dfmt, instr.control.mtbuf.nfmt);
 
@@ -2890,6 +2899,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_LOAD_DWORD: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
@@ -2911,6 +2921,7 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_STORE_DWORD: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_store = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
@@ -2929,6 +2940,8 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_ATOMIC_SWAP: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
+                buf->is_buffer_store = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
@@ -2946,6 +2959,8 @@ uint mbcntHi(uint src, uint addend) {
                 const auto buffer_mapping = pc;
                 Helpers::debugAssert(buffer_map.contains(buffer_mapping), "BUFFER_ATOMIC_ADD: no buffer_mapping");  // Unreachable if everything works as intended
                 auto* buf = buffer_map[buffer_mapping];
+                buf->is_buffer_read = true;
+                buf->is_buffer_store = true;
 
                 const auto ssbo_name = std::format("ssbo{}", buf->binding);
                 const std::string idx = instr.control.mubuf.idxen ? getSRC<Type::Uint>(instr.src[0]) : "0";
@@ -3410,13 +3425,13 @@ template VSharp* DescriptorLocation::asPtr<VSharp>(u32* regs);
 template TSharp* DescriptorLocation::asPtr<TSharp>(u32* regs);
 
 void decompileShader(u32* data, ShaderStage stage, ShaderData& out_data, FetchShader* fetch_shader, ComputeJob* compute_job, u32* regs) {
-    std::ofstream out;
+    //std::ofstream out;
     //if (stage == ShaderStage::Vertex) {
-    //if (out_data.hash == 0xa99e0e76b6930e37) {
-      out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
-      out.write((char*)data, 16_KB);
-      out.close();
-    //std::_Exit(0);
+    //if (out_data.hash == 0x93628746a7d061fb) {
+    //    out.open(std::format("{:x}.bin", out_data.hash), std::ios::binary);
+    //    out.write((char*)data, 16_KB);
+    //    out.close();
+    //    std::_Exit(0);
     //}
 
     Shader::GcnDecodeContext decoder;
@@ -3532,6 +3547,8 @@ bool v_cmp_class_f32(float x, uint mask) {
         
         auto sgpr = 2;  // TODO: This is not always right
 
+        state.getVGPR(4);
+        main += "v4 = f2u(gl_FragCoord.z);\n";
         state.getVGPR(5);
         main += "v5 = uint(gl_FrontFacing);\n";
 

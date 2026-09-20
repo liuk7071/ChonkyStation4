@@ -92,6 +92,7 @@ struct SceVideoOutPort : SceObj {
     Libs::Kernel::EventSource flip_ev_source;
     Libs::Kernel::EventSource vblank_ev_source;
 	SceVideoOutResolutionStatus resolution_status;
+    std::mutex flip_status_mtx;
     std::thread vblank_thread;
     std::mutex vblank_mtx;
     std::atomic<bool> vblank = false;

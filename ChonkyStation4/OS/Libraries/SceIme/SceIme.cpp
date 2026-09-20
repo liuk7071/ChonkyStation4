@@ -13,6 +13,10 @@ void init(Module& module) {
     module.addSymbolExport("-4GCfYdNF1s", "sceImeUpdate", "libSceIme", "libSceIme", (void*)&sceImeUpdate);
     module.addSymbolExport("TmVP8LzcFcY", "sceImeClose", "libSceIme", "libSceIme", (void*)&sceImeClose);
     
+    module.addSymbolExport("NUeBrN7hzf0", "sceImeDialogInit", "libSceImeDialog", "libSceImeDialog", (void*)&sceImeDialogInit);
+    module.addSymbolExport("IADmD4tScBY", "sceImeDialogGetStatus", "libSceImeDialog", "libSceImeDialog", (void*)&sceImeDialogGetStatus);
+    module.addSymbolExport("gyTyVn+bXMw", "sceImeDialogTerm", "libSceImeDialog", "libSceImeDialog", (void*)&sceImeDialogTerm);
+    
     module.addSymbolStub("uTW+63goeJs", "InitializeImeModule", "libSceIme", "libSceIme");
     module.addSymbolStub("eaFXjfJv3xs", "sceImeKeyboardOpen", "libSceIme", "libSceIme");
     module.addSymbolStub("WmYDzdC4EHI", "sceImeParamInit", "libSceIme", "libSceIme");
@@ -21,9 +25,12 @@ void init(Module& module) {
     module.addSymbolStub("ieCNrVrzKd4", "sceImeSetText", "libSceIme", "libSceIme");
     module.addSymbolStub("WLxUN2WMim8", "sceImeSetCaret", "libSceIme", "libSceIme");
     module.addSymbolStub("TXYHFRuL8UY", "sceImeSetTextGeometry", "libSceIme", "libSceIme");
+
+    // libSceImeDialog
+    module.addSymbolStub("x01jxu+vxlc", "sceImeDialogGetResult", "libSceImeDialog", "libSceImeDialog", 0);
 }
 
-std::atomic<bool> opened;
+std::atomic<bool> opened = false;
 SceImeParam ime_param;
 
 s32 PS4_FUNC sceImeOpen(const SceImeParam* param, const SceImeParamExtended* extended_param) {
@@ -57,7 +64,6 @@ s32 PS4_FUNC sceImeUpdate(SceImeEventHandler handler) {
     event.param.text.text_areas[0].mode   = SceImeTextAreaMode::SCE_IME_TEXT_AREA_MODE_EDIT;
     event.param.text.text_areas[0].index  = 0;
     event.param.text.text_areas[0].length = 6;
-
     handler(ime_param.arg, &event);
 
     event.id = SceImeEventId::SCE_IME_EVENT_PRESS_ENTER;
@@ -72,6 +78,45 @@ s32 PS4_FUNC sceImeClose() {
         return SCE_IME_ERROR_NOT_OPENED;
 
     opened = false;
+    return SCE_OK;
+}
+
+std::atomic<bool> dialog_opened = false;
+SceImeDialogParam ime_dialog_param;
+SceImeDialogStatus status = SCE_IME_DIALOG_STATUS_NONE;
+
+s32 PS4_FUNC sceImeDialogInit(const SceImeDialogParam* param, const SceImeParamExtended* extended_param) {
+    log("sceImeDialogInit(param=*%p, extended_param=*%p)\n", param, extended_param);
+
+    if (dialog_opened)
+        return SCE_IME_ERROR_BUSY;
+
+    opened = true;
+    ime_dialog_param = *param;
+    status = SCE_IME_DIALOG_STATUS_RUNNING;
+    
+    std::wcsncpy(ime_dialog_param.input_text_buffer, L"Chonky", ime_dialog_param.max_text_len);
+    return SCE_OK;
+}
+
+SceImeDialogStatus PS4_FUNC sceImeDialogGetStatus() {
+    log("sceImeDialogGetStatus()\n");
+
+    auto old_status = status;
+
+    if (status == SCE_IME_DIALOG_STATUS_RUNNING)
+        status = SCE_IME_DIALOG_STATUS_FINISHED;
+    
+    return old_status;
+}
+
+s32 PS4_FUNC sceImeDialogTerm() {
+    log("sceImeDialogTerm()\n");
+
+    if (status != SCE_IME_DIALOG_STATUS_FINISHED)
+        Helpers::panic("sceImeDialogTerm: status was not SCE_IME_DIALOG_STATUS_FINISHED\n");
+
+    status = SCE_IME_DIALOG_STATUS_NONE;
     return SCE_OK;
 }
 

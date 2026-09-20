@@ -32,6 +32,7 @@ void init(Module& module) {
     module.addSymbolExport("Q4qBuN-c0ZM", "sceNetSocket", "libSceNet", "libSceNet", (void*)&sceNetSocket);
     module.addSymbolExport("bErx49PgxyY", "sceNetBind", "libSceNet", "libSceNet", (void*)&sceNetBind);
     module.addSymbolExport("OXXX4mUk3uk", "sceNetConnect", "libSceNet", "libSceNet", (void*)&sceNetConnect);
+    module.addSymbolExport("PIWqhn9oSxc", "sceNetAccept", "libSceNet", "libSceNet", (void*)&sceNetAccept);
     module.addSymbolExport("gvD1greCu0A", "sceNetSendto", "libSceNet", "libSceNet", (void*)&sceNetSendto);
     module.addSymbolExport("304ooNZxWDY", "sceNetRecvfrom", "libSceNet", "libSceNet", (void*)&sceNetRecvfrom);
     module.addSymbolExport("beRjXBn-z+o", "sceNetSend", "libSceNet", "libSceNet", (void*)&sceNetSend);
@@ -62,7 +63,6 @@ void init(Module& module) {
     module.addSymbolStub("dgJBaeJnGpo", "sceNetPoolCreate", "libSceNet", "libSceNet", 1);
     module.addSymbolStub("kJlYH5uMAWI", "sceNetResolverDestroy", "libSceNet", "libSceNet");
     module.addSymbolStub("K7RlrTkI-mw", "sceNetPoolDestroy", "libSceNet", "libSceNet");
-    module.addSymbolStub("PIWqhn9oSxc", "sceNetAccept", "libSceNet", "libSceNet");
     module.addSymbolStub("2mKX2Spso7I", "sceNetSetsockopt", "libSceNet", "libSceNet");
     module.addSymbolStub("kOj1HiAGE54", "sceNetListen", "libSceNet", "libSceNet");
     module.addSymbolStub("9wO9XrMsNhc", "sceNetRecv", "libSceNet", "libSceNet");
@@ -329,6 +329,15 @@ s32 PS4_FUNC sceNetConnect(SceNetId s, const SceNetSockaddr* addr, SceNetSocklen
         break;
     }
     }
+
+    return SCE_OK;
+}
+
+s32 PS4_FUNC sceNetAccept(SceNetId s, SceNetSockaddr* addr, SceNetSocklen addr_len) {
+    log("sceNetAccept(s=%d, addr=*%p, addr_len=%d)\n", s, addr, addr_len);
+
+    // Block forever
+    while (true) std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     return SCE_OK;
 }

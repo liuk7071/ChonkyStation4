@@ -72,6 +72,16 @@ void gcnThread() {
             if (!port) {
                 Helpers::panic("gcn thread flip: handle %d does not exist\n", cmd.video_out_handle);
             }
+
+            {
+                auto lk = std::unique_lock<std::mutex>(port->flip_status_mtx);
+                if (port->flip_status.n_pending <= 0)
+                    Helpers::panic("Flip: flip_status.n_pending <= 0\n");
+                port->flip_status.n_pending--;
+                //printf("flip pending after flip: %d\n", port->flip_status.n_pending);
+
+                port->flip_status.curr_buf_idx = cmd.buf_idx;
+            }
             
             if (cmd.buf_idx == -1) {
                 Helpers::panic("Flip: buf_idx is -1\n");
@@ -262,6 +272,9 @@ void submitCompute(u32* cb, size_t cb_size, ComputeQueue* queue) {
 }
 
 void submitFlip(u32 video_out_handle, u32 buf_idx, u64 flip_arg) {
+    auto* port = OS::find<OS::Libs::SceVideoOut::SceVideoOutPort>(video_out_handle);
+    port->flip_status.n_pending++;
+
     submitRendererCommand({ CommandType::Flip, .video_out_handle = video_out_handle, .buf_idx = buf_idx, .flip_arg = flip_arg });
 }
 

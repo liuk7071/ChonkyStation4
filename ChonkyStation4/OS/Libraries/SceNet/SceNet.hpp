@@ -84,6 +84,7 @@ const char* PS4_FUNC sceNetInetNtop(int af, const void* src, char* dst, u32 size
 SceNetId PS4_FUNC sceNetSocket(const char* name, s32 family, s32 type, s32 protocol);
 s32 PS4_FUNC sceNetBind(SceNetId s, const SceNetSockaddr* addr, SceNetSocklen addr_len);
 s32 PS4_FUNC sceNetConnect(SceNetId s, const SceNetSockaddr* addr, SceNetSocklen addr_len);
+s32 PS4_FUNC sceNetAccept(SceNetId s, SceNetSockaddr* addr, SceNetSocklen addr_len);
 s32 PS4_FUNC sceNetSendto(SceNetId s, const void* buf, size_t len, s32 flags, const SceNetSockaddr* addr, SceNetSocklen addr_len);
 s32 PS4_FUNC sceNetRecvfrom(SceNetId s, void* buf, size_t len, s32 flags, SceNetSockaddr* addr, SceNetSocklen* addr_len);
 s32 PS4_FUNC sceNetSend(SceNetId s, const void* buf, size_t len, int flags);

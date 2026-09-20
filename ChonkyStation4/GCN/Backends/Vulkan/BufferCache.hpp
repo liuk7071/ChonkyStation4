@@ -13,7 +13,7 @@ inline size_t page_size = 0;
 inline u32    page_bits = 0;
 
 void init();
-std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size);
+std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size, bool ignore_dirty = false);
 void barrier();
 std::pair<vk::Buffer, void*> getMappedBufferForFrame(size_t size);
 void track(void* base, size_t size, std::function<void(uptr)> callback);

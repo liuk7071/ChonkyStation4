@@ -235,11 +235,6 @@ std::shared_ptr<Module> buildHLEModule() {
     // libSceInvitationDialog
     module->addSymbolStub("9+g9iOq+7kg", "sceInvitationDialogUpdateStatus", "libSceInvitationDialog", "libSceInvitationDialog", 0);
     
-    // libSceImeDialog
-    module->addSymbolStub("NUeBrN7hzf0", "sceImeDialogInit", "libSceImeDialog", "libSceImeDialog", 0);
-    module->addSymbolStub("x01jxu+vxlc", "sceImeDialogGetResult", "libSceImeDialog", "libSceImeDialog", 0);
-    module->addSymbolStub("IADmD4tScBY", "sceImeDialogGetStatus", "libSceImeDialog", "libSceImeDialog", 0);
-    
     // libSceWebBrowserDialog
     module->addSymbolStub("h1dR-t5ISgg", "sceWebBrowserDialogUpdateStatus", "libSceWebBrowserDialog", "libSceWebBrowserDialog", 3);
     module->addSymbolStub("CFTG6a8TjOU", "sceWebBrowserDialogGetStatus", "libSceWebBrowserDialog", "libSceWebBrowserDialog", 0);

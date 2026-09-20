@@ -226,6 +226,7 @@ s32 PS4_FUNC sceVideoOutGetFlipStatus(s32 handle, SceVideoOutFlipStatus* status)
         Helpers::panic("sceVideoOutGetFlipStatus: handle %d does not exist\n", handle);
     }
 
+    auto lk = std::unique_lock<std::mutex>(port->flip_status_mtx);
     *status = port->flip_status;
     return SCE_OK;
 }

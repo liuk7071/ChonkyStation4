@@ -171,7 +171,7 @@ void init() {
         allocations.reserve(10000);
 }
 
-void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0) {
+void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0, bool dont_copy = false) {
     //Profiler::Scope profiler("updateBuffer");
     auto& staging_vk_buf    = buf->staging_buf;
     auto& vk_buf            = buf->buf;
@@ -197,8 +197,8 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0
         alloc_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
         VkBuffer raw_buf;
         VmaAllocationInfo info = {};
-        if (vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &staging_alloc, &info) != VK_SUCCESS)
-            Helpers::panic("copy_region: vmaCreateBuffer failed\n");
+        if (auto ret = vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &staging_alloc, &info))
+            Helpers::panic("copy_region: vmaCreateBuffer failed with error %d (size was %lld bytes, %f mb)\n", ret, size, (float)size / 1_MB);
 
         staging_vk_buf = vk::Buffer(raw_buf);
 
@@ -232,15 +232,20 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0
             .sharingMode = vk::SharingMode::eExclusive
         };
 
-        VmaAllocationCreateInfo alloc_create_info = { .pool = device_vma_pool };
+        VmaAllocationCreateInfo alloc_create_info = { };
+        if (buf->size < 1_GB)
+            alloc_create_info.pool = device_vma_pool;
         alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
         alloc_create_info.flags = 0;
         VkBuffer raw_buf;
-        vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr);
+        if (auto ret = vmaCreateBuffer(allocator, &*buf_create_info, &alloc_create_info, &raw_buf, &alloc, nullptr)) {
+            Helpers::panic("updateBuffer: failed to create device buffer with error %d (size was %lld bytes, %f mb)\n", ret, buf->size, (float)buf->size / 1_MB);
+        }
         vk_buf = vk::Buffer(raw_buf);
         
         // Copy and protect the whole buffer
-        copy_region(buf->base, 0, buf->size, vk_buf);
+        if (!dont_copy)
+            copy_region(buf->base, 0, buf->size, vk_buf);
         for (int i = 0; i < buf->page_end - buf->page; i++) {
             buf->protect(i);
         }
@@ -267,7 +272,8 @@ void updateBuffer(CachedBuffer* buf, bool recreate_vk_buf, u64 starting_page = 0
 
             const size_t page_end = page;
             const size_t size = (page_end - page_start) << page_bits;
-            copy_region(buf->base, page_start << page_bits, size, vk_buf);
+            if (!dont_copy)
+                copy_region(buf->base, page_start << page_bits, size, vk_buf);
         }
     }
     
@@ -307,7 +313,7 @@ void deleteBuf(CachedBuffer* buf) {
     delete buf;
 }
 
-std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
+std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size, bool ignore_dirty) {
     //Profiler::Scope profiler("getBuffer");
     const uptr   aligned_base   = Helpers::alignDown<uptr>((uptr)base, page_size);
     const uptr   aligned_end    = Helpers::alignUp<uptr>((uptr)base + size, page_size);
@@ -334,7 +340,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
                 if (size_changed) {
                     buf->page_end = page_end;
                     buf->size = (page_end - buf->page) << page_bits;
-                    
+
                     // Update page table
                     for (int i = 0; i < buf->page_end - buf->page; i++) {
                         auto it = cache.find(buf->page + i);
@@ -342,12 +348,12 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
                             deleteBuf(it->second);
                         cache[buf->page + i] = buf;
                     }
-                    
+
                     buf->dirty_pages.resize(buf->page_end - buf->page);
                     //buf->last_used_page_frame.resize(buf->page_end - buf->page);
                 }
 
-                updateBuffer(buf, size_changed);    // Will re-protect dirty pages
+                updateBuffer(buf, size_changed, 0, ignore_dirty);    // Will re-protect dirty pages
                 buf->dirty = false;
                 std::fill(buf->dirty_pages.begin(), buf->dirty_pages.end(), false); // DONT .clear(), because that resets the size to 0
             }
@@ -404,7 +410,7 @@ std::tuple<vk::Buffer, size_t, bool> getBuffer(void* base, size_t size) {
     // and the kernel's exception handling stuff ends up corrupting it (it pushes data on the same stack as the faulting instruction).
     // As a workaround, for buffers smaller than 1 page we fallback to hashing to reduce the chances of hitting exceptions near red zone code.
     // There is no fix for this because the corruption happens before my exception handler is even called.
-    updateBuffer(buf, true);
+    updateBuffer(buf, true, 0, ignore_dirty);
     return { buf->buf, (uptr)base - (uptr)buf->base, true };
 }
 

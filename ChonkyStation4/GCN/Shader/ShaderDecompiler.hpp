@@ -54,6 +54,8 @@ struct Buffer {
     DescriptorLocation desc_info;
     bool is_image_store = false;
     bool is_instr_typed = false;
+    bool is_buffer_read = false;
+    bool is_buffer_store = false;
     u32 instr_dfmt = 0;
     u32 instr_nfmt = 0;
 };

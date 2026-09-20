@@ -22,9 +22,11 @@ class Thread {
 public:
     Thread() {
         tid = next_tid++;
+        thread = (pthread_t*)OS::Libs::Kernel::malloc(sizeof(pthread_t));
     }
     Thread(const std::string& name) : name(name) {
         tid = next_tid++;
+        thread = (pthread_t*)OS::Libs::Kernel::malloc(sizeof(pthread_t));
     }
     std::string name;
 
@@ -35,10 +37,10 @@ public:
     size_t tls_size = 0;
     pthread_attr_t attr;
 
-    pthread_t& getPThread() { return thread; }
+    pthread_t& getPThread() { return *thread; }
     s32        getTID()     { return tid;    }
 private:
-    pthread_t thread;
+    pthread_t* thread;
     s32 tid;
 };
 

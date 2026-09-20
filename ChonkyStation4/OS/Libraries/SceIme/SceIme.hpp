@@ -132,10 +132,39 @@ struct SceImeParam {
     s8 reserved[8];
 };
 
+struct SceImeDialogParam {
+    SceUserService::SceUserServiceUserId userId;
+    SceImeType type;
+    u64 supported_languages;
+    SceImeEnterLabel enter_label;
+    SceImeInputMethod input_method;
+    SceImeTextFilter filter;
+    u32 option;
+    u32 max_text_len;
+    wchar_t* input_text_buffer;
+    float pos_x;
+    float pos_y;
+    SceImeHorizontalAlignment horizontal_align;
+    SceImeVerticalAlignment vertical_align;
+    const wchar_t* placeholder;
+    const wchar_t* title;
+    s8 reserved[16];
+};
+
 struct SceImeParamExtended;
+
+enum SceImeDialogStatus {
+    SCE_IME_DIALOG_STATUS_NONE,
+    SCE_IME_DIALOG_STATUS_RUNNING,
+    SCE_IME_DIALOG_STATUS_FINISHED
+};
 
 s32 PS4_FUNC sceImeOpen(const SceImeParam* param, const SceImeParamExtended* extended_param);
 s32 PS4_FUNC sceImeUpdate(SceImeEventHandler handler);
 s32 PS4_FUNC sceImeClose();
+
+s32 PS4_FUNC sceImeDialogInit(const SceImeDialogParam* param, const SceImeParamExtended* extended_param);
+SceImeDialogStatus PS4_FUNC sceImeDialogGetStatus();
+s32 PS4_FUNC sceImeDialogTerm();
 
 }   // End namespace PS4::OS::Libs::SceIme

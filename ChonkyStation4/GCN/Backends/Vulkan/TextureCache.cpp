@@ -162,7 +162,8 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
 
             detiled_buf = std::make_unique<u8[]>(out_size);
             GpaError err = gpaTileTextureAll(ptr, in_size, detiled_buf.get(), out_size, &tex_info, GNM_TM_DISPLAY_LINEAR_GENERAL);
-            if (err != 0) Helpers::panic("gpaTileTextureAll failed with error %d\n", err);
+            //if (err != 0) Helpers::panic("gpaTileTextureAll failed with error %d\n", err);
+            if (err != 0) printf("gpaTileTextureAll failed with error %d\n", err);
             img_ptr = detiled_buf.get();
             pitch = width;
             img_size = out_size;
@@ -407,9 +408,9 @@ void getVulkanImageInfoForTSharp(TSharp* tsharp, TrackedTexture** out_info, bool
         .mipmapMode = vk::SamplerMipmapMode::eLinear,
 
         // Hack for Tomb Raider, fix when I implement samplers
-        .addressModeU = (width == 256) || (width == 33 && height == 33 && depth == 33) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
-        .addressModeV = (width == 256) || (width == 33 && height == 33 && depth == 33) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
-        .addressModeW = (width == 256) || (width == 33 && height == 33 && depth == 33) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeU = (width == 256) || (width == 33 && height == 33 && depth == 33) || (width == 1025 && height == 1) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeV = (width == 256) || (width == 33 && height == 33 && depth == 33) || (width == 1025 && height == 1) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
+        .addressModeW = (width == 256) || (width == 33 && height == 33 && depth == 33) || (width == 1025 && height == 1) ? vk::SamplerAddressMode::eClampToEdge : vk::SamplerAddressMode::eRepeat,
 
         .minLod = 0.0f,
         .maxLod = (float)(n_mips - 1),
