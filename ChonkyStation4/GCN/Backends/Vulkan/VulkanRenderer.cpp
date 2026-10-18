@@ -1142,16 +1142,18 @@ void VulkanRenderer::flip(OS::Libs::SceVideoOut::SceVideoOutBuffer* buf) {
             }
 
             case SDL_CONTROLLERDEVICEADDED: {
-                if (!PS4::OS::Libs::ScePad::controller) {
-                    PS4::OS::Libs::ScePad::controller = SDL_GameControllerOpen(e.cdevice.which);
-                }
+//                 if (!PS4::OS::Libs::ScePad::controller) {
+//                     PS4::OS::Libs::ScePad::controller = SDL_GameControllerOpen(e.cdevice.which);
+//                 }
+                PS4::OS::Libs::ScePad::controllerAdded(e.cdevice.which);
                 break;
             }
             case SDL_CONTROLLERDEVICEREMOVED: {
-                if (PS4::OS::Libs::ScePad::controller && e.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(PS4::OS::Libs::ScePad::controller))) {
-                    SDL_GameControllerClose(PS4::OS::Libs::ScePad::controller);
-                    PS4::OS::Libs::ScePad::controller = nullptr;
-                }
+//                 if (PS4::OS::Libs::ScePad::controller && e.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(PS4::OS::Libs::ScePad::controller))) {
+//                     SDL_GameControllerClose(PS4::OS::Libs::ScePad::controller);
+//                     PS4::OS::Libs::ScePad::controller = nullptr;
+//                 }
+                PS4::OS::Libs::ScePad::controllerRemoved(e.cdevice.which);
                 break;
             }
             }
@@ -1253,4 +1255,5 @@ void VulkanRenderer::fillGDS(size_t offset, u8 value, size_t size) {
     );
 }
 
+// }   // End namespace PS4::GCN::Vulkan
 }   // End namespace PS4::GCN::Vulkan

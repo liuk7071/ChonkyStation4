@@ -2,11 +2,17 @@
 #include <Logger.hpp>
 #include <Loaders/Module.hpp>
 #include <OS/Libraries/SceUserService/SceUserService.hpp>
+#include <algorithm>
+#include <mutex>
 
 
 namespace PS4::OS::Libs::ScePad {
 
 MAKE_LOG_FUNCTION(log, lib_scePad);
+
+static std::mutex pad_mutex;
+static SDL_GameController* controller = nullptr;
+static bool ui_opened = false;
 
 void init(Module& module) {
     module.addSymbolExport("hv1luiJrqQM", "scePadInit", "libScePad", "libScePad", (void*)&scePadInit);
@@ -17,6 +23,10 @@ void init(Module& module) {
     module.addSymbolExport("RR4novUEENY", "scePadSetLightBar", "libScePad", "libScePad", (void*)&scePadSetLightBar);
     module.addSymbolExport("yFVnOdGxvZY", "scePadSetVibration", "libScePad", "libScePad", (void*)&scePadSetVibration);
     module.addSymbolExport("6ncge5+l5Qs", "scePadClose", "libScePad", "libScePad", (void*)&scePadClose);
+    module.addSymbolExport("d7bXuEBycDI", "scePadDeviceOpen", "libScePad", "libScePad", (void*)&scePadDeviceOpen);
+    module.addSymbolExport("FYqcaosYiIo", "scePadUiReadState", "libScePad", "libScePad", (void*)&scePadUiReadState);
+    module.addSymbolExport("qtasqbvwgV4", "scePadGetCapability", "libScePad", "libScePad", (void*)&scePadGetCapability);
+    module.addSymbolExport("iOqpYvGEo6A", "scePadSetUserNumber", "libScePad", "libScePad", (void*)&scePadSetUserNumber);
     
     module.addSymbolStub("DscD1i9HX1w", "scePadResetLightBar", "libScePad", "libScePad");
     module.addSymbolStub("rIZnR6eSpvk", "scePadResetOrientation", "libScePad", "libScePad");
@@ -25,7 +35,7 @@ void init(Module& module) {
     module.addSymbolStub("r44mAxdSG+U", "scePadSetAngularVelocityDeadbandState", "libScePad", "libScePad");
     module.addSymbolStub("DmBx8K+jDWw", "scePadSetProcessPrivilege", "libScePad", "libScePad");
     module.addSymbolStub("kiA9bZhbnAg", "scePadGetIdleCount", "libScePad", "libScePad");
-    module.addSymbolStub("qtasqbvwgV4", "scePadGetCapability", "libScePad", "libScePad");
+//     module.addSymbolStub("qtasqbvwgV4", "scePadGetCapability", "libScePad", "libScePad");
 }
 
 ScePadData pad_state;
@@ -38,6 +48,19 @@ SDL_GameController* findController() {
     }
 
     return nullptr;
+}
+
+void controllerAdded(s32 index) {
+    std::lock_guard lock(pad_mutex);
+    if (!controller && SDL_IsGameController(index)) controller = SDL_GameControllerOpen(index);
+}
+
+void controllerRemoved(s32 instance_id) {
+    std::lock_guard lock(pad_mutex);
+    if (controller && instance_id == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))) {
+        SDL_GameControllerClose(controller);
+        controller = nullptr;
+    }
 }
 
 void clearState() {
@@ -77,9 +100,11 @@ void setStickYWithDeadzone(ScePadAnalogStick& stick, float val) {
 }
 
 void pollPads() {
+    std::lock_guard lock(pad_mutex);
     auto* keys = SDL_GetKeyboardState(nullptr);
 
     clearState();
+    if (keys[SDL_SCANCODE_F8]) pressButton(SCE_PAD_BUTTON_PS);
 
     if (!controller) {
         if (keys[SDL_SCANCODE_LEFT])    pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_LEFT);
@@ -114,6 +139,7 @@ void pollPads() {
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSTICK))       pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_L3);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSTICK))      pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_R3);
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_TOUCHPAD))        pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_TOUCH_PAD);
+        if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_GUIDE))           pressButton(SCE_PAD_BUTTON_PS);
         float left_x  = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX)  / 32767.0f;
         float left_y  = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY)  / 32767.0f;
         float right_x = (float)SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX) / 32767.0f;
@@ -128,13 +154,17 @@ void pollPads() {
         if (pad_state.analog_buttons.r2 > 220) pressButton(ScePadButtonDataOffset::SCE_PAD_BUTTON_R2);
     }
 
-    pad_state.timestamp = SDL_GetTicks64();
+//     pad_state.timestamp = SDL_GetTicks64();
+
+    pad_state.timestamp = SDL_GetTicks64() * 1000;
 }
 
 s32 PS4_FUNC scePadInit() {
     log("scePadInit()\n");
     
-    controller = findController();
+//     controller = findController();
+    std::lock_guard lock(pad_mutex);
+    if (!controller) controller = findController();
     std::memset(&pad_state, 0, sizeof(ScePadData));
     pad_state.connected = true;
     pad_state.connected_count = 1;
@@ -148,6 +178,7 @@ s32 PS4_FUNC scePadInit() {
 bool opened = false;
 
 s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param) {
+    std::lock_guard lock(pad_mutex);
     log("scePadOpen(uid=%d, type=%d, idx=%d, param=*%p)\n", uid, type, idx, param);
 
     if (uid == Libs::SceUserService::SCE_USER_SERVICE_USER_ID_INVALID)
@@ -165,23 +196,62 @@ s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param
 }
 
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data) {
+    std::lock_guard lock(pad_mutex);
     log("scePadReadState(handle=%d, data=*%p)\n", handle, data);
     if (handle != 1) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (!data) return SCE_PAD_ERROR_INVALID_ARG;
 
     *data = pad_state;
     return SCE_OK;
 }
 
 s32 PS4_FUNC scePadRead(s32 handle, ScePadData* data, s32 num) {
+    std::lock_guard lock(pad_mutex);
     log("scePadRead(handle=%d, data=*%p, num=%d)\n", handle, data, num);
-    //if (handle != 1) return SCE_PAD_ERROR_INVALID_HANDLE;
+//     //if (handle != 1) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (handle != 1) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (!data || num <= 0) return SCE_PAD_ERROR_INVALID_ARG;
 
     // TODO: We just return the current state
     *data = pad_state;
     return 1;
 }
 
+s32 PS4_FUNC scePadDeviceOpen(u64 id, s32 type, s32 index) {
+    if (id != device_id) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (type != 0 || index != 0) return SCE_PAD_ERROR_INVALID_ARG;
+    std::lock_guard lock(pad_mutex);
+    ui_opened = true;
+    return 1;
+}
+
+s32 PS4_FUNC scePadGetCapability(u64 id, u32* capability) {
+    if (id != device_id) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (!capability) return SCE_PAD_ERROR_INVALID_ARG;
+    *capability = 0x1f;
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePadSetUserNumber(s32 id, s32 number) {
+    if (id != device_id) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (number < 1 || number > 5) return SCE_PAD_ERROR_INVALID_ARG;
+    std::lock_guard lock(pad_mutex);
+    if (controller) SDL_GameControllerSetPlayerIndex(controller, number - 1);
+    return SCE_OK;
+}
+
+s32 PS4_FUNC scePadUiReadState(s32 handle, ScePadUiData* data) {
+    std::lock_guard lock(pad_mutex);
+    if (handle != 1 || !ui_opened) return SCE_PAD_ERROR_INVALID_HANDLE;
+    if (!data) return SCE_PAD_ERROR_INVALID_ARG;
+    std::memset(data, 0, sizeof(*data));
+    std::memcpy(data, &pad_state, 88);
+    data->connected_count = pad_state.connected_count;
+    return SCE_OK;
+}
+
 s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info) {
+    if (!info) return SCE_PAD_ERROR_INVALID_ARG;
     log("scePadGetControllerInformation(handle=%d, info=*%p)\n", handle, info);
 
     info->touchpad_info.pixel_density = 1;
@@ -197,6 +267,8 @@ s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformat
 }
 
 s32 PS4_FUNC scePadSetLightBar(s32 handle, const ScePadLightBarParam* param) {
+    if (!param) return SCE_PAD_ERROR_INVALID_ARG;
+    std::lock_guard lock(pad_mutex);
     log("scePadSetLightBar(handle=%d, param=*%p)\n", handle, param);
 
     if (controller)
@@ -205,6 +277,8 @@ s32 PS4_FUNC scePadSetLightBar(s32 handle, const ScePadLightBarParam* param) {
 }
 
 s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param) {
+    if (!param) return SCE_PAD_ERROR_INVALID_ARG;
+    std::lock_guard lock(pad_mutex);
     log("scePadSetVibration(handle=%d, param=*%p)\n", handle, param);
 
     if (controller)
@@ -213,6 +287,7 @@ s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param) {
 }
 
 s32 PS4_FUNC scePadClose(s32 handle) {
+    std::lock_guard lock(pad_mutex);
     log("scePadClose(handle=%d)\n", handle);
 
     if (!opened) {
@@ -224,4 +299,5 @@ s32 PS4_FUNC scePadClose(s32 handle) {
     return SCE_OK;
 }
 
+// }   // End namespace PS4::OS::Libs::ScePad
 }   // End namespace PS4::OS::Libs::ScePad

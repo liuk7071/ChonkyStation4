@@ -2,6 +2,7 @@
 
 #include <Common.hpp>
 #include <SDL.h>
+#include <cstddef>
 
 
 class Module;
@@ -10,9 +11,12 @@ namespace PS4::OS::Libs::ScePad {
 
 void init(Module& module);
 
-inline SDL_GameController* controller;
+// inline SDL_GameController* controller;
+
+inline constexpr u64 device_id = 1;
 
 static constexpr s32 SCE_PAD_ERROR_INVALID_HANDLE = 0x80920003;
+static constexpr s32 SCE_PAD_ERROR_INVALID_ARG = 0x80920001;
 static constexpr s32 SCE_PAD_ERROR_ALREADY_OPENED = 0x80920004;
 
 static constexpr s32 SCE_PAD_MAX_TOUCH_NUM = 2;
@@ -35,6 +39,7 @@ enum ScePadButtonDataOffset {
     SCE_PAD_BUTTON_CIRCLE       = 0x00002000,
     SCE_PAD_BUTTON_CROSS        = 0x00004000,
     SCE_PAD_BUTTON_SQUARE       = 0x00008000,
+    SCE_PAD_BUTTON_PS           = 0x00010000,
     SCE_PAD_BUTTON_TOUCH_PAD    = 0x00100000,
     SCE_PAD_BUTTON_INTERCEPTED  = 0x80000000,
 };
@@ -96,6 +101,16 @@ struct ScePadData {
     u8 device_unique_data_len;
     u8 device_unique_data[SCE_PAD_MAX_DEVICE_UNIQUE_DATA_SIZE];
 };
+static_assert(offsetof(ScePadData, timestamp) == 80);
+static_assert(offsetof(ScePadData, connected_count) == 104);
+
+
+struct ScePadUiData {
+    u8 common_prefix[77];
+    u8 connected_count;
+    u8 reserved[34];
+};
+static_assert(sizeof(ScePadUiData) == 112);
 
 enum class ScePadDeviceClass {
     SCE_PAD_DEVICE_CLASS_INVALID = -1,
@@ -153,14 +168,21 @@ struct ScePadVibrationParam {
 void clearButtons();
 void pressButton(ScePadButtonDataOffset button);
 void pollPads();
+void controllerAdded(s32 index);
+void controllerRemoved(s32 instance_id);
 
 s32 PS4_FUNC scePadInit();
 s32 PS4_FUNC scePadOpen(s32 uid, s32 type, s32 idx, const ScePadOpenParam* param);
 s32 PS4_FUNC scePadReadState(s32 handle, ScePadData* data);
 s32 PS4_FUNC scePadRead(s32 handle, ScePadData* data, s32 num);
+s32 PS4_FUNC scePadDeviceOpen(u64 device_id, s32 type, s32 index);
+s32 PS4_FUNC scePadGetCapability(u64 device_id, u32* capability);
+s32 PS4_FUNC scePadSetUserNumber(s32 device_id, s32 number);
+s32 PS4_FUNC scePadUiReadState(s32 handle, ScePadUiData* data);
 s32 PS4_FUNC scePadGetControllerInformation(s32 handle, ScePadControllerInformation* info);
 s32 PS4_FUNC scePadSetLightBar(s32 handle, const ScePadLightBarParam* param);
 s32 PS4_FUNC scePadSetVibration(s32 handle, const ScePadVibrationParam* param);
 s32 PS4_FUNC scePadClose(s32 handle);
 
+// }   // End namespace PS4::OS::Libs::ScePad
 }   // End namespace PS4::OS::Libs::ScePad
